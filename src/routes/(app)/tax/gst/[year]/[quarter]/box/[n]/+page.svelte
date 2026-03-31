@@ -1,0 +1,74 @@
+<script lang="ts">
+	import PageShell from '$lib/components/PageShell.svelte';
+
+	let { data } = $props();
+
+	const money = (value: number) =>
+		new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' }).format(value ?? 0);
+</script>
+
+<PageShell
+	eyebrow="Tax"
+	title={`GST Box ${data.box} Details`}
+	description={`Detailed data for ${data.year} Q${data.quarter}.`}
+>
+	<a class="inline-flex text-sm text-indigo-600 hover:text-indigo-500" href={`/tax?year=${data.year}&quarter=${data.quarter}`}>
+		Back to GST summary
+	</a>
+
+	{#if data.breakdown}
+		<div class="grid gap-4 md:grid-cols-3">
+			<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+				<p class="text-sm text-slate-500">Box 6</p>
+				<p class="mt-2 text-xl font-semibold text-slate-900">{money(data.breakdown.box6)}</p>
+			</article>
+			<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+				<p class="text-sm text-slate-500">Box 7</p>
+				<p class="mt-2 text-xl font-semibold text-slate-900">{money(data.breakdown.box7)}</p>
+			</article>
+			<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+				<p class="text-sm text-slate-500">Net (Box 8)</p>
+				<p class="mt-2 text-xl font-semibold text-slate-900">{money(data.breakdown.net)}</p>
+			</article>
+		</div>
+	{:else}
+		<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+			<table class="min-w-full divide-y divide-slate-200 text-sm">
+				<thead class="bg-slate-50 text-left text-slate-600">
+					<tr>
+						<th class="px-4 py-3">ID</th>
+						<th class="px-4 py-3">Reference</th>
+						<th class="px-4 py-3">Date</th>
+						<th class="px-4 py-3">Amount</th>
+						<th class="px-4 py-3">GST</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-slate-100">
+					{#if data.invoices.length === 0}
+						<tr>
+							<td class="px-4 py-8 text-center text-slate-500" colspan="5">No records for this box.</td>
+						</tr>
+					{:else}
+						{#each data.invoices as row}
+							<tr class="hover:bg-slate-50">
+								<td class="px-4 py-3">{String(row.id ?? '--')}</td>
+								<td class="px-4 py-3">
+									{String(row.invoiceNo ?? row.supplierName ?? '--')}
+								</td>
+								<td class="px-4 py-3">
+									{String(row.date ?? row.invoiceDate ?? '--')}
+								</td>
+								<td class="px-4 py-3">
+									{money(Number(row.amount ?? 0))}
+								</td>
+								<td class="px-4 py-3">
+									{money(Number(row.gstAmount ?? 0))}
+								</td>
+							</tr>
+						{/each}
+					{/if}
+				</tbody>
+			</table>
+		</div>
+	{/if}
+</PageShell>
