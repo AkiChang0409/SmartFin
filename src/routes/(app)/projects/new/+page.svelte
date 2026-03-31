@@ -4,7 +4,7 @@
 	let { data, form } = $props();
 </script>
 
-<PageShell eyebrow="Project Management" title="创建项目" description="创建后将自动跳转到项目详情页。">
+<PageShell eyebrow="Project Management" title="Create Project" description="After submission, you will be redirected to the project detail page.">
 	<form class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" method="POST">
 		{#if form?.message}
 			<p class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{form.message}</p>
@@ -12,13 +12,13 @@
 
 		<div class="grid gap-4 md:grid-cols-2">
 			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">客户</span>
+				<span class="text-slate-700">Customer</span>
 				<select
 					name="customerId"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
 					required
 				>
-					<option value="" disabled selected>请选择客户</option>
+					<option value="" disabled selected>Select a customer</option>
 					{#each data.customers as customer}
 						<option value={customer.id}>{customer.name}</option>
 					{/each}
@@ -26,17 +26,17 @@
 			</label>
 
 			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">项目名称</span>
+				<span class="text-slate-700">Project Name</span>
 				<input
 					name="name"
 					required
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-					placeholder="例如：2026 Q2 海运贸易项目"
+					placeholder="e.g. 2026 Q2 Sea Freight Project"
 				/>
 			</label>
 
 			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">状态</span>
+				<span class="text-slate-700">Status</span>
 				<select
 					name="status"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
@@ -48,7 +48,7 @@
 			</label>
 
 			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">开始日期</span>
+				<span class="text-slate-700">Start Date</span>
 				<input
 					type="date"
 					name="startDate"
@@ -57,7 +57,7 @@
 			</label>
 
 			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">结束日期</span>
+				<span class="text-slate-700">End Date</span>
 				<input
 					type="date"
 					name="endDate"
@@ -67,21 +67,21 @@
 		</div>
 
 		<label class="block space-y-1 text-sm">
-			<span class="text-slate-700">项目描述</span>
+			<span class="text-slate-700">Project Description</span>
 			<textarea
 				name="description"
 				rows="4"
 				class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-				placeholder="可填写项目背景、目标、注意事项。"
+				placeholder="Add project background, goals, and notes."
 			></textarea>
 		</label>
 
 		<div class="flex gap-3">
 			<button class="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700" type="submit">
-				创建项目
+				Create Project
 			</button>
 			<a class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" href="/projects">
-				返回列表
+				Back to List
 			</a>
 		</div>
 	</form>

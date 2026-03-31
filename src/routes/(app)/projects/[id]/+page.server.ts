@@ -73,7 +73,7 @@ export const actions: Actions = {
 		const description = String(form.get('description') ?? '').trim();
 
 		if (!name) {
-			return fail(400, { message: '项目名称不能为空。' });
+			return fail(400, { message: 'Project name cannot be empty.' });
 		}
 
 		const db = getDb(platform.env);

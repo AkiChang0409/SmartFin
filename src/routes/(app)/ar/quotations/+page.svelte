@@ -4,10 +4,10 @@
 
 <PageShell
 	eyebrow="AR / Quotations"
-	title="报价管理"
-	description="报价归档与版本追踪将在 AR 模块迭代中接入。"
+	title="Quotation Management"
+	description="Quotation archiving and version tracking will be integrated in upcoming AR iterations."
 >
 	<div class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-		当前为 AR 子模块结构占位。
+		This AR submodule is currently a structured placeholder.
 	</div>
 </PageShell>

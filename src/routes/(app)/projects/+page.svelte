@@ -6,7 +6,7 @@
 	const statuses = ['active', 'on_hold', 'completed', 'archived'];
 </script>
 
-<PageShell eyebrow="Project Management" title="项目管理" description="管理项目主数据，并进入详情查看利润拆解。">
+<PageShell eyebrow="Project Management" title="Project Management" description="Manage project master data and open detail pages for profit breakdown.">
 	<div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<form class="flex flex-wrap gap-2" method="GET">
@@ -15,7 +15,7 @@
 					class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
 					value={data.filters.status}
 				>
-					<option value="">全部状态</option>
+					<option value="">All Statuses</option>
 					{#each statuses as status}
 						<option value={status}>{status}</option>
 					{/each}
@@ -26,7 +26,7 @@
 					class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
 					value={data.filters.customerId}
 				>
-					<option value="">全部客户</option>
+					<option value="">All Customers</option>
 					{#each data.customers as customer}
 						<option value={customer.id}>{customer.name}</option>
 					{/each}
@@ -36,7 +36,7 @@
 					type="submit"
 					class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
 				>
-					筛选
+					Filter
 				</button>
 			</form>
 
@@ -44,7 +44,7 @@
 				href="/projects/new"
 				class="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
 			>
-				创建项目
+				Create Project
 			</a>
 		</div>
 	</div>
@@ -53,18 +53,18 @@
 		<table class="min-w-full divide-y divide-slate-200 text-sm">
 			<thead class="bg-slate-50 text-left text-slate-600">
 				<tr>
-					<th class="px-4 py-3 font-medium">项目名称</th>
-					<th class="px-4 py-3 font-medium">客户</th>
-					<th class="px-4 py-3 font-medium">状态</th>
-					<th class="px-4 py-3 font-medium">开始日期</th>
-					<th class="px-4 py-3 font-medium">更新于</th>
-					<th class="px-4 py-3 font-medium">操作</th>
+					<th class="px-4 py-3 font-medium">Project Name</th>
+					<th class="px-4 py-3 font-medium">Customer</th>
+					<th class="px-4 py-3 font-medium">Status</th>
+					<th class="px-4 py-3 font-medium">Start Date</th>
+					<th class="px-4 py-3 font-medium">Updated At</th>
+					<th class="px-4 py-3 font-medium">Action</th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-100">
 				{#if data.projects.length === 0}
 					<tr>
-						<td class="px-4 py-8 text-center text-slate-500" colspan="6">暂无项目，先创建一个项目开始。</td>
+						<td class="px-4 py-8 text-center text-slate-500" colspan="6">No projects yet. Create one to get started.</td>
 					</tr>
 				{:else}
 					{#each data.projects as project}
@@ -77,7 +77,7 @@
 							<td class="px-4 py-3 text-slate-600">{project.startDate ?? '--'}</td>
 							<td class="px-4 py-3 text-slate-600">{project.updatedAt.slice(0, 10)}</td>
 							<td class="px-4 py-3">
-								<a class="text-indigo-600 hover:underline" href={`/projects/${project.id}`}>查看详情</a>
+								<a class="text-indigo-600 hover:underline" href={`/projects/${project.id}`}>View Details</a>
 							</td>
 						</tr>
 					{/each}

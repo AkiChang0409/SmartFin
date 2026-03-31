@@ -47,5 +47,58 @@ export const actions: Actions = {
 			updatedAt: new Date().toISOString()
 		});
 		return { ok: true };
+	},
+	update: async ({ params, request, platform }) => {
+		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
+		const form = await request.formData();
+		const quotationId = String(form.get('quotationId') ?? '');
+		const amount = Number.parseFloat(String(form.get('amount') ?? '0'));
+		const sourceType = String(form.get('sourceType') ?? 'manual');
+		const currency = String(form.get('currency') ?? 'SGD');
+		const date = String(form.get('date') ?? '');
+		const notes = String(form.get('notes') ?? '');
+
+		if (!quotationId) return fail(400, { message: 'Missing quotation record ID.' });
+
+		const db = getDb(platform.env);
+		await db
+			.update(schema.quotations)
+			.set({
+				sourceType,
+				amount: Number.isFinite(amount) ? amount : 0,
+				currency,
+				date: date || null,
+				metadata: notes ? JSON.stringify({ notes }) : null,
+				updatedAt: new Date().toISOString()
+			})
+			.where(
+				and(
+					eq(schema.quotations.id, quotationId),
+					eq(schema.quotations.projectId, params.id),
+					isNull(schema.quotations.deletedAt)
+				)
+			);
+		return { ok: true };
+	},
+	delete: async ({ params, request, platform }) => {
+		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
+		const form = await request.formData();
+		const quotationId = String(form.get('quotationId') ?? '');
+		if (!quotationId) return fail(400, { message: 'Missing quotation record ID.' });
+
+		const db = getDb(platform.env);
+		const now = new Date().toISOString();
+		await db
+			.update(schema.quotations)
+			.set({ deletedAt: now, updatedAt: now })
+			.where(
+				and(
+					eq(schema.quotations.id, quotationId),
+					eq(schema.quotations.projectId, params.id),
+					isNull(schema.quotations.deletedAt)
+				)
+			);
+
+		return { ok: true };
 	}
 };

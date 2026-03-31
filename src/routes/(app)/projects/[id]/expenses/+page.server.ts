@@ -35,7 +35,7 @@ export const actions: Actions = {
 		const staffName = String(form.get('staffName') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();
 
-		if (!category || !date) return fail(400, { message: '费用类别和日期必填。' });
+		if (!category || !date) return fail(400, { message: 'Expense category and date are required.' });
 
 		const db = getDb(platform.env);
 		await db.insert(schema.expenses).values({
@@ -53,6 +53,64 @@ export const actions: Actions = {
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		});
+		return { ok: true };
+	},
+	update: async ({ params, request, platform }) => {
+		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
+		const form = await request.formData();
+		const expenseId = String(form.get('expenseId') ?? '');
+		const category = String(form.get('category') ?? '').trim();
+		const subcategory = String(form.get('subcategory') ?? '').trim();
+		const amount = Number.parseFloat(String(form.get('amount') ?? '0'));
+		const currency = String(form.get('currency') ?? 'SGD');
+		const date = String(form.get('date') ?? '');
+		const staffName = String(form.get('staffName') ?? '').trim();
+		const notes = String(form.get('notes') ?? '').trim();
+
+		if (!expenseId || !category || !date) return fail(400, { message: 'Record ID, expense category, and date are required.' });
+
+		const db = getDb(platform.env);
+		await db
+			.update(schema.expenses)
+			.set({
+				category,
+				subcategory: subcategory || null,
+				amount: Number.isFinite(amount) ? amount : 0,
+				currency,
+				date,
+				staffName: staffName || null,
+				metadata: notes ? JSON.stringify({ notes }) : null,
+				updatedAt: new Date().toISOString()
+			})
+			.where(
+				and(
+					eq(schema.expenses.id, expenseId),
+					eq(schema.expenses.projectId, params.id),
+					isNull(schema.expenses.deletedAt)
+				)
+			);
+
+		return { ok: true };
+	},
+	delete: async ({ params, request, platform }) => {
+		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
+		const form = await request.formData();
+		const expenseId = String(form.get('expenseId') ?? '');
+		if (!expenseId) return fail(400, { message: 'Missing expense record ID.' });
+
+		const db = getDb(platform.env);
+		const now = new Date().toISOString();
+		await db
+			.update(schema.expenses)
+			.set({ deletedAt: now, updatedAt: now })
+			.where(
+				and(
+					eq(schema.expenses.id, expenseId),
+					eq(schema.expenses.projectId, params.id),
+					isNull(schema.expenses.deletedAt)
+				)
+			);
+
 		return { ok: true };
 	}
 };

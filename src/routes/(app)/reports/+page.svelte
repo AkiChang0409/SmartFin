@@ -1,13 +1,44 @@
 <script lang="ts">
 	import PageShell from '$lib/components/PageShell.svelte';
+	let { data } = $props();
+
+	const money = (value: number) =>
+		new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' }).format(value ?? 0);
 </script>
 
 <PageShell
 	eyebrow="Reports"
-	title="报表中心"
-	description="项目利润与公司概览报表将在本阶段后半程与项目管理模块联动展示。"
+	title="Reporting Center"
+	description="Project-level profitability report generated from current project financial data."
 >
-	<div class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-		当前先保留报表模块结构，后续接入 Dashboard 聚合数据。
+	<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+		<table class="min-w-full divide-y divide-slate-200 text-sm">
+			<thead class="bg-slate-50 text-left text-slate-600">
+				<tr>
+					<th class="px-4 py-3">Project</th>
+					<th class="px-4 py-3">Revenue</th>
+					<th class="px-4 py-3">Cost</th>
+					<th class="px-4 py-3">Profit</th>
+					<th class="px-4 py-3">Margin</th>
+				</tr>
+			</thead>
+			<tbody class="divide-y divide-slate-100">
+				{#if data.projectsProfit.length === 0}
+					<tr>
+						<td class="px-4 py-8 text-center text-slate-500" colspan="5">No report data yet.</td>
+					</tr>
+				{:else}
+					{#each data.projectsProfit as item}
+						<tr class="hover:bg-slate-50">
+							<td class="px-4 py-3 font-medium text-slate-800">{item.projectName}</td>
+							<td class="px-4 py-3">{money(item.revenue)}</td>
+							<td class="px-4 py-3">{money(item.cost)}</td>
+							<td class="px-4 py-3">{money(item.profit)}</td>
+							<td class="px-4 py-3">{(item.profitMargin * 100).toFixed(2)}%</td>
+						</tr>
+					{/each}
+				{/if}
+			</tbody>
+		</table>
 	</div>
 </PageShell>

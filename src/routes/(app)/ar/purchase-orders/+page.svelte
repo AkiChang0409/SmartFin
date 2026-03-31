@@ -4,10 +4,10 @@
 
 <PageShell
 	eyebrow="AR / Purchase Orders"
-	title="采购单管理"
-	description="PO 上传、匹配状态与供应商发票关联将在后续阶段接入。"
+	title="Purchase Order Management"
+	description="PO upload, matching status, and supplier invoice linkage will be integrated in the next phase."
 >
 	<div class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-		当前为 AR 子模块结构占位。
+		This AR submodule is currently a structured placeholder.
 	</div>
 </PageShell>

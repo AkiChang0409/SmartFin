@@ -34,7 +34,7 @@ export const actions: Actions = {
 		const description = String(form.get('description') ?? '').trim();
 
 		if (!customerId || !name) {
-			return fail(400, { message: '客户和项目名称必填。' });
+			return fail(400, { message: 'Customer and project name are required.' });
 		}
 
 		const id = crypto.randomUUID();

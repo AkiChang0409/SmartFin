@@ -3,12 +3,19 @@
 
 	const navItems = [
 		{ href: '/dashboard', label: 'Dashboard', prefix: '/dashboard' },
-		{ href: '/ar/contracts', label: 'AR', prefix: '/ar' },
+		{ href: '/ar', label: 'AR', prefix: '/ar' },
 		{ href: '/projects', label: 'Projects', prefix: '/projects' },
 		{ href: '/employees', label: 'Employees', prefix: '/employees' },
 		{ href: '/tax', label: 'Tax', prefix: '/tax' },
 		{ href: '/reports', label: 'Reports', prefix: '/reports' },
 		{ href: '/settings', label: 'Settings', prefix: '/settings' }
+	];
+	const arItems = [
+		{ href: '/ar/contracts', label: 'Contracts' },
+		{ href: '/ar/quotations', label: 'Quotations' },
+		{ href: '/ar/purchase-orders', label: 'Purchase Orders' },
+		{ href: '/ar/customer-invoices', label: 'Customer Invoices' },
+		{ href: '/ar/supplier-invoices', label: 'Supplier Invoices' }
 	];
 
 	let { children } = $props();
@@ -39,6 +46,24 @@
 			</nav>
 		</div>
 	</header>
+	{#if page.url.pathname.startsWith('/ar')}
+		<div class="border-b border-slate-200 bg-white">
+			<div class="mx-auto flex max-w-7xl flex-wrap gap-2 px-6 py-3">
+				{#each arItems as item}
+					<a
+						class={`rounded-md px-3 py-1.5 text-sm transition ${
+							page.url.pathname === item.href
+								? 'bg-indigo-600 text-white'
+								: 'text-slate-600 hover:bg-slate-100'
+						}`}
+						href={item.href}
+					>
+						{item.label}
+					</a>
+				{/each}
+			</div>
+		</div>
+	{/if}
 	<main class="mx-auto w-full max-w-7xl px-6 py-6">
 		{@render children()}
 	</main>

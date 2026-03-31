@@ -4,10 +4,10 @@
 
 <PageShell
 	eyebrow="AR / Supplier Invoices"
-	title="供应商发票"
-	description="OCR 真实链路暂缓，本阶段先确保项目管理与系统外壳完整。"
+	title="Supplier Invoices"
+	description="The real OCR pipeline is postponed. This phase focuses on a complete project management flow and application shell."
 >
 	<div class="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-		当前为 AR 子模块结构占位。
+		This AR submodule is currently a structured placeholder.
 	</div>
 </PageShell>
