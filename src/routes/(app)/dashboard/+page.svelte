@@ -397,7 +397,7 @@ const pieDetail = $derived.by(() => {
 			<div class="relative min-h-[118px] rounded-xl border border-slate-200 bg-white shadow-sm">
 				<button
 					type="button"
-					class="w-full rounded-xl p-4 text-left transition hover:bg-slate-50"
+					class="h-full min-h-[118px] w-full rounded-xl p-4 pr-9 text-left transition hover:bg-slate-50"
 					onclick={() => (selectedCard = metric.id)}
 				>
 					<p class="text-sm text-slate-500">{metric.label}</p>
