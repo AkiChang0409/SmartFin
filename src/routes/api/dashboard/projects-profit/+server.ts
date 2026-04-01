@@ -1,45 +1,109 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 import { getDb, schema } from '$lib/server/db';
 import { fail, ok } from '$lib/server/http';
 
-export const GET: RequestHandler = async ({ platform }) => {
+function isIsoDate(value: string) {
+	return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export const GET: RequestHandler = async ({ platform, url }) => {
 	if (!platform) {
 		return fail('Cloudflare platform bindings are required', 500);
 	}
 
+	const projectId = url.searchParams.get('projectId') ?? '';
+	const projectStatus = url.searchParams.get('projectStatus') ?? '';
+	const from = url.searchParams.get('from') ?? '';
+	const to = url.searchParams.get('to') ?? '';
+	const hasRange = isIsoDate(from) && isIsoDate(to) && from <= to;
 	const db = getDb(platform.env);
-	const rows = await db
+	const projectConditions = [isNull(schema.projects.deletedAt)];
+	if (projectId) projectConditions.push(eq(schema.projects.id, projectId));
+	if (projectStatus) projectConditions.push(eq(schema.projects.status, projectStatus));
+
+	const projects = await db
 		.select({
 			projectId: schema.projects.id,
 			projectName: schema.projects.name,
-			revenue: sql<number>`coalesce(sum(${schema.invoicesOut.total}), 0)`,
-			purchaseCost: sql<number>`coalesce(sum(${schema.invoicesIn.amount}), 0)`,
-			staffCost: sql<number>`coalesce(sum(${schema.projectCompensations.amount}), 0)`,
-			expenseCost: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)`
+			projectStatus: schema.projects.status
 		})
 		.from(schema.projects)
-		.leftJoin(schema.invoicesOut, sql`${schema.invoicesOut.projectId} = ${schema.projects.id}`)
-		.leftJoin(schema.invoicesIn, sql`${schema.invoicesIn.projectId} = ${schema.projects.id}`)
-		.leftJoin(
-			schema.projectCompensations,
-			sql`${schema.projectCompensations.projectId} = ${schema.projects.id}`
-		)
-		.leftJoin(schema.expenses, sql`${schema.expenses.projectId} = ${schema.projects.id}`)
-		.groupBy(schema.projects.id, schema.projects.name);
+		.where(and(...projectConditions));
 
-	return ok(
-		rows.map((row) => {
-			const cost = row.purchaseCost + row.staffCost + row.expenseCost;
+	if (projects.length === 0) {
+		return ok([]);
+	}
+
+	const revenueConditions = [isNull(schema.invoicesOut.deletedAt)];
+	if (hasRange) revenueConditions.push(sql`${schema.invoicesOut.date} between ${from} and ${to}`);
+	const revenueRows = await db
+		.select({
+			projectId: schema.invoicesOut.projectId,
+			total: sql<number>`coalesce(sum(${schema.invoicesOut.total}), 0)`
+		})
+		.from(schema.invoicesOut)
+		.where(and(...revenueConditions))
+		.groupBy(schema.invoicesOut.projectId);
+
+	const purchaseConditions = [isNull(schema.invoicesIn.deletedAt)];
+	if (hasRange) purchaseConditions.push(sql`${schema.invoicesIn.invoiceDate} between ${from} and ${to}`);
+	const purchaseRows = await db
+		.select({
+			projectId: schema.invoicesIn.projectId,
+			total: sql<number>`coalesce(sum(${schema.invoicesIn.amount}), 0)`
+		})
+		.from(schema.invoicesIn)
+		.where(and(...purchaseConditions))
+		.groupBy(schema.invoicesIn.projectId);
+
+	const staffConditions = [isNull(schema.projectCompensations.deletedAt)];
+	if (hasRange) staffConditions.push(sql`${schema.projectCompensations.date} between ${from} and ${to}`);
+	const staffRows = await db
+		.select({
+			projectId: schema.projectCompensations.projectId,
+			total: sql<number>`coalesce(sum(${schema.projectCompensations.amount}), 0)`
+		})
+		.from(schema.projectCompensations)
+		.where(and(...staffConditions))
+		.groupBy(schema.projectCompensations.projectId);
+
+	const expenseConditions = [isNull(schema.expenses.deletedAt)];
+	if (hasRange) expenseConditions.push(sql`${schema.expenses.date} between ${from} and ${to}`);
+	const expenseRows = await db
+		.select({
+			projectId: schema.expenses.projectId,
+			total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)`
+		})
+		.from(schema.expenses)
+		.where(and(...expenseConditions))
+		.groupBy(schema.expenses.projectId);
+
+	const revenueMap = new Map(revenueRows.map((row) => [row.projectId, Number(row.total ?? 0)]));
+	const purchaseMap = new Map(purchaseRows.map((row) => [row.projectId, Number(row.total ?? 0)]));
+	const staffMap = new Map(staffRows.map((row) => [row.projectId, Number(row.total ?? 0)]));
+	const expenseMap = new Map(expenseRows.map((row) => [row.projectId, Number(row.total ?? 0)]));
+
+	const ranking = projects
+		.map((project) => {
+			const revenue = revenueMap.get(project.projectId) ?? 0;
+			const purchaseCost = purchaseMap.get(project.projectId) ?? 0;
+			const staffCost = staffMap.get(project.projectId) ?? 0;
+			const expenseCost = expenseMap.get(project.projectId) ?? 0;
+			const cost = purchaseCost + staffCost + expenseCost;
+			const profit = revenue - cost;
 			return {
-				projectId: row.projectId,
-				projectName: row.projectName,
-				revenue: row.revenue,
+				projectId: project.projectId,
+				projectName: project.projectName,
+				projectStatus: project.projectStatus,
+				revenue,
 				cost,
-				profit: row.revenue - cost,
-				profitMargin: row.revenue > 0 ? (row.revenue - cost) / row.revenue : 0
+				profit,
+				profitMargin: revenue > 0 ? profit / revenue : 0
 			};
 		})
-	);
+		.sort((a, b) => b.profit - a.profit);
+
+	return ok(ranking);
 };

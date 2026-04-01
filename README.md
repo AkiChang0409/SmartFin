@@ -23,6 +23,22 @@ npm run db:seed:local
 npm run dev:cf
 ```
 
+## 非 OCR 全链路 Mock 测试（推荐）
+
+用于快速验证平台基础功能（项目、AR、员工、税务、报表、权限），不依赖真实 OCR 识别能力：
+
+```sh
+npm install
+npm run gen
+npm run db:test:mock:local
+npm run dev:cf
+```
+
+说明：
+
+- `db:test:mock:local` 会先应用 migration，再导入全量 mock 数据（可重复执行）。
+- 当前仍保留 OCR 真实链路后续专项设计，mock 数据中仅覆盖供应商发票的非 OCR 测试路径。
+
 ## 关键命令
 
 ```sh
@@ -35,6 +51,12 @@ npm run db:migrate:remote
 
 # 本地最小演示数据（customers）
 npm run db:seed:local
+
+# 本地全量 mock 测试数据（非 OCR）
+npm run db:seed:mock:local
+
+# 本地一键：迁移 + 全量 mock 数据
+npm run db:test:mock:local
 
 # 类型检查 + 构建
 npm run check

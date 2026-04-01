@@ -18,6 +18,21 @@
 	title={`${data.project.name} - Expense Management`}
 	description="This version supports manual expense entries for project cost and profit calculation."
 >
+	<nav class="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+		<a class="hover:text-indigo-600 hover:underline" href="/dashboard">Dashboard</a>
+		<span>/</span>
+		<a class="hover:text-indigo-600 hover:underline" href="/projects">Projects</a>
+		<span>/</span>
+		<a class="hover:text-indigo-600 hover:underline" href={`/projects/${data.project.id}`}>{data.project.name}</a>
+		<span>/</span>
+		<span class="font-medium text-slate-800">Expenses</span>
+	</nav>
+	<div class="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+		<a class="rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100" href={`/projects/${data.project.id}/contracts`}>Contracts</a>
+		<a class="rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100" href={`/projects/${data.project.id}/quotations`}>Quotations</a>
+		<a class="rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100" href={`/projects/${data.project.id}/purchase-orders`}>Purchase Orders</a>
+		<span class="rounded-md bg-indigo-600 px-2 py-1 font-medium text-white">Expenses</span>
+	</div>
 	{#if form?.message}
 		<p class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{form.message}</p>
 	{/if}

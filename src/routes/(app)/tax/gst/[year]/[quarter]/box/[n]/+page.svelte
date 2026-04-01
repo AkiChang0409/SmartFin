@@ -31,6 +31,13 @@
 				<p class="mt-2 text-xl font-semibold text-slate-900">{money(data.breakdown.net)}</p>
 			</article>
 		</div>
+	{:else if data.manualValue !== null}
+		<div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+			<p class="text-sm text-slate-500">Manual Source</p>
+			<p class="mt-1 text-sm text-slate-700">{data.manualSource ?? '--'} ({data.manualKey ?? '--'})</p>
+			<p class="mt-3 text-sm text-slate-500">Configured Value</p>
+			<p class="mt-1 text-xl font-semibold text-slate-900">{money(data.manualValue)}</p>
+		</div>
 	{:else}
 		<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 			<table class="min-w-full divide-y divide-slate-200 text-sm">
@@ -44,16 +51,16 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-100">
-					{#if data.invoices.length === 0}
+					{#if data.invoices.length === 0 && data.records.length === 0}
 						<tr>
 							<td class="px-4 py-8 text-center text-slate-500" colspan="5">No records for this box.</td>
 						</tr>
 					{:else}
-						{#each data.invoices as row}
+						{#each [...data.invoices, ...data.records] as row}
 							<tr class="hover:bg-slate-50">
 								<td class="px-4 py-3">{String(row.id ?? '--')}</td>
 								<td class="px-4 py-3">
-									{String(row.invoiceNo ?? row.supplierName ?? '--')}
+									{String(row.invoiceNo ?? row.supplierName ?? row.type ?? '--')}
 								</td>
 								<td class="px-4 py-3">
 									{String(row.date ?? row.invoiceDate ?? '--')}

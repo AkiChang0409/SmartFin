@@ -1,4 +1,4 @@
-import { and, between, eq, sql } from 'drizzle-orm';
+import { and, between, eq, isNull, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 import { getDb, schema } from '$lib/server/db';
@@ -38,32 +38,84 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		.where(
 			and(
 				eq(schema.invoicesOut.gstType, 'standard'),
-				between(schema.invoicesOut.date, range.start, range.end)
+				between(schema.invoicesOut.date, range.start, range.end),
+				isNull(schema.invoicesOut.deletedAt)
 			)
 		);
 	const [box2] = await db
 		.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.subtotal}), 0)` })
 		.from(schema.invoicesOut)
 		.where(
-			and(eq(schema.invoicesOut.gstType, 'zero'), between(schema.invoicesOut.date, range.start, range.end))
+			and(
+				eq(schema.invoicesOut.gstType, 'zero'),
+				between(schema.invoicesOut.date, range.start, range.end),
+				isNull(schema.invoicesOut.deletedAt)
+			)
 		);
 	const [box3] = await db
 		.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.subtotal}), 0)` })
 		.from(schema.invoicesOut)
 		.where(
-			and(eq(schema.invoicesOut.gstType, 'exempt'), between(schema.invoicesOut.date, range.start, range.end))
+			and(
+				eq(schema.invoicesOut.gstType, 'exempt'),
+				between(schema.invoicesOut.date, range.start, range.end),
+				isNull(schema.invoicesOut.deletedAt)
+			)
 		);
+	const [purchases] = await db
+		.select({ total: sql<number>`coalesce(sum(${schema.invoicesIn.amount}), 0)` })
+		.from(schema.invoicesIn)
+		.where(
+			and(between(schema.invoicesIn.invoiceDate, range.start, range.end), isNull(schema.invoicesIn.deletedAt))
+		);
+	const [expenses] = await db
+		.select({ total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)` })
+		.from(schema.expenses)
+		.where(and(between(schema.expenses.date, range.start, range.end), isNull(schema.expenses.deletedAt)));
+	const [box6] = await db
+		.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.gstAmount}), 0)` })
+		.from(schema.invoicesOut)
+		.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));
 	const [box7] = await db
 		.select({ total: sql<number>`coalesce(sum(${schema.invoicesIn.gstAmount}), 0)` })
 		.from(schema.invoicesIn)
-		.where(between(schema.invoicesIn.invoiceDate, range.start, range.end));
+		.where(
+			and(between(schema.invoicesIn.invoiceDate, range.start, range.end), isNull(schema.invoicesIn.deletedAt))
+		);
+	const [box13] = await db
+		.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.total}), 0)` })
+		.from(schema.invoicesOut)
+		.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));
+
+	const manualRows = await db
+		.select({ key: schema.companySettings.key, value: schema.companySettings.value })
+		.from(schema.companySettings)
+		.where(
+			and(
+				isNull(schema.companySettings.deletedAt),
+				sql`${schema.companySettings.key} in ('gst_box9_manual','gst_box10_manual','gst_box11_manual','gst_box12_manual')`
+			)
+		);
+	const manualMap = new Map(manualRows.map((item) => [item.key, Number.parseFloat(item.value)]));
 
 	const b1 = box1?.total ?? 0;
 	const b2 = box2?.total ?? 0;
 	const b3 = box3?.total ?? 0;
 	const b4 = b1 + b2 + b3;
-	const b6 = b1 * 0.09;
+	const b5 = (purchases?.total ?? 0) + (expenses?.total ?? 0);
+	const b6 = box6?.total ?? 0;
 	const b7 = box7?.total ?? 0;
+	const b9 = Number.isFinite(manualMap.get('gst_box9_manual')) ? (manualMap.get('gst_box9_manual') ?? 0) : 0;
+	const b10 = Number.isFinite(manualMap.get('gst_box10_manual'))
+		? (manualMap.get('gst_box10_manual') ?? 0)
+		: 0;
+	const b11 = Number.isFinite(manualMap.get('gst_box11_manual'))
+		? (manualMap.get('gst_box11_manual') ?? 0)
+		: 0;
+	const b12 = Number.isFinite(manualMap.get('gst_box12_manual'))
+		? (manualMap.get('gst_box12_manual') ?? 0)
+		: 0;
+	const b13 = box13?.total ?? 0;
 
 	return ok({
 		year: params.year,
@@ -74,15 +126,23 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 			box2: b2,
 			box3: b3,
 			box4: b4,
-			box5: 0,
+			box5: b5,
 			box6: b6,
 			box7: b7,
 			box8: b6 - b7,
-			box9: 0,
-			box10: 0,
-			box11: 0,
-			box12: 0,
-			box13: 0
+			box9: b9,
+			box10: b10,
+			box11: b11,
+			box12: b12,
+			box13: b13
+		},
+		meta: {
+			manualBoxes: ['box9', 'box10', 'box11', 'box12'],
+			notes: [
+				'Box 5 uses supplier invoices + expenses during the quarter.',
+				'Box 9-12 are sourced from company_settings manual values in this phase.',
+				'Box 13 uses total revenue from customer invoices during the quarter.'
+			]
 		}
 	});
 };

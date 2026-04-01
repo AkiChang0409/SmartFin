@@ -17,6 +17,17 @@ export const users = sqliteTable('users', {
 	...timeFields
 });
 
+export const auditLogs = sqliteTable('audit_logs', {
+	id: text('id').primaryKey(),
+	actorUserId: text('actor_user_id').references(() => users.id),
+	actorEmail: text('actor_email'),
+	action: text('action').notNull(),
+	entityType: text('entity_type').notNull(),
+	entityId: text('entity_id'),
+	metadata: text('metadata'),
+	...timeFields
+});
+
 export const customers = sqliteTable('customers', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),

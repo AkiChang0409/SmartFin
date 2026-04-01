@@ -7,6 +7,12 @@ export type OcrQueueMessage = {
 	projectId: string;
 };
 
+export type ConfidenceBand = 'low' | 'medium' | 'high';
+
+export type SourceSnippetMap = Partial<
+	Record<'supplierName' | 'invoiceDate' | 'dueDate' | 'totalAmount' | 'gstAmount' | 'poNumber', string>
+>;
+
 export type ExtractedInvoiceFields = {
 	invoiceDate: string | null;
 	totalAmount: number | null;
@@ -16,5 +22,13 @@ export type ExtractedInvoiceFields = {
 	poNumber: string | null;
 	dueDate: string | null;
 	confidence: number;
+	confidenceBand: ConfidenceBand;
+	needsReview: boolean;
+	validationWarnings: string[];
+	sourceSnippets: SourceSnippetMap;
+	extractionMethod: 'pdf_text' | 'external_ocr';
+	ocrProvider: 'builtin_pdf' | 'external_api' | 'external_api_mock';
+	llmProvider: 'heuristic' | 'external_api';
+	promptVersion: string;
 	rawText: string;
 };

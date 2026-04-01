@@ -18,7 +18,7 @@
 		{ href: '/ar/supplier-invoices', label: 'Supplier Invoices' }
 	];
 
-	let { children } = $props();
+	let { children, data } = $props();
 </script>
 
 <div class="min-h-screen bg-slate-50">
@@ -30,20 +30,33 @@
 					Project Shell v1
 				</span>
 			</div>
-			<nav class="flex flex-wrap items-center gap-2">
-				{#each navItems as item}
-					<a
-						class={`rounded-md px-3 py-1.5 text-sm transition ${
-							page.url.pathname.startsWith(item.prefix)
-								? 'bg-slate-900 text-white'
-								: 'text-slate-600 hover:bg-slate-100'
-						}`}
-						href={item.href}
-					>
-						{item.label}
-					</a>
-				{/each}
-			</nav>
+			<div class="flex flex-wrap items-center gap-3">
+				<nav class="flex flex-wrap items-center gap-2">
+					{#each navItems as item}
+						<a
+							class={`rounded-md px-3 py-1.5 text-sm transition ${
+								page.url.pathname.startsWith(item.prefix)
+									? 'bg-slate-900 text-white'
+									: 'text-slate-600 hover:bg-slate-100'
+							}`}
+							href={item.href}
+						>
+							{item.label}
+						</a>
+					{/each}
+				</nav>
+				{#if data.user}
+					<div class="flex items-center gap-2 text-xs text-slate-600">
+						<span class="rounded-full bg-slate-100 px-2 py-1 font-medium">{data.user.email}</span>
+						<span class="rounded-full bg-indigo-50 px-2 py-1 font-medium text-indigo-700">{data.user.role}</span>
+					</div>
+					<form method="POST" action="/auth/logout">
+						<button class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100" type="submit">
+							Logout
+						</button>
+					</form>
+				{/if}
+			</div>
 		</div>
 	</header>
 	{#if page.url.pathname.startsWith('/ar')}
