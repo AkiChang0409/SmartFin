@@ -10,13 +10,32 @@
 	let selectedCard = $state<MetricCardId | null>(null);
 
 	const metricCards = $derived([
-		{ id: 'revenue' as const, label: 'Total Revenue', value: money(data.overview.revenue) },
-		{ id: 'expense' as const, label: 'Total Expense', value: money(data.overview.expense) },
-		{ id: 'netProfit' as const, label: 'Net Profit', value: money(data.overview.netProfit) },
+		{
+			id: 'revenue' as const,
+			label: 'Total Revenue',
+			value: money(data.overview.revenue),
+			tooltip:
+				'Total sales recognized in the selected period from all customer invoices (including tax amount).'
+		},
+		{
+			id: 'expense' as const,
+			label: 'Total Expense',
+			value: money(data.overview.expense),
+			tooltip:
+				'Total project-related costs in the selected period, including supplier invoices, staff costs, and operating expenses.'
+		},
+		{
+			id: 'netProfit' as const,
+			label: 'Net Profit',
+			value: money(data.overview.netProfit),
+			tooltip: 'Net result for the selected period: Total Revenue minus Total Expense.'
+		},
 		{
 			id: 'receivablesPayables' as const,
 			label: 'Receivables / Payables',
-			value: `${money(data.overview.pendingReceivable)} / ${money(data.overview.pendingPayable)}`
+			value: `${money(data.overview.pendingReceivable)} / ${money(data.overview.pendingPayable)}`,
+			tooltip:
+				'Outstanding customer collections and supplier payments. This item is currently a placeholder in this phase.'
 		}
 	]);
 
@@ -138,14 +157,24 @@
 
 	<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 		{#each metricCards as metric}
-			<button
-				type="button"
-				class="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:bg-slate-50"
-				onclick={() => (selectedCard = metric.id)}
-			>
-				<p class="text-sm text-slate-500">{metric.label}</p>
-				<p class="mt-3 text-2xl font-semibold text-slate-900">{metric.value}</p>
-			</button>
+			<div class="relative rounded-xl border border-slate-200 bg-white shadow-sm">
+				<button
+					type="button"
+					class="w-full rounded-xl p-4 text-left transition hover:bg-slate-50"
+					onclick={() => (selectedCard = metric.id)}
+				>
+					<p class="text-sm text-slate-500">{metric.label}</p>
+					<p class="mt-3 text-2xl font-semibold text-slate-900">{metric.value}</p>
+				</button>
+				<button
+					type="button"
+					class="absolute right-3 top-3 inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500"
+					aria-label={`Show ${metric.label} calculation logic`}
+					title={metric.tooltip}
+				>
+					i
+				</button>
+			</div>
 		{/each}
 	</section>
 

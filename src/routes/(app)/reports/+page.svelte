@@ -18,6 +18,16 @@
 		if (margin >= 0.1) return { label: 'Medium', className: 'bg-amber-100 text-amber-700' };
 		return { label: 'Low', className: 'bg-rose-100 text-rose-700' };
 	};
+
+	const reportMetricHelp = {
+		revenue:
+			'Total sales recognized in the selected report scope from all customer invoices (including tax amount).',
+		cost:
+			'Total cost in the selected report scope, including supplier invoices, staff costs, and operating expenses.',
+		profit: 'Total Profit = Total Revenue - Total Cost.',
+		margin:
+			'Average Margin = Total Profit divided by Total Revenue for the current filtered report set.'
+	};
 </script>
 
 <PageShell
@@ -88,19 +98,59 @@
 
 	<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 		<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<p class="text-xs text-slate-500">Total Revenue</p>
+			<p class="flex items-center gap-2 text-xs text-slate-500">
+				<span>Total Revenue</span>
+				<button
+					type="button"
+					class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500"
+					aria-label="Show Total Revenue calculation logic"
+					title={reportMetricHelp.revenue}
+				>
+					i
+				</button>
+			</p>
 			<p class="mt-2 text-xl font-semibold text-slate-900">{money(totals.revenue)}</p>
 		</article>
 		<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<p class="text-xs text-slate-500">Total Cost</p>
+			<p class="flex items-center gap-2 text-xs text-slate-500">
+				<span>Total Cost</span>
+				<button
+					type="button"
+					class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500"
+					aria-label="Show Total Cost calculation logic"
+					title={reportMetricHelp.cost}
+				>
+					i
+				</button>
+			</p>
 			<p class="mt-2 text-xl font-semibold text-slate-900">{money(totals.cost)}</p>
 		</article>
 		<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<p class="text-xs text-slate-500">Total Profit</p>
+			<p class="flex items-center gap-2 text-xs text-slate-500">
+				<span>Total Profit</span>
+				<button
+					type="button"
+					class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500"
+					aria-label="Show Total Profit calculation logic"
+					title={reportMetricHelp.profit}
+				>
+					i
+				</button>
+			</p>
 			<p class="mt-2 text-xl font-semibold text-slate-900">{money(totals.profit)}</p>
 		</article>
 		<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-			<p class="text-xs text-slate-500">Average Margin</p>
+			<p class="flex items-center gap-2 text-xs text-slate-500">
+				<span>Average Margin</span>
+				<button
+					type="button"
+					class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 text-[10px] text-slate-500"
+					aria-label="Show Average Margin calculation logic"
+					title={reportMetricHelp.margin}
+				>
+					i
+				</button>
+			</p>
 			<p class="mt-2 text-xl font-semibold text-slate-900">{(totals.margin * 100).toFixed(2)}%</p>
 		</article>
 	</section>
