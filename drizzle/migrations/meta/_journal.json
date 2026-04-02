@@ -15,6 +15,20 @@
       "when": 1774990800000,
       "tag": "0001_tan_audit_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1774995000000,
+      "tag": "0002_mellow_purchase_order_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1774999000000,
+      "tag": "0003_swift_contract_project_nullable",
+      "breakpoints": true
     }
   ]
 }

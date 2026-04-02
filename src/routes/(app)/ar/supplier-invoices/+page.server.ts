@@ -1,217 +1,212 @@
-import { and, desc, eq, isNull } from 'drizzle-orm';
-import { fail } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import { and, desc, eq, gte, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import type { PageServerLoad } from './$types';
 
 import { getDb, schema } from '$lib/server/db';
-import { processInvoiceOcrMessage } from '$lib/server/ocr/process-invoice';
-import { buildObjectKey } from '$lib/server/r2';
-import type { OcrQueueMessage } from '$lib/server/ocr/types';
 
 export const load: PageServerLoad = async ({ platform, url }) => {
-	if (!platform) return { invoices: [], projects: [], filters: { projectId: '', status: '' } };
+	if (!platform) {
+		return {
+			invoices: [],
+			projects: [],
+			selectedProject: null,
+			filters: {
+				projectId: '',
+				q: '',
+				status: '',
+				startedAfter: '',
+				page: 1,
+				supplierQ: '',
+				listMode: 'all',
+				supplierField: 'all'
+			},
+			pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasPrev: false, hasNext: false }
+		};
+	}
 
 	const db = getDb(platform.env);
 	const projectId = url.searchParams.get('projectId') ?? '';
-	const status = url.searchParams.get('status') ?? '';
+	const q = url.searchParams.get('q')?.trim() ?? '';
+	const status = url.searchParams.get('status')?.trim() ?? '';
+	const startedAfter = url.searchParams.get('startedAfter')?.trim() ?? '';
+	const supplierQ = url.searchParams.get('supplierQ')?.trim() ?? '';
+	const listModeRaw = url.searchParams.get('listMode')?.trim() ?? 'all';
+	const supplierFieldRaw = url.searchParams.get('supplierField')?.trim() ?? 'all';
+	const listMode = listModeRaw === 'selected' || listModeRaw === 'all' ? listModeRaw : 'all';
+	const supplierField =
+		supplierFieldRaw === 'id' ||
+		supplierFieldRaw === 'supplier' ||
+		supplierFieldRaw === 'amount' ||
+		supplierFieldRaw === 'date' ||
+		supplierFieldRaw === 'status' ||
+		supplierFieldRaw === 'poNumber' ||
+		supplierFieldRaw === 'all'
+			? supplierFieldRaw
+			: 'all';
 
-	const conditions = [isNull(schema.invoicesIn.deletedAt)];
-	if (projectId) conditions.push(eq(schema.invoicesIn.projectId, projectId));
-	if (status) conditions.push(eq(schema.invoicesIn.status, status));
+	const pageRaw = Number.parseInt(url.searchParams.get('page') ?? '1', 10);
+	const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+	const pageSize = 5;
 
-	const invoices = await db
+	const invoiceConditions = [isNull(schema.invoicesIn.deletedAt)];
+	if (listMode === 'selected') {
+		if (projectId) invoiceConditions.push(eq(schema.invoicesIn.projectId, projectId));
+		else invoiceConditions.push(sql`1 = 0`);
+	}
+	if (supplierQ) {
+		if (supplierField === 'id') {
+			invoiceConditions.push(like(schema.invoicesIn.id, `%${supplierQ}%`));
+		} else if (supplierField === 'supplier') {
+			invoiceConditions.push(like(sql`coalesce(${schema.invoicesIn.supplierName}, '')`, `%${supplierQ}%`));
+		} else if (supplierField === 'amount') {
+			invoiceConditions.push(like(sql`cast(coalesce(${schema.invoicesIn.amount}, 0) as text)`, `%${supplierQ}%`));
+		} else if (supplierField === 'date') {
+			invoiceConditions.push(like(sql`coalesce(${schema.invoicesIn.invoiceDate}, '')`, `%${supplierQ}%`));
+		} else if (supplierField === 'status') {
+			invoiceConditions.push(like(schema.invoicesIn.status, `%${supplierQ}%`));
+		} else if (supplierField === 'poNumber') {
+			invoiceConditions.push(like(sql`coalesce(${schema.invoicesIn.poNumber}, '')`, `%${supplierQ}%`));
+		} else {
+			invoiceConditions.push(
+				or(
+					like(schema.invoicesIn.id, `%${supplierQ}%`),
+					like(sql`coalesce(${schema.invoicesIn.supplierName}, '')`, `%${supplierQ}%`),
+					like(sql`cast(coalesce(${schema.invoicesIn.amount}, 0) as text)`, `%${supplierQ}%`),
+					like(sql`coalesce(${schema.invoicesIn.invoiceDate}, '')`, `%${supplierQ}%`),
+					like(schema.invoicesIn.status, `%${supplierQ}%`),
+					like(sql`coalesce(${schema.invoicesIn.poNumber}, '')`, `%${supplierQ}%`)
+				)!
+			);
+		}
+	}
+
+	const invoiceRows = await db
 		.select()
 		.from(schema.invoicesIn)
-		.where(and(...conditions))
+		.where(and(...invoiceConditions))
 		.orderBy(desc(schema.invoicesIn.invoiceDate), desc(schema.invoicesIn.createdAt));
 
-	const projects = await db
-		.select({ id: schema.projects.id, name: schema.projects.name })
-		.from(schema.projects)
-		.where(isNull(schema.projects.deletedAt))
-		.orderBy(desc(schema.projects.updatedAt));
+	const projectConditions = [isNull(schema.projects.deletedAt)];
+	if (q) {
+		projectConditions.push(
+			or(
+				like(schema.projects.name, `%${q}%`),
+				like(schema.projects.id, `%${q}%`),
+				like(schema.customers.name, `%${q}%`)
+			)!
+		);
+	}
+	if (status) projectConditions.push(eq(schema.projects.status, status));
+	if (startedAfter) projectConditions.push(gte(schema.projects.startDate, startedAfter));
 
-	const projectMap = new Map(projects.map((project) => [project.id, project.name]));
+	const projectCountRows = await db
+		.select({ total: sql<number>`count(*)` })
+		.from(schema.projects)
+		.leftJoin(schema.customers, eq(schema.projects.customerId, schema.customers.id))
+		.where(and(...projectConditions));
+	const total = Number(projectCountRows[0]?.total ?? 0);
+	const totalPages = Math.max(1, Math.ceil(total / pageSize));
+	const safePage = Math.min(page, totalPages);
+	const safeOffset = (safePage - 1) * pageSize;
+
+	const projects = await db
+		.select({
+			id: schema.projects.id,
+			name: schema.projects.name,
+			customerName: schema.customers.name,
+			status: schema.projects.status,
+			startDate: schema.projects.startDate,
+			endDate: schema.projects.endDate
+		})
+		.from(schema.projects)
+		.leftJoin(schema.customers, eq(schema.projects.customerId, schema.customers.id))
+		.where(and(...projectConditions))
+		.orderBy(desc(schema.projects.startDate), desc(schema.projects.updatedAt))
+		.limit(pageSize)
+		.offset(safeOffset);
+
+	const supplierInvoiceCountRows = await db
+		.select({ projectId: schema.invoicesIn.projectId, total: sql<number>`count(*)` })
+		.from(schema.invoicesIn)
+		.where(isNull(schema.invoicesIn.deletedAt))
+		.groupBy(schema.invoicesIn.projectId);
+	const supplierInvoiceCountMap = new Map(
+		supplierInvoiceCountRows.map((row) => [row.projectId, Number(row.total ?? 0)])
+	);
+
+	const projectsWithStats = projects.map((project) => ({
+		...project,
+		supplierInvoiceCount: supplierInvoiceCountMap.get(project.id) ?? 0
+	}));
+
+	const fallbackProjectIds = Array.from(
+		new Set(
+			invoiceRows
+				.map((row) => row.projectId)
+				.filter((id) => !projectsWithStats.some((project) => project.id === id))
+		)
+	);
+	const fallbackProjects =
+		fallbackProjectIds.length > 0
+			? await db
+					.select({ id: schema.projects.id, name: schema.projects.name })
+					.from(schema.projects)
+					.where(inArray(schema.projects.id, fallbackProjectIds))
+			: [];
+	const projectMap = new Map([
+		...projectsWithStats.map((project) => [project.id, project.name] as const),
+		...fallbackProjects.map((project) => [project.id, project.name] as const)
+	]);
+
+	let selectedProject = projectsWithStats.find((project) => project.id === projectId) ?? null;
+	if (!selectedProject && projectId) {
+		const [fallbackProject] = await db
+			.select({
+				id: schema.projects.id,
+				name: schema.projects.name,
+				customerName: schema.customers.name,
+				status: schema.projects.status,
+				startDate: schema.projects.startDate,
+				endDate: schema.projects.endDate
+			})
+			.from(schema.projects)
+			.leftJoin(schema.customers, eq(schema.projects.customerId, schema.customers.id))
+			.where(and(isNull(schema.projects.deletedAt), eq(schema.projects.id, projectId)))
+			.limit(1);
+		if (fallbackProject) {
+			selectedProject = {
+				...fallbackProject,
+				supplierInvoiceCount: supplierInvoiceCountMap.get(fallbackProject.id) ?? 0
+			};
+		}
+	}
 
 	return {
-		invoices: invoices.map((item) => ({
+		invoices: invoiceRows.map((item) => ({
 			...item,
 			projectName: projectMap.get(item.projectId) ?? item.projectId,
 			rawParsed: item.rawOcr ? tryParseJson(item.rawOcr) : null
 		})),
-		projects,
-		filters: { projectId, status }
+		projects: projectsWithStats,
+		selectedProject,
+		filters: {
+			projectId,
+			q,
+			status,
+			startedAfter,
+			page: safePage,
+			supplierQ,
+			listMode,
+			supplierField
+		},
+		pagination: {
+			page: safePage,
+			pageSize,
+			total,
+			totalPages,
+			hasPrev: safePage > 1,
+			hasNext: safePage < totalPages
+		}
 	};
-};
-
-export const actions: Actions = {
-	upload: async ({ request, platform }) => {
-		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
-		const form = await request.formData();
-		const projectId = String(form.get('projectId') ?? '');
-		const file = form.get('file');
-		const triggerOcr = String(form.get('triggerOcr') ?? 'true') !== 'false';
-
-		if (!projectId) return fail(400, { message: 'Project is required.' });
-		if (!(file instanceof File)) return fail(400, { message: 'Invoice file is required.' });
-
-		const entityId = crypto.randomUUID();
-		const key = buildObjectKey({
-			projectId,
-			fileName: file.name,
-			contentType: file.type || 'application/octet-stream',
-			entityType: 'invoice_in',
-			entityId
-		});
-
-		await platform.env.R2.put(key, await file.arrayBuffer(), {
-			httpMetadata: { contentType: file.type || 'application/octet-stream' }
-		});
-
-		const db = getDb(platform.env);
-		await db.insert(schema.invoicesIn).values({
-			id: entityId,
-			projectId,
-			poId: null,
-			supplierName: null,
-			invoiceDate: null,
-			amount: 0,
-			currency: 'SGD',
-			gstAmount: 0,
-			dueDate: null,
-			poNumber: null,
-			status: triggerOcr ? 'processing' : 'pending_review',
-			fileUrl: key,
-			ocrConfidence: null,
-			rawOcr: null,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
-		});
-
-		if (triggerOcr) {
-			const message: OcrQueueMessage = {
-				id: crypto.randomUUID(),
-				fileKey: key,
-				fileType: file.type || 'application/octet-stream',
-				entityType: 'invoice_in',
-				entityId,
-				projectId
-			};
-			await platform.env.OCR_QUEUE.send(message);
-		}
-
-		return { ok: true, uploaded: true };
-	},
-	retryQueue: async ({ request, platform }) => {
-		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
-		const form = await request.formData();
-		const invoiceId = String(form.get('invoiceId') ?? '');
-		if (!invoiceId) return fail(400, { message: 'Missing supplier invoice record ID.' });
-
-		const db = getDb(platform.env);
-		const [invoice] = await db
-			.select()
-			.from(schema.invoicesIn)
-			.where(and(eq(schema.invoicesIn.id, invoiceId), isNull(schema.invoicesIn.deletedAt)))
-			.limit(1);
-		if (!invoice) return fail(404, { message: 'Supplier invoice not found.' });
-
-		await db
-			.update(schema.invoicesIn)
-			.set({ status: 'processing', updatedAt: new Date().toISOString() })
-			.where(eq(schema.invoicesIn.id, invoiceId));
-
-		const message: OcrQueueMessage = {
-			id: crypto.randomUUID(),
-			fileKey: invoice.fileUrl,
-			fileType: 'application/pdf',
-			entityType: 'invoice_in',
-			entityId: invoice.id,
-			projectId: invoice.projectId
-		};
-		await platform.env.OCR_QUEUE.send(message);
-
-		return { ok: true };
-	},
-	processNow: async ({ request, platform }) => {
-		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
-		const form = await request.formData();
-		const invoiceId = String(form.get('invoiceId') ?? '');
-		if (!invoiceId) return fail(400, { message: 'Missing supplier invoice record ID.' });
-
-		const db = getDb(platform.env);
-		const [invoice] = await db
-			.select()
-			.from(schema.invoicesIn)
-			.where(and(eq(schema.invoicesIn.id, invoiceId), isNull(schema.invoicesIn.deletedAt)))
-			.limit(1);
-		if (!invoice) return fail(404, { message: 'Supplier invoice not found.' });
-
-		await db
-			.update(schema.invoicesIn)
-			.set({ status: 'processing', updatedAt: new Date().toISOString() })
-			.where(eq(schema.invoicesIn.id, invoiceId));
-
-		const result = await processInvoiceOcrMessage(platform.env, {
-			id: crypto.randomUUID(),
-			fileKey: invoice.fileUrl,
-			fileType: 'application/pdf',
-			entityType: 'invoice_in',
-			entityId: invoice.id,
-			projectId: invoice.projectId
-		});
-
-		if (result.status === 'failed') {
-			return fail(500, { message: `OCR processing failed: ${result.error ?? 'unknown error'}` });
-		}
-
-		return { ok: true };
-	},
-	confirm: async ({ request, platform }) => {
-		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
-		const form = await request.formData();
-		const invoiceId = String(form.get('invoiceId') ?? '');
-		const supplierName = String(form.get('supplierName') ?? '').trim();
-		const invoiceDate = String(form.get('invoiceDate') ?? '');
-		const dueDate = String(form.get('dueDate') ?? '');
-		const poNumber = String(form.get('poNumber') ?? '').trim();
-		const amount = Number.parseFloat(String(form.get('amount') ?? '0'));
-		const gstAmount = Number.parseFloat(String(form.get('gstAmount') ?? '0'));
-		const currency = String(form.get('currency') ?? 'SGD');
-		const status = String(form.get('status') ?? 'pending_review');
-
-		if (!invoiceId || !invoiceDate) return fail(400, { message: 'Invoice ID and invoice date are required.' });
-
-		const db = getDb(platform.env);
-		await db
-			.update(schema.invoicesIn)
-			.set({
-				supplierName: supplierName || null,
-				invoiceDate,
-				amount: Number.isFinite(amount) ? amount : 0,
-				currency,
-				gstAmount: Number.isFinite(gstAmount) ? gstAmount : 0,
-				dueDate: dueDate || null,
-				poNumber: poNumber || null,
-				status: status || 'confirmed',
-				updatedAt: new Date().toISOString()
-			})
-			.where(and(eq(schema.invoicesIn.id, invoiceId), isNull(schema.invoicesIn.deletedAt)));
-		return { ok: true };
-	},
-	delete: async ({ request, platform }) => {
-		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
-		const form = await request.formData();
-		const invoiceId = String(form.get('invoiceId') ?? '');
-		if (!invoiceId) return fail(400, { message: 'Missing supplier invoice record ID.' });
-
-		const db = getDb(platform.env);
-		const now = new Date().toISOString();
-		await db
-			.update(schema.invoicesIn)
-			.set({ deletedAt: now, updatedAt: now })
-			.where(and(eq(schema.invoicesIn.id, invoiceId), isNull(schema.invoicesIn.deletedAt)));
-		return { ok: true };
-	}
 };
 
 function tryParseJson(raw: string): unknown {

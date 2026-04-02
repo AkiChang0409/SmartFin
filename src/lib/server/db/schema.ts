@@ -53,9 +53,7 @@ export const projects = sqliteTable('projects', {
 
 export const contracts = sqliteTable('contracts', {
 	id: text('id').primaryKey(),
-	projectId: text('project_id')
-		.notNull()
-		.references(() => projects.id),
+	projectId: text('project_id').references(() => projects.id),
 	fileUrl: text('file_url').notNull(),
 	amount: real('amount'),
 	currency: text('currency').default('SGD'),
@@ -111,6 +109,7 @@ export const purchaseOrders = sqliteTable('purchase_orders', {
 	amount: real('amount'),
 	currency: text('currency').default('SGD'),
 	date: text('date'),
+	metadata: text('metadata'),
 	...timeFields
 });
 
