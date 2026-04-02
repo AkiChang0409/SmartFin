@@ -10,7 +10,7 @@
 		{
 			"binding": "DB",
 			"database_name": "smartfin-db",
-			"database_id": "replace-with-your-d1-database-id",
+			"database_id": "e6494c48-4290-49d9-aac0-9398830baa9b",
 			"migrations_dir": "drizzle/migrations"
 		}
 	],
@@ -23,7 +23,8 @@
 	"kv_namespaces": [
 		{
 			"binding": "KV",
-			"id": "replace-with-your-kv-namespace-id"
+			"id": "0dceb2c3f48145fea746b64b9c227a6b",
+			"remote": true
 		}
 	],
 	"queues": {
@@ -33,6 +34,12 @@
 				"queue": "smartfin-ocr"
 			}
 		]
+	},
+	"vars": {
+		"BETTER_AUTH_URL": "https://smartfin.smartfin.workers.dev",
+		"LLM_PROVIDER": "external",
+		"LLM_API_URL": "https://api.openai.com/v1/chat/completions",
+		"OCR_PROMPT_VERSION": "v1"
 	},
 	"assets": {
 		"binding": "ASSETS",
