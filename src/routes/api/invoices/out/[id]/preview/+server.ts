@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 
 import { getDb, schema } from '$lib/server/db';
 import { fail, ok } from '$lib/server/http';
+import { parseStoredInvoiceLineItems } from '$lib/invoice-line-items';
 
 export const GET: RequestHandler = async ({ params, platform }) => {
 	if (!platform) {
@@ -20,6 +21,8 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		return fail('Invoice not found', 404);
 	}
 
+	const parsed = parseStoredInvoiceLineItems(invoice.lineItems);
+
 	return ok({
 		id: invoice.id,
 		invoiceNo: invoice.invoiceNo,
@@ -30,6 +33,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		subtotal: invoice.subtotal,
 		gstAmount: invoice.gstAmount,
 		total: invoice.total,
-		lineItems: invoice.lineItems ? JSON.parse(invoice.lineItems) : []
+		lineItems: parsed.lines,
+		generatorMeta: parsed.generator ?? null
 	});
 };

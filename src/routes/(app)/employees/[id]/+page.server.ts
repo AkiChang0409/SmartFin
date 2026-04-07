@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, between, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 import { getDb, schema } from '$lib/server/db';
+import { estimateSingaporeResidentTax } from '$lib/server/singapore-resident-tax-estimate';
 
-export const load: PageServerLoad = async ({ params, platform }) => {
+export const load: PageServerLoad = async ({ params, platform, url }) => {
 	if (!platform) throw error(500, 'Cloudflare platform bindings are required');
 
 	const db = getDb(platform.env);
@@ -16,7 +17,22 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 
 	if (!employee) throw error(404, 'Employee not found');
 
-	const [companyComponents, allocations, participation] = await Promise.all([
+	const calendarYear = new Date().getFullYear();
+	const parsedYear = Number.parseInt(url.searchParams.get('taxYear') ?? String(calendarYear), 10);
+	const taxYear =
+		Number.isFinite(parsedYear) && parsedYear >= 2000 && parsedYear <= calendarYear + 1
+			? parsedYear
+			: calendarYear;
+	const periodStart = `${taxYear}-01-01`;
+	const periodEnd = `${taxYear}-12-31`;
+
+	const payoutTaxFilter = and(
+		eq(schema.projectEmployees.employeeId, params.id),
+		between(schema.payoutRecords.period, periodStart, periodEnd),
+		inArray(schema.payoutRecords.status, ['confirmed', 'paid'])
+	);
+
+	const [companyComponents, allocations, participation, taxAgg, taxByIncomeType] = await Promise.all([
 		db
 			.select()
 			.from(schema.employeeCompensationComponents)
@@ -65,17 +81,74 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 					isNull(schema.projects.deletedAt)
 				)
 			)
-			.orderBy(asc(schema.projects.name))
+			.orderBy(asc(schema.projects.name)),
+		db
+			.select({
+				taxableTotal: sql<number>`coalesce(sum(${schema.payoutRecords.taxableAmount}), 0)`,
+				computedTotal: sql<number>`coalesce(sum(${schema.payoutRecords.computedAmount}), 0)`,
+				cpfEmployeeTotal: sql<number>`coalesce(sum(${schema.payoutRecords.cpfEmployee}), 0)`,
+				payoutCount: sql<number>`count(*)`
+			})
+			.from(schema.payoutRecords)
+			.innerJoin(
+				schema.compensationComponents,
+				eq(schema.payoutRecords.componentId, schema.compensationComponents.id)
+			)
+			.innerJoin(
+				schema.projectEmployees,
+				eq(schema.compensationComponents.projectEmployeeId, schema.projectEmployees.id)
+			)
+			.where(payoutTaxFilter),
+		db
+			.select({
+				incomeType: schema.compensationComponents.incomeType,
+				computedSum: sql<number>`coalesce(sum(${schema.payoutRecords.computedAmount}), 0)`,
+				taxableSum: sql<number>`coalesce(sum(${schema.payoutRecords.taxableAmount}), 0)`,
+				cpfEmployeeSum: sql<number>`coalesce(sum(${schema.payoutRecords.cpfEmployee}), 0)`,
+				lineCount: sql<number>`count(*)`
+			})
+			.from(schema.payoutRecords)
+			.innerJoin(
+				schema.compensationComponents,
+				eq(schema.payoutRecords.componentId, schema.compensationComponents.id)
+			)
+			.innerJoin(
+				schema.projectEmployees,
+				eq(schema.compensationComponents.projectEmployeeId, schema.projectEmployees.id)
+			)
+			.where(payoutTaxFilter)
+			.groupBy(schema.compensationComponents.incomeType)
 	]);
 
 	const allocationByProjectId = Object.fromEntries(allocations.map((a) => [a.projectId, a.weightPct] as const));
+
+	const [aggRow] = taxAgg;
+	const taxableTotal = aggRow?.taxableTotal ?? 0;
+	const cpfEmployeeTotal = aggRow?.cpfEmployeeTotal ?? 0;
+	const chargeableBeforeOtherReliefs = taxableTotal - cpfEmployeeTotal;
+	const estimatedResidentTax = estimateSingaporeResidentTax(chargeableBeforeOtherReliefs);
+
+	const byIncomeType = [...taxByIncomeType].sort((a, b) => String(a.incomeType).localeCompare(String(b.incomeType)));
 
 	return {
 		employee,
 		companyComponents,
 		allocations,
 		allocationByProjectId,
-		participation
+		participation,
+		individualTax: {
+			year: taxYear,
+			range: { start: periodStart, end: periodEnd },
+			payoutCount: aggRow?.payoutCount ?? 0,
+			taxableTotal,
+			computedTotal: aggRow?.computedTotal ?? 0,
+			cpfEmployeeTotal,
+			chargeableBeforeOtherReliefs,
+			estimatedResidentTax,
+			byIncomeType,
+			note:
+				'Figures sum project-linked payout lines (status confirmed or paid) in the selected calendar year. IRAS reliefs beyond employee CPF are not stored; estimated tax uses resident progressive bands for illustration only — verify with IRAS / your tax advisor.'
+		}
 	};
 };
 

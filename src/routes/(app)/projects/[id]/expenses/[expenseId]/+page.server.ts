@@ -43,6 +43,8 @@ export const actions: Actions = {
 		const date = String(form.get('date') ?? '');
 		const staffName = String(form.get('staffName') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();
+		const costLayerRaw = String(form.get('costLayer') ?? 'cogs').toLowerCase();
+		const costLayer = costLayerRaw === 'opex' ? 'opex' : 'cogs';
 
 		if (!category || !date) return fail(400, { message: 'Record ID, expense category, and date are required.' });
 
@@ -73,6 +75,7 @@ export const actions: Actions = {
 				currency,
 				date,
 				staffName: staffName || null,
+				costLayer,
 				metadata,
 				updatedAt: new Date().toISOString()
 			})
@@ -89,7 +92,7 @@ export const actions: Actions = {
 			entityType: 'expense',
 			entityId: params.expenseId,
 			projectId: params.id,
-			metadata: { category }
+			metadata: { category, costLayer }
 		});
 
 		return { ok: true };

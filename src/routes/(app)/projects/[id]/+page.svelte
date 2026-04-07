@@ -88,7 +88,8 @@
 			{
 				id: 'expense-details',
 				title: 'Expense Cost Breakdown',
-				description: 'Composed from project expenses (expenses.amount).',
+				description:
+					'Company-paid expenses on the project. COGS vs OpEx follows expenses.cost_layer; totals feed gross vs net profit.',
 				total: data.breakdown.expenseCost,
 				items: data.details.expenseItems,
 				fallback: 'No expense records yet.'
@@ -184,21 +185,25 @@
 						{money(data.breakdown.expenseCost)}
 					</p>
 					<p class="mt-1 text-[11px] text-slate-500">
-						{data.metricDocCounts.expense} claim{data.metricDocCounts.expense === 1 ? '' : 's'}
+						{data.metricDocCounts.expense} claim{data.metricDocCounts.expense === 1 ? '' : 's'} · COGS{' '}
+						{money(data.breakdown.expenseCogsCost)} · OpEx {money(data.breakdown.expenseOpexCost)}
 					</p>
 				</button>
 			</div>
 			<div class="grid grid-cols-1 gap-px bg-slate-200 border-t border-slate-200 md:grid-cols-3">
 				<div class="px-5 py-3.5" style="background: var(--sf-green-soft);">
 					<p class="text-[11px] font-medium uppercase tracking-wide text-[var(--sf-green)] opacity-80">
-						Project profit
+						Gross / net profit
+					</p>
+					<p class="mt-1 text-sm font-medium text-emerald-950">
+						Gross {money(data.grossProfit)}
 					</p>
 					<p
-						class="mt-1 text-xl font-medium {data.profit >= 0 ? 'text-emerald-900' : 'text-rose-700'}"
+						class="mt-0.5 text-xl font-medium {data.profit >= 0 ? 'text-emerald-900' : 'text-rose-700'}"
 					>
-						{money(data.profit)}
+						Net {money(data.profit)}
 					</p>
-					<p class="mt-0.5 text-xs text-[var(--sf-green)]">Revenue − costs</p>
+					<p class="mt-0.5 text-xs text-[var(--sf-green)]">Net = gross − OpEx expenses</p>
 				</div>
 				<div class="px-5 py-3.5" style="background: var(--sf-green-soft);">
 					<p class="text-[11px] font-medium uppercase tracking-wide text-[var(--sf-green)] opacity-80">
@@ -418,7 +423,7 @@
 				<p class="mt-3">
 					<a
 						class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-						href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=other`}
+						href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=expense`}
 					>
 						Upload expense document…
 					</a>

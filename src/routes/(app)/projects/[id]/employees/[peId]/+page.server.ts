@@ -4,15 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 import { periodCalendarMonth, settleCompanyAllocationMonth } from '$lib/server/company-allocation-settle';
 import { getDb, schema } from '$lib/server/db';
-
-function monthStart(ym: string): string {
-	return `${ym}-01`;
-}
-
-function sameCalendarMonth(isoDate: string | null | undefined, ym: string): boolean {
-	if (!isoDate) return false;
-	return periodCalendarMonth(isoDate) === ym;
-}
+import { runSettleManualProjectComponentsForMonth } from '$lib/server/settle-project-components';
 
 export const load: PageServerLoad = async ({ params, platform, parent, url }) => {
 	const parentData = await parent();
@@ -346,79 +338,12 @@ export const actions: Actions = {
 			.limit(1);
 		if (!pe) return fail(400, { message: 'Assignment not found.' });
 
-		const components = await db
-			.select()
-			.from(schema.compensationComponents)
-			.where(
-				and(
-					eq(schema.compensationComponents.projectEmployeeId, params.peId),
-					or(eq(schema.compensationComponents.origin, 'manual'), isNull(schema.compensationComponents.origin)),
-					isNull(schema.compensationComponents.deletedAt)
-				)
-			);
-
-		const period = monthStart(monthYm);
-		const now = new Date().toISOString();
-		let lines = 0;
-
-		for (const c of components) {
-			if (c.frequency !== 'monthly' && c.frequency !== 'one_off') continue;
-			if (c.frequency === 'monthly') {
-				if (c.effectiveFrom > period) continue;
-				if (c.effectiveTo && c.effectiveTo < period) continue;
-			} else if (c.frequency === 'one_off') {
-				if (!sameCalendarMonth(c.effectiveFrom, monthYm)) continue;
-			}
-			const amount = c.value ?? 0;
-			const taxableAmount = c.taxable ? amount : 0;
-			const note = `Project component settlement (${monthYm})`;
-
-			const [existing] = await db
-				.select({ id: schema.payoutRecords.id })
-				.from(schema.payoutRecords)
-				.where(
-					and(
-						eq(schema.payoutRecords.componentId, c.id),
-						eq(schema.payoutRecords.projectId, params.id),
-						eq(schema.payoutRecords.period, period),
-						eq(schema.payoutRecords.source, 'settlement'),
-						isNull(schema.payoutRecords.deletedAt)
-					)
-				)
-				.limit(1);
-
-			if (existing) {
-				await db
-					.update(schema.payoutRecords)
-					.set({
-						baseValue: amount,
-						computedAmount: amount,
-						taxableAmount,
-						status: 'confirmed',
-						note,
-						updatedAt: now
-					})
-					.where(eq(schema.payoutRecords.id, existing.id));
-			} else {
-				await db.insert(schema.payoutRecords).values({
-					id: crypto.randomUUID(),
-					componentId: c.id,
-					projectId: params.id,
-					period,
-					baseValue: amount,
-					computedAmount: amount,
-					cpfEmployee: 0,
-					cpfEmployer: 0,
-					taxableAmount,
-					status: 'confirmed',
-					source: 'settlement',
-					note,
-					createdAt: now,
-					updatedAt: now
-				});
-			}
-			lines += 1;
-		}
+		const lines = await runSettleManualProjectComponentsForMonth({
+			db,
+			projectId: params.id,
+			peId: params.peId,
+			monthYm
+		});
 
 		if (lines === 0) {
 			return fail(400, {

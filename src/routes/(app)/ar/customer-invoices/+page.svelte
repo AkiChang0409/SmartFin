@@ -1,5 +1,6 @@
 <script lang="ts">
 	import PageShell from '$lib/components/PageShell.svelte';
+	import { parseStoredInvoiceLineItems } from '$lib/invoice-line-items';
 
 	let { data } = $props();
 
@@ -13,14 +14,7 @@
 		selectedInvoice = null;
 	};
 
-	const parseLineItems = (raw: string | null) => {
-		if (!raw) return [] as Array<{ desc?: string; qty?: number; price?: number }>;
-		try {
-			return JSON.parse(raw) as Array<{ desc?: string; qty?: number; price?: number }>;
-		} catch {
-			return [];
-		}
-	};
+	const lineRows = (raw: string | null) => parseStoredInvoiceLineItems(raw).lines;
 </script>
 
 <PageShell
@@ -28,6 +22,17 @@
 	title="Customer Invoices"
 	description="Archive and review customer invoice records. Edit actions are handled in project module."
 >
+	{#snippet actions()}
+		<a
+			class="inline-flex items-center rounded-lg border border-[var(--sf-gold)] bg-[var(--sf-gold-soft)] px-4 py-2 text-sm font-medium text-[#7a5a07] hover:bg-[#f6e8b8]"
+			href={data.filters.projectId
+				? `/ar/customer-invoices/generate?projectId=${encodeURIComponent(data.filters.projectId)}`
+				: '/ar/customer-invoices/generate'}
+			data-sveltekit-noscroll
+		>
+			Generate invoice
+		</a>
+	{/snippet}
 	<section class="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 		<form class="grid gap-3 lg:grid-cols-[2fr_1fr_1.3fr_auto_auto]" method="GET" data-sveltekit-noscroll>
 			<input type="hidden" name="page" value="1" />
@@ -183,6 +188,15 @@
 									<button type="button" class="rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-100" onclick={() => openDetail(item)}>
 										View Detail
 									</button>
+									{#if item.status === 'draft'}
+										<a
+											class="rounded border border-[var(--sf-gold)] bg-[var(--sf-gold-soft)] px-2 py-1.5 text-xs text-[#7a5a07] hover:bg-[#f6e8b8]"
+											href={`/ar/customer-invoices/generate?invoiceId=${encodeURIComponent(item.id)}`}
+											data-sveltekit-noscroll
+										>
+											Re-edit Draft
+										</a>
+									{/if}
 									<a class="rounded border border-[var(--sf-green)] bg-[var(--sf-green-soft)] px-2 py-1.5 text-xs text-[var(--sf-green)] hover:bg-[#dcefd8]" href={`/projects/${item.projectId}`} data-sveltekit-noscroll>
 										Go to Project
 									</a>
@@ -219,7 +233,7 @@
 
 				<div class="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
 					<p class="text-xs text-slate-500">Line Items</p>
-					{#if parseLineItems(selectedInvoice.lineItems).length === 0}
+					{#if lineRows(selectedInvoice.lineItems).length === 0}
 						<p class="mt-1 text-sm text-slate-500">No line items.</p>
 					{:else}
 						<div class="mt-2 overflow-x-auto">
@@ -232,7 +246,7 @@
 									</tr>
 								</thead>
 								<tbody class="divide-y divide-slate-100">
-									{#each parseLineItems(selectedInvoice.lineItems) as row}
+									{#each lineRows(selectedInvoice.lineItems) as row}
 										<tr>
 											<td class="px-2 py-1">{row.desc ?? '--'}</td>
 											<td class="px-2 py-1">{row.qty ?? '--'}</td>

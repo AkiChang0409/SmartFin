@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	const boxNo = Number.parseInt(params.n, 10);
 	const db = getDb(platform.env);
 
-	if ([1, 2, 3, 6].includes(boxNo)) {
+	if ([1, 2, 3].includes(boxNo)) {
 		const gstType = boxNo === 1 ? 'standard' : boxNo === 2 ? 'zero' : 'exempt';
 		const invoices = await db
 			.select({
@@ -43,6 +43,26 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 			.where(
 				and(
 					eq(schema.invoicesOut.gstType, gstType as 'standard' | 'zero' | 'exempt'),
+					between(schema.invoicesOut.date, range.start, range.end),
+					isNull(schema.invoicesOut.deletedAt)
+				)
+			);
+		return ok({ box: boxNo, invoices });
+	}
+
+	if (boxNo === 6) {
+		const invoices = await db
+			.select({
+				id: schema.invoicesOut.id,
+				invoiceNo: schema.invoicesOut.invoiceNo,
+				date: schema.invoicesOut.date,
+				amount: schema.invoicesOut.subtotal,
+				gstAmount: schema.invoicesOut.gstAmount
+			})
+			.from(schema.invoicesOut)
+			.where(
+				and(
+					eq(schema.invoicesOut.gstType, 'standard'),
 					between(schema.invoicesOut.date, range.start, range.end),
 					isNull(schema.invoicesOut.deletedAt)
 				)
@@ -67,7 +87,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 			.select({
 				id: schema.expenses.id,
 				date: schema.expenses.date,
-				counterparty: schema.expenses.staffName,
+				counterparty: sql<string>`coalesce(${schema.expenses.category}, ${schema.expenses.staffName}, 'Expense')`,
 				amount: schema.expenses.amount,
 				type: sql<string>`'expense'`
 			})
@@ -96,7 +116,13 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		const [box6] = await db
 			.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.gstAmount}), 0)` })
 			.from(schema.invoicesOut)
-			.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));
+			.where(
+				and(
+					eq(schema.invoicesOut.gstType, 'standard'),
+					between(schema.invoicesOut.date, range.start, range.end),
+					isNull(schema.invoicesOut.deletedAt)
+				)
+			);
 		const [box7] = await db
 			.select({ total: sql<number>`coalesce(sum(${schema.invoicesIn.gstAmount}), 0)` })
 			.from(schema.invoicesIn)
@@ -128,13 +154,33 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		});
 	}
 
+	if (boxNo === 4) {
+		const invoices = await db
+			.select({
+				id: schema.invoicesOut.id,
+				invoiceNo: schema.invoicesOut.invoiceNo,
+				date: schema.invoicesOut.date,
+				amount: schema.invoicesOut.subtotal,
+				gstType: schema.invoicesOut.gstType,
+				gstAmount: schema.invoicesOut.gstAmount
+			})
+			.from(schema.invoicesOut)
+			.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));
+		return ok({
+			box: boxNo,
+			invoices,
+			note: 'Box 4 equals Box 1 + 2 + 3 (supply values excl. GST). One row per invoice for reconciliation.'
+		});
+	}
+
 	if (boxNo === 13) {
 		const invoices = await db
 			.select({
 				id: schema.invoicesOut.id,
 				invoiceNo: schema.invoicesOut.invoiceNo,
 				date: schema.invoicesOut.date,
-				total: schema.invoicesOut.total
+				amount: schema.invoicesOut.total,
+				gstAmount: schema.invoicesOut.gstAmount
 			})
 			.from(schema.invoicesOut)
 			.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));

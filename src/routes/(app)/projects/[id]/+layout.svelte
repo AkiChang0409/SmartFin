@@ -170,7 +170,7 @@
 
 			<a class={tabBtn(isEmployeesNav)} href={`${base}/employees`}>
 				<span class="opacity-70" aria-hidden="true">◎</span>
-				Project employee
+				Team &amp; cost
 			</a>
 			<a class={tabBtn(isInvoicesNav)} href={`${base}/invoices`}>
 				<span class="opacity-70" aria-hidden="true">¥</span>

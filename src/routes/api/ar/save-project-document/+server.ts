@@ -66,6 +66,11 @@ function num0(v: unknown): number {
 	return n ?? 0;
 }
 
+function normalizeExpenseCostLayer(v: unknown): 'cogs' | 'opex' {
+	const s = str(v).toLowerCase();
+	return s === 'opex' ? 'opex' : 'cogs';
+}
+
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	if (!platform) {
 		return fail('Cloudflare platform bindings are required', 500);
@@ -290,6 +295,53 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 					metadata: { fileName, invoiceNo, extractedInvoiceNo: desiredInvoiceNo || undefined }
 				});
 				return ok({ entityId: id, entityType: 'invoice_out', invoiceNo }, 201);
+			}
+			case 'expense': {
+				const id = crypto.randomUUID();
+				const category =
+					str(body.expenseCategory) || str(body.otherTag) || str(docTitle) || 'Uncategorized expense';
+				const subcategory = str(body.expenseSubcategory) || null;
+				const amount = num0(body.expenseAmount);
+				const currency = str(body.expenseCurrency) || 'SGD';
+				const date = str(body.expenseDate) || now.slice(0, 10);
+				const staffName = str(body.expenseStaffName) || null;
+				const costLayer = normalizeExpenseCostLayer(body.expenseCostLayer);
+				const ocrPayload = rawDetectedText
+					? JSON.stringify({
+							source: 'document_upload',
+							textPreview: rawDetectedText.slice(0, 12000),
+							savedAt: now
+						})
+					: null;
+				await db.insert(schema.expenses).values({
+					id,
+					projectId,
+					category,
+					subcategory,
+					amount,
+					currency,
+					date,
+					costLayer,
+					staffName,
+					fileUrl: key,
+					ocrData: ocrPayload,
+					metadata: makeMetadata(),
+					createdAt: now,
+					updatedAt: now
+				});
+				await auditSafe(platform, locals.user, {
+					action: 'expense.create',
+					entityType: 'expense',
+					entityId: id,
+					projectId,
+					metadata: {
+						source: 'ar_document_upload',
+						fileName,
+						costLayer,
+						category
+					}
+				});
+				return ok({ entityId: id, entityType: 'expense' }, 201);
 			}
 			case 'invoice_in': {
 				const id = crypto.randomUUID();

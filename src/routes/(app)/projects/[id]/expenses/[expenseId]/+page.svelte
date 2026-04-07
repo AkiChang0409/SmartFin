@@ -42,7 +42,7 @@
 		</button>
 		<a
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=other`}
+			href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=expense`}
 		>
 			Upload document…
 		</a>
@@ -82,6 +82,12 @@
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Staff</p>
 				<p class="mt-1 text-sm text-slate-900">{data.expense.staffName ?? '—'}</p>
+			</div>
+			<div class="bg-white px-5 py-3">
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Cost layer</p>
+				<p class="mt-1 text-sm text-slate-900">
+					{data.expense.costLayer === 'opex' ? 'OpEx (indirect)' : 'COGS (direct)'}
+				</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Source</p>
@@ -237,6 +243,17 @@
 						name="staffName"
 						value={data.expense.staffName ?? ''}
 					/>
+				</label>
+				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
+					Cost layer
+					<select
+						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
+						name="costLayer"
+						value={data.expense.costLayer ?? 'cogs'}
+					>
+						<option value="cogs">COGS — direct project cost</option>
+						<option value="opex">OpEx — indirect / BD / subscriptions</option>
+					</select>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
 					Notes (stored in metadata)

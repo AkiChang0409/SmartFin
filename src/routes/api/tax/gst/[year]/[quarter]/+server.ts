@@ -72,10 +72,17 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		.select({ total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)` })
 		.from(schema.expenses)
 		.where(and(between(schema.expenses.date, range.start, range.end), isNull(schema.expenses.deletedAt)));
+	/** Output tax (IRAS Box 6): GST on standard-rated sales only; zero/exempt should carry 0 output tax. */
 	const [box6] = await db
 		.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.gstAmount}), 0)` })
 		.from(schema.invoicesOut)
-		.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));
+		.where(
+			and(
+				eq(schema.invoicesOut.gstType, 'standard'),
+				between(schema.invoicesOut.date, range.start, range.end),
+				isNull(schema.invoicesOut.deletedAt)
+			)
+		);
 	const [box7] = await db
 		.select({ total: sql<number>`coalesce(sum(${schema.invoicesIn.gstAmount}), 0)` })
 		.from(schema.invoicesIn)
@@ -139,9 +146,14 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		meta: {
 			manualBoxes: ['box9', 'box10', 'box11', 'box12'],
 			notes: [
-				'Box 5 uses supplier invoices + expenses during the quarter.',
-				'Box 9-12 follow IRAS definitions and are manually maintained in company_settings (default 0 unless applicable).',
-				'Box 13 uses total revenue from customer invoices during the quarter.'
+				'Box 1–3: value of supplies (subtotal excl. GST) from customer invoices by gst_type.',
+				'Box 4: sum of boxes 1–3',
+				'Box 5: supplier invoice amounts (invoices_in.amount) plus expenses (expenses.amount). Expenses rows usually lack a split-out GST field — see Box 7 note.',
+				'Box 6: output GST from standard-rated sales only (invoices_out.gst_amount where gst_type = standard).',
+				'Box 7: input GST from supplier tax invoices only (invoices_in.gst_amount). Expense records do not currently store GST; their tax is not in Box 7 until modeled.',
+				'Box 8 = Box 6 − Box 7 (simplified). IRAS net payable can also involve Boxes 9–12 — maintain manually where applicable.',
+				'Box 9–12: company_settings keys gst_box9_manual … gst_box12_manual.',
+				'Box 13: sum of invoices_out.total (typically subtotal + GST) for the quarter — not the same as Box 4.'
 			]
 		}
 	});

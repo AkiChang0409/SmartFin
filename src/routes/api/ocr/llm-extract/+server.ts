@@ -2,7 +2,14 @@ import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$lib/server/http';
 
-type DocType = 'contract' | 'quotation' | 'purchase_order' | 'invoice_out' | 'invoice_in' | 'other';
+type DocType =
+	| 'contract'
+	| 'quotation'
+	| 'purchase_order'
+	| 'invoice_out'
+	| 'invoice_in'
+	| 'expense'
+	| 'other';
 
 type LlmExtractPayload = {
 	docType?: DocType;
@@ -38,6 +45,14 @@ type LlmExtractionResult = {
 	invoiceCurrency?: string | null;
 	invoiceDueDate?: string | null;
 	invoiceGstAmount?: number | null;
+	expenseCategory?: string | null;
+	expenseSubcategory?: string | null;
+	expenseAmount?: number | null;
+	expenseCurrency?: string | null;
+	expenseDate?: string | null;
+	expenseStaffName?: string | null;
+	/** cogs | opex */
+	expenseCostLayer?: string | null;
 	/** Per extracted field: 0–100 (model or heuristic). Keys match JSON field names (e.g. supplierName). */
 	fieldConfidence?: Record<string, number>;
 	/** Optional overall band (legacy / summary). */
@@ -180,6 +195,31 @@ function heuristicExtract(docType: DocType, text: string): LlmExtractionResult {
 			confidence: 'medium'
 		};
 	}
+	if (docType === 'expense') {
+		const tLo = compact.toLowerCase();
+		const merchant =
+			compact.match(/(?:merchant|paid\s+to|from)\s*[:\-]?\s*([^\n]+)/i)?.[1]?.trim() ??
+			supplierName ??
+			null;
+		const fieldConfidence: Record<string, number> = {};
+		if (merchant) fieldConfidence.expenseCategory = H.party;
+		if (date) fieldConfidence.expenseDate = H.date;
+		if (amount != null) fieldConfidence.expenseAmount = H.amount;
+		if (currency) fieldConfidence.expenseCurrency = H.currency;
+		return {
+			expenseCategory: merchant,
+			expenseSubcategory: null,
+			expenseAmount: amount,
+			expenseCurrency: currency,
+			expenseDate: date,
+			expenseStaffName: null,
+			expenseCostLayer: /\b(meal|restaurant|grab|bd|sales|coffee|subscription|software|saas)\b/i.test(tLo)
+				? 'opex'
+				: 'cogs',
+			fieldConfidence,
+			confidence: 'medium'
+		};
+	}
 	if (docType === 'invoice_in' || docType === 'invoice_out') {
 		const fieldConfidence: Record<string, number> = {};
 		if (invoiceNo) fieldConfidence.invoiceNo = H.label;
@@ -237,6 +277,9 @@ quotationRef, quotationDate, quotationAmount, quotationCurrency, sourceType, cus
 
 For invoice_in / invoice_out return keys:
 invoiceNo, invoiceDate, invoiceAmount, invoiceCurrency, invoiceDueDate, invoiceGstAmount, poNumber, supplierName, customerName, fieldConfidence, confidence (optional)
+
+For expense return keys:
+expenseCategory, expenseSubcategory, expenseAmount, expenseCurrency, expenseDate, expenseStaffName, expenseCostLayer (cogs or opex), fieldConfidence, confidence (optional)
 
 Rules:
 - date format must be YYYY-MM-DD or null
@@ -315,6 +358,9 @@ async function callExternalLlm(
 
 	const fieldConfidence = parseFieldConfidence(parsed.fieldConfidence);
 
+	const expenseLayerRaw = typeof parsed.expenseCostLayer === 'string' ? parsed.expenseCostLayer.toLowerCase() : '';
+	const expenseCostLayer = expenseLayerRaw === 'opex' ? 'opex' : expenseLayerRaw === 'cogs' ? 'cogs' : null;
+
 	return {
 		contractNo: typeof parsed.contractNo === 'string' ? parsed.contractNo : null,
 		contractDate: normalizeDate(parsed.contractDate),
@@ -336,6 +382,13 @@ async function callExternalLlm(
 		invoiceCurrency: typeof parsed.invoiceCurrency === 'string' ? parsed.invoiceCurrency : null,
 		invoiceDueDate: normalizeDate(parsed.invoiceDueDate),
 		invoiceGstAmount: normalizeAmount(parsed.invoiceGstAmount),
+		expenseCategory: typeof parsed.expenseCategory === 'string' ? parsed.expenseCategory : null,
+		expenseSubcategory: typeof parsed.expenseSubcategory === 'string' ? parsed.expenseSubcategory : null,
+		expenseAmount: normalizeAmount(parsed.expenseAmount),
+		expenseCurrency: typeof parsed.expenseCurrency === 'string' ? parsed.expenseCurrency : null,
+		expenseDate: normalizeDate(parsed.expenseDate),
+		expenseStaffName: typeof parsed.expenseStaffName === 'string' ? parsed.expenseStaffName : null,
+		expenseCostLayer,
 		fieldConfidence,
 		confidence:
 			parsed.confidence === 'high' || parsed.confidence === 'medium' || parsed.confidence === 'low'

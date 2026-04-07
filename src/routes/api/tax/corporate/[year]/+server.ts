@@ -45,9 +45,10 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		.where(
 			and(staffCostPeriodBetween(start, end), staffCostPayoutJoinConditions())
 		);
-	const [expense] = await db.select({ total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)` }).from(
-		schema.expenses
-	).where(and(between(schema.expenses.date, start, end), isNull(schema.expenses.deletedAt)));
+	const [expense] = await db
+		.select({ total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)` })
+		.from(schema.expenses)
+		.where(and(between(schema.expenses.date, start, end), isNull(schema.expenses.deletedAt)));
 
 	const taxableIncome =
 		(revenue?.total ?? 0) - (purchase?.total ?? 0) - (staff?.total ?? 0) - (expense?.total ?? 0);

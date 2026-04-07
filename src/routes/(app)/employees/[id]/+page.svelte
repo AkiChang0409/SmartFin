@@ -4,6 +4,14 @@
 	let { data, form } = $props();
 
 	const today = new Date().toISOString().slice(0, 10);
+	const calendarYear = new Date().getFullYear();
+	const taxYearMin = 2018;
+	const taxYearMax = calendarYear + 1;
+	const taxYearOptions = Array.from({ length: taxYearMax - taxYearMin + 1 }, (_, i) => taxYearMin + i);
+
+	function formatSgd(n: number) {
+		return new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' }).format(n);
+	}
 </script>
 
 <PageShell
@@ -246,12 +254,103 @@
 		{/if}
 	</section>
 
-	<section class="space-y-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-		<h2 class="text-lg font-semibold text-slate-900">IR8A / annual tax (placeholder)</h2>
-		<p class="text-sm text-slate-600">
-			Annual figures should roll up from <strong>company compensation components</strong>, confirmed payouts, and CPF flags on the master record. Dedicated IR8A
-			worksheets and filing export are not implemented in this build.
-		</p>
+	<section class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+		<div class="flex flex-wrap items-start justify-between gap-4">
+			<div>
+				<h2 class="text-lg font-semibold text-slate-900">Individual income tax (IR8A-style summary)</h2>
+				<p class="mt-1 text-xs text-slate-500">
+					Rolls up <strong>project-linked payouts</strong> (status confirmed or paid) by calendar year — same basis as
+					<code class="rounded bg-slate-100 px-1 text-[11px]">GET /api/tax/individual/…</code>. Not a filing-ready IR8A export.
+				</p>
+			</div>
+			<form method="GET" class="flex items-end gap-2">
+				<label class="space-y-1 text-sm">
+					<span class="text-slate-700">Year</span>
+					<select
+						name="taxYear"
+						value={String(data.individualTax.year)}
+						class="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
+						onchange={(e) => e.currentTarget.form?.requestSubmit()}
+					>
+						{#each taxYearOptions as y}
+							<option value={y}>{y}</option>
+						{/each}
+					</select>
+				</label>
+			</form>
+		</div>
+
+		<p class="text-xs text-slate-600">{data.individualTax.note}</p>
+
+		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+			<div class="rounded-lg border border-slate-100 bg-slate-50/80 p-4">
+				<p class="text-xs font-medium text-slate-500">Gross (computed)</p>
+				<p class="mt-1 text-lg font-semibold text-slate-900">{formatSgd(data.individualTax.computedTotal)}</p>
+				<p class="mt-1 text-[11px] text-slate-500">{data.individualTax.payoutCount} payout line(s)</p>
+			</div>
+			<div class="rounded-lg border border-slate-100 bg-slate-50/80 p-4">
+				<p class="text-xs font-medium text-slate-500">Taxable (from lines)</p>
+				<p class="mt-1 text-lg font-semibold text-slate-900">{formatSgd(data.individualTax.taxableTotal)}</p>
+			</div>
+			<div class="rounded-lg border border-slate-100 bg-slate-50/80 p-4">
+				<p class="text-xs font-medium text-slate-500">Employee CPF (summed)</p>
+				<p class="mt-1 text-lg font-semibold text-slate-900">{formatSgd(data.individualTax.cpfEmployeeTotal)}</p>
+			</div>
+			<div class="rounded-lg border border-emerald-100 bg-emerald-50/50 p-4">
+				<p class="text-xs font-medium text-emerald-800">Chargeable (after CPF only)</p>
+				<p class="mt-1 text-lg font-semibold text-emerald-900">{formatSgd(data.individualTax.chargeableBeforeOtherReliefs)}</p>
+				<p class="mt-1 text-[11px] text-emerald-800/80">Before other IRAS reliefs</p>
+			</div>
+		</div>
+
+		<div class="rounded-lg border border-amber-100 bg-amber-50/60 p-4">
+			<p class="text-xs font-medium text-amber-900">Illustrative resident tax (progressive)</p>
+			<p class="mt-1 text-2xl font-semibold text-amber-950">{formatSgd(data.individualTax.estimatedResidentTax)}</p>
+			<p class="mt-1 text-[11px] text-amber-900/90">
+				Applied to chargeable-after-CPF only; non-resident rules, rebates, and reliefs are not applied. Verify with IRAS.
+			</p>
+		</div>
+
+		<div>
+			<h3 class="mb-2 text-sm font-semibold text-slate-800">By income type</h3>
+			<div class="overflow-hidden rounded border border-slate-200">
+				<table class="min-w-full divide-y divide-slate-200 text-sm">
+					<thead class="bg-slate-50 text-left text-slate-600">
+						<tr>
+							<th class="px-4 py-3">Income type</th>
+							<th class="px-4 py-3 text-right">Lines</th>
+							<th class="px-4 py-3 text-right">Computed</th>
+							<th class="px-4 py-3 text-right">Taxable</th>
+							<th class="px-4 py-3 text-right">CPF (employee)</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-slate-100">
+						{#if data.individualTax.byIncomeType.length === 0}
+							<tr>
+								<td class="px-4 py-6 text-slate-500" colspan="5">No confirmed or paid payouts in this year for this employee’s project assignments.</td>
+							</tr>
+						{:else}
+							{#each data.individualTax.byIncomeType as row}
+								<tr>
+									<td class="px-4 py-3 font-medium text-slate-800">{row.incomeType}</td>
+									<td class="px-4 py-3 text-right text-slate-600">{row.lineCount}</td>
+									<td class="px-4 py-3 text-right text-slate-600">{formatSgd(row.computedSum)}</td>
+									<td class="px-4 py-3 text-right text-slate-600">{formatSgd(row.taxableSum)}</td>
+									<td class="px-4 py-3 text-right text-slate-600">{formatSgd(row.cpfEmployeeSum)}</td>
+								</tr>
+							{/each}
+							<tr class="bg-slate-50 font-medium text-slate-900">
+								<td class="px-4 py-3">Total</td>
+								<td class="px-4 py-3 text-right">{data.individualTax.payoutCount}</td>
+								<td class="px-4 py-3 text-right">{formatSgd(data.individualTax.computedTotal)}</td>
+								<td class="px-4 py-3 text-right">{formatSgd(data.individualTax.taxableTotal)}</td>
+								<td class="px-4 py-3 text-right">{formatSgd(data.individualTax.cpfEmployeeTotal)}</td>
+							</tr>
+						{/if}
+					</tbody>
+				</table>
+			</div>
+		</div>
 	</section>
 
 	<form method="POST" action="?/deleteEmployee">

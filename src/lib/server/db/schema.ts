@@ -303,6 +303,8 @@ export const expenses = sqliteTable('expenses', {
 	amount: real('amount').notNull().default(0),
 	currency: text('currency').notNull().default('SGD'),
 	date: text('date').notNull(),
+	/** Direct project cost vs indirect OpEx for gross vs net profit (§二). */
+	costLayer: text('cost_layer', { enum: ['cogs', 'opex'] }).notNull().default('cogs'),
 	staffName: text('staff_name'),
 	fileUrl: text('file_url'),
 	ocrData: text('ocr_data'),

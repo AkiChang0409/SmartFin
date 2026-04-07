@@ -2,7 +2,14 @@ import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$lib/server/http';
 
-type DocType = 'contract' | 'quotation' | 'purchase_order' | 'invoice_out' | 'invoice_in' | 'other';
+type DocType =
+	| 'contract'
+	| 'quotation'
+	| 'purchase_order'
+	| 'invoice_out'
+	| 'invoice_in'
+	| 'expense'
+	| 'other';
 
 const DOC_TYPES: DocType[] = [
 	'contract',
@@ -10,6 +17,7 @@ const DOC_TYPES: DocType[] = [
 	'purchase_order',
 	'invoice_out',
 	'invoice_in',
+	'expense',
 	'other'
 ];
 
@@ -61,6 +69,10 @@ function normalizeDocTypeFromModel(raw: unknown, fallback: DocType): DocType {
 		invoice_in: 'invoice_in',
 		supplier_invoice: 'invoice_in',
 		vendor_invoice: 'invoice_in',
+		expense: 'expense',
+		receipt: 'expense',
+		card_receipt: 'expense',
+		payment_receipt: 'expense',
 		other: 'other'
 	};
 	return aliases[v] ?? (DOC_TYPES.includes(v as DocType) ? (v as DocType) : fallback);
@@ -85,6 +97,7 @@ docType must be exactly one of:
 - purchase_order — PO issued to a vendor to buy goods/services
 - invoice_out — OUR sales invoice: WE (the tenant) are the seller/issuer; a CUSTOMER owes us money; output tax / we collect payment; "Bill To" is typically the external customer (not us).
 - invoice_in — SUPPLIER/vendor invoice: another party bills US (the tenant); WE are the buyer; input tax / GST charged TO us on their charges; we must PAY them; "Bill To" / "Invoice To" often lists ${tenantNames.split(',')[0]?.trim() ?? 'our company'}.
+- expense — company card / petty cash receipt, ride-hail trip, subscription receipt, retail slip; not a formal supplier tax invoice and not employee reimbursement (those are payroll), small unstructured spend
 - other — packing list, delivery note, unclear scan, non-financial
 
 ${hintLine}
@@ -124,6 +137,7 @@ function heuristicClassify(text: string, hint: DocType | undefined, env: Env): C
 		purchase_order: 0,
 		invoice_out: 0,
 		invoice_in: 0,
+		expense: 0,
 		other: 0
 	};
 
@@ -132,6 +146,12 @@ function heuristicClassify(text: string, hint: DocType | undefined, env: Env): C
 	if (/\bquotation\b|\brfq\b|\brequest\s+for\s+quot/i.test(t)) scores.quotation += 4;
 	if (/\bquote\b/.test(t) && /\b(valid|price|total|amount)\b/.test(t)) scores.quotation += 2;
 	if (/\bpurchase\s+order\b|\bp\.?\s*o\.?\s*(no|number|#)/i.test(slice)) scores.purchase_order += 5;
+
+	const expenseCues =
+		/\b(receipt|payment\s+received|thank\s+you\s+for\s+your\s+(purchase|payment)|grab|gojek|taxi|uber|ntuc|fairprice|subscription|chatgpt|openai|cursor)\b/i.test(
+			slice
+		) || /\b(total\s+paid|amount\s+paid)\b/i.test(t);
+	if (expenseCues && !/\btax\s+invoice\b/i.test(t)) scores.expense += 4;
 
 	const hasInvoice = /\binvoice\b|\btax\s+invoice\b|\bcommercial\s+invoice\b/i.test(slice);
 	const supplierCues =

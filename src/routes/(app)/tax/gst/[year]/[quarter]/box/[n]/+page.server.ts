@@ -17,6 +17,7 @@ export const load: PageServerLoad = async ({ fetch, params }) => {
 		manualValue?: number;
 		source?: string;
 		key?: string;
+		note?: string;
 	}>;
 
 	if (!json.ok) {
@@ -32,6 +33,7 @@ export const load: PageServerLoad = async ({ fetch, params }) => {
 		breakdown: json.data.breakdown ?? null,
 		manualValue: json.data.manualValue ?? null,
 		manualSource: json.data.source ?? null,
-		manualKey: json.data.key ?? null
+		manualKey: json.data.key ?? null,
+		detailNote: json.data.note ?? null
 	};
 };

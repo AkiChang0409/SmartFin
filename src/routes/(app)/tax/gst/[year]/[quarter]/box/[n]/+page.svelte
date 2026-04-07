@@ -16,8 +16,15 @@
 		Back to GST summary
 	</a>
 
+	{#if data.detailNote}
+		<p class="mt-3 rounded-lg border border-sky-100 bg-sky-50/80 px-3 py-2 text-sm text-sky-900">{data.detailNote}</p>
+	{/if}
+
 	{#if data.breakdown}
-		<div class="grid gap-4 md:grid-cols-3">
+		<p class="mt-3 text-xs text-slate-500">
+			Box 8 here is output tax (standard-rated sales only) minus supplier invoice input tax. Reverse charge (Boxes 10–12) is manual; confirm net payable on the IRAS return.
+		</p>
+		<div class="mt-2 grid gap-4 md:grid-cols-3">
 			<article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 				<p class="text-sm text-slate-500">Box 6</p>
 				<p class="mt-2 text-xl font-semibold text-slate-900">{money(data.breakdown.box6)}</p>

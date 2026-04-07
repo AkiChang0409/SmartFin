@@ -5,6 +5,10 @@ import type { Actions, PageServerLoad } from './$types';
 import { writeAuditLog } from '$lib/server/audit';
 import { getDb, schema } from '$lib/server/db';
 import {
+	projectExpenseCogsSumExpr,
+	projectExpenseOpexSumExpr
+} from '$lib/server/project-expense-sums';
+import {
 	staffCostPayoutJoinConditions,
 	staffCostSumExpr
 } from '$lib/server/project-staff-cost';
@@ -34,10 +38,14 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 			eq(schema.payoutRecords.componentId, schema.compensationComponents.id)
 		)
 		.where(staffPayoutWhere);
-	const [expenseCost] = await db
-		.select({ total: sql<number>`coalesce(sum(${schema.expenses.amount}), 0)` })
-		.from(schema.expenses)
-		.where(and(eq(schema.expenses.projectId, params.id), isNull(schema.expenses.deletedAt)));
+	const expenseWhere = and(eq(schema.expenses.projectId, params.id), isNull(schema.expenses.deletedAt));
+	const [expenseCogsRow, expenseOpexRow] = await Promise.all([
+		db.select({ total: projectExpenseCogsSumExpr() }).from(schema.expenses).where(expenseWhere),
+		db.select({ total: projectExpenseOpexSumExpr() }).from(schema.expenses).where(expenseWhere)
+	]);
+	const expenseCogsCost = expenseCogsRow[0]?.total ?? 0;
+	const expenseOpexCost = expenseOpexRow[0]?.total ?? 0;
+	const expenseCost = expenseCogsCost + expenseOpexCost;
 
 	const [revenueItems, purchaseItems, staffItems, expenseRows] = await Promise.all([
 		db
@@ -84,7 +92,8 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 				subcategory: schema.expenses.subcategory,
 				date: schema.expenses.date,
 				amount: schema.expenses.amount,
-				currency: schema.expenses.currency
+				currency: schema.expenses.currency,
+				costLayer: schema.expenses.costLayer
 			})
 			.from(schema.expenses)
 			.where(and(eq(schema.expenses.projectId, params.id), isNull(schema.expenses.deletedAt)))
@@ -95,7 +104,7 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		id: row.id,
 		label: row.category,
 		date: row.date,
-		status: row.subcategory,
+		status: [row.costLayer === 'opex' ? 'OpEx' : 'COGS', row.subcategory].filter(Boolean).join(' · ') || null,
 		amount: row.amount
 	}));
 
@@ -103,8 +112,14 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		revenue: revenue?.total ?? 0,
 		purchaseCost: purchaseCost?.total ?? 0,
 		staffCost: staffCost?.total ?? 0,
-		expenseCost: expenseCost?.total ?? 0
+		expenseCost,
+		expenseCogsCost,
+		expenseOpexCost
 	};
+
+	const grossProfit =
+		breakdown.revenue - breakdown.purchaseCost - breakdown.staffCost - breakdown.expenseCogsCost;
+	const profit = grossProfit - breakdown.expenseOpexCost;
 
 	return {
 		breakdown,
@@ -114,8 +129,8 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 			staffItems,
 			expenseItems
 		},
-		profit:
-			breakdown.revenue - breakdown.purchaseCost - breakdown.staffCost - breakdown.expenseCost,
+		grossProfit,
+		profit,
 		metricDocCounts: {
 			revenue: revenueItems.length,
 			purchase: purchaseItems.length,

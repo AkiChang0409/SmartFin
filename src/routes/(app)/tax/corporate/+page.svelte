@@ -60,9 +60,31 @@
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-100">
-				<tr><td class="px-4 py-3">Purchase Cost</td><td class="px-4 py-3">{money(data.corporate.costBreakdown.purchase)}</td></tr>
-				<tr><td class="px-4 py-3">Staff Cost</td><td class="px-4 py-3">{money(data.corporate.costBreakdown.staff)}</td></tr>
-				<tr><td class="px-4 py-3">Expense Cost</td><td class="px-4 py-3">{money(data.corporate.costBreakdown.expense)}</td></tr>
+				<tr
+					><td class="px-4 py-3">Revenue (customer invoices, year)</td><td class="px-4 py-3 font-medium text-slate-900"
+						>{money(data.corporate.revenue)}</td
+					></tr
+				>
+				<tr
+					><td class="px-4 py-3">Purchase (supplier invoices)</td><td class="px-4 py-3"
+						>{money(data.corporate.costBreakdown.purchase)}</td
+					></tr
+				>
+				<tr
+					><td class="px-4 py-3">Staff (payouts: confirmed/paid, excl. dividend)</td><td class="px-4 py-3"
+						>{money(data.corporate.costBreakdown.staff)}</td
+					></tr
+				>
+				<tr
+					><td class="px-4 py-3">Expenses (company expenses table)</td><td class="px-4 py-3"
+						>{money(data.corporate.costBreakdown.expense)}</td
+					></tr
+				>
+				<tr class="border-t border-slate-200 bg-slate-50/80"
+					><td class="px-4 py-3 font-medium">Taxable income (Revenue − above costs)</td><td class="px-4 py-3 font-semibold"
+						>{money(data.corporate.taxableIncome)}</td
+					></tr
+				>
 			</tbody>
 		</table>
 	</div>
