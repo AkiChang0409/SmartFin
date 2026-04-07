@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+	import { tick } from 'svelte';
 	import PageShell from '$lib/components/PageShell.svelte';
 	import companyLogo from '$lib/assets/favicon.png';
 
@@ -144,7 +146,8 @@
 
 	let saveBusy = $state(false);
 	let saveMessage = $state('');
-	let previewZoom = $state(70);
+	let previewZoom = $state(80);
+	let printRootEl = $state<HTMLElement | null>(null);
 
 	function projectById(id: string): ProjectRow | undefined {
 		return data.projects.find((p: ProjectRow) => p.id === id);
@@ -290,15 +293,15 @@
 		};
 	}
 
-	async function saveDraft(): Promise<boolean> {
+	async function saveDraft(): Promise<{ ok: boolean; invoiceId?: string; invoiceNo?: string }> {
 		saveMessage = '';
 		if (!selectedProjectId || !selectedCustomerId) {
 			saveMessage = 'Select a project (customer is required).';
-			return false;
+			return { ok: false };
 		}
 		if (!issueDate) {
 			saveMessage = 'Issue date is required.';
-			return false;
+			return { ok: false };
 		}
 		saveBusy = true;
 		try {
@@ -322,14 +325,15 @@
 			const json = (await res.json()) as { ok?: boolean; error?: string; data?: { id: string; invoiceNo: string } };
 			if (!res.ok || !json.ok) {
 				saveMessage = json.error ?? 'Save failed.';
-				return false;
+				return { ok: false };
 			}
 			const no = (json.data?.invoiceNo as string | null | undefined) ?? invoiceNo;
+			if (json.data?.id) editingInvoiceId = json.data.id;
 			saveMessage = editMode ? `Draft updated${no ? ` (${no})` : ''}.` : `Draft saved as ${no ?? ''}.`;
-			return true;
+			return { ok: true, invoiceId: json.data?.id, invoiceNo: no ?? undefined };
 		} catch {
 			saveMessage = 'Save failed.';
-			return false;
+			return { ok: false };
 		} finally {
 			saveBusy = false;
 		}
@@ -339,10 +343,217 @@
 		window.print();
 	}
 
+	function wrapText(text: string, maxChars: number): string[] {
+		const src = (text || '').replace(/\r/g, '');
+		const hard = src.split('\n');
+		const out: string[] = [];
+		for (const line of hard) {
+			const words = line.split(/\s+/).filter(Boolean);
+			if (words.length === 0) {
+				out.push('');
+				continue;
+			}
+			let cur = '';
+			for (const w of words) {
+				if (!cur) cur = w;
+				else if ((cur + ' ' + w).length <= maxChars) cur += ' ' + w;
+				else {
+					out.push(cur);
+					cur = w;
+				}
+			}
+			if (cur) out.push(cur);
+		}
+		return out.length ? out : [''];
+	}
+
+	async function buildTextPdfBlob(): Promise<Blob> {
+		const pdf = await PDFDocument.create();
+		const page = pdf.addPage([595.28, 841.89]); // A4
+		const font = await pdf.embedFont(StandardFonts.Helvetica);
+		const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+		const textColor = rgb(0.13, 0.18, 0.29);
+		const muted = rgb(0.39, 0.45, 0.57);
+		const lineColor = rgb(0.85, 0.88, 0.92);
+		const marginX = 48;
+		let y = 790;
+
+		try {
+			const logoBytes = await fetch(companyLogo).then((r) => r.arrayBuffer());
+			const logo = await pdf.embedPng(logoBytes);
+			page.drawImage(logo, { x: 510, y: y - 8, width: 30, height: 30 });
+		} catch {
+			// logo optional
+		}
+
+		const rightX = 480;
+		const companyLines = [fromName, ...fromAddr.split('\n').filter(Boolean), gstReg.trim() ? `GST Reg No: ${gstReg}` : ''].filter(Boolean);
+		let cy = y;
+		for (let i = 0; i < companyLines.length; i++) {
+			const t = companyLines[i];
+			const f = i === 0 ? fontBold : font;
+			const s = i === 0 ? 10 : 8;
+			const w = f.widthOfTextAtSize(t, s);
+			page.drawText(t, { x: rightX - w, y: cy, size: s, font: f, color: i === 0 ? textColor : muted });
+			cy -= i === 0 ? 14 : 11;
+		}
+
+		y = 730;
+		page.drawText(totals.isGst ? 'Tax Invoice' : 'Invoice', { x: marginX, y, size: 22, font: fontBold, color: textColor });
+		y -= 44;
+
+		page.drawText('Bill To', { x: marginX, y, size: 9, font: fontBold, color: muted });
+		page.drawText(toName || 'Customer', { x: marginX + 46, y, size: 10, font: fontBold, color: textColor });
+		y -= 16;
+		for (const line of (toAddr || '').split('\n').filter(Boolean)) {
+			page.drawText(line, { x: marginX, y, size: 9, font, color: muted });
+			y -= 12;
+		}
+
+		let ry = 686;
+		page.drawText(`Invoice Number: ${invoiceNo || '-'}`, { x: 330, y: ry, size: 9, font: fontBold, color: textColor });
+		ry -= 13;
+		page.drawText(`Invoice Date: ${fmtPreviewDate(issueDate)}`, { x: 330, y: ry, size: 9, font: fontBold, color: textColor });
+		if (projectRef || poNumber) {
+			page.drawText('REFERENCE', { x: 430, y: ry - 14, size: 8, font: fontBold, color: muted });
+			if (projectRef) page.drawText(projectRef, { x: 365, y: ry - 28, size: 9, font, color: textColor });
+			if (poNumber) page.drawText(`PO: ${poNumber}`, { x: 365, y: ry - 41, size: 9, font, color: textColor });
+		}
+
+		y = 610;
+		const headers = ['ITEM', 'DESCRIPTION', 'QTY', 'UOM', 'UNIT PRICE (SGD)', 'NET VALUE (SGD)'];
+		const xs = [marginX, 150, 305, 338, 372, 472];
+		headers.forEach((h, i) => page.drawText(h, { x: xs[i], y, size: 8.5, font: fontBold, color: muted }));
+		y -= 8;
+		page.drawLine({ start: { x: marginX, y }, end: { x: 545, y }, thickness: 1, color: lineColor });
+		y -= 20;
+
+		for (const r of totals.rows.slice(0, 18)) {
+			const descLines = wrapText(r.description || '-', 32);
+			const itemLines = wrapText(r.itemName || '-', 14);
+			const rowH = Math.max(descLines.length, itemLines.length, 1) * 11 + 6;
+			itemLines.forEach((t, idx) => page.drawText(t, { x: xs[0], y: y - idx * 11, size: 8.5, font, color: textColor }));
+			descLines.forEach((t, idx) => page.drawText(t, { x: xs[1], y: y - idx * 11, size: 8.5, font, color: textColor }));
+			page.drawText(`${r.qty}`, { x: xs[2], y, size: 8.5, font, color: textColor });
+			page.drawText(r.uom || '', { x: xs[3], y, size: 8.5, font, color: textColor });
+			page.drawText(fmtMoney(r.unitPrice), { x: xs[4], y, size: 8.5, font, color: textColor });
+			page.drawText(fmtMoney(r.net), { x: xs[5], y, size: 8.5, font, color: textColor });
+			y -= rowH;
+			page.drawLine({ start: { x: marginX, y: y + 2 }, end: { x: 545, y: y + 2 }, thickness: 1, color: lineColor });
+		}
+
+		y -= 14;
+		page.drawText('Subtotal', { x: 395, y, size: 9, font, color: muted });
+		page.drawText(`${currency} ${fmtMoney(totals.sub)}`, { x: 470, y, size: 9, font, color: textColor });
+		y -= 16;
+		if (totals.isGst) {
+			page.drawText('GST (9%)', { x: 395, y, size: 9, font, color: muted });
+			page.drawText(`${currency} ${fmtMoney(totals.gst)}`, { x: 470, y, size: 9, font, color: textColor });
+			y -= 14;
+		}
+		page.drawLine({ start: { x: 390, y }, end: { x: 545, y }, thickness: 1, color: lineColor });
+		y -= 22;
+		page.drawText('Total', { x: 395, y, size: 14, font: fontBold, color: textColor });
+		page.drawText(`${currency} ${fmtMoney(totals.total)}`, { x: 455, y, size: 14, font: fontBold, color: textColor });
+
+		y -= 46;
+		page.drawLine({ start: { x: marginX, y }, end: { x: 545, y }, thickness: 1, color: lineColor });
+		y -= 22;
+		page.drawText('BANK DETAILS', { x: marginX, y, size: 9, font: fontBold, color: muted });
+		y -= 18;
+		page.drawText(`Account Name: ${bankDetails.accountName}`, { x: marginX, y, size: 9, font, color: textColor });
+		page.drawText(`SGD Account Number: ${bankDetails.sgdAccountNumber}`, { x: 310, y, size: 9, font, color: textColor });
+		y -= 15;
+		page.drawText(`Bank Name: ${bankDetails.bankName}`, { x: marginX, y, size: 9, font, color: textColor });
+		page.drawText(`Back Address: ${bankDetails.bankAddress}`, { x: 310, y, size: 9, font, color: textColor });
+		y -= 15;
+		page.drawText(`SWIFT Code: ${bankDetails.swift}`, { x: marginX, y, size: 9, font, color: textColor });
+		page.drawText(`Payment Term: ${bankDetails.paymentTerm}`, { x: 310, y, size: 9, font, color: textColor });
+
+		page.drawLine({ start: { x: 360, y: 70 }, end: { x: 545, y: 70 }, thickness: 1, color: lineColor });
+		page.drawText('Signature and Company Stamp', { x: 405, y: 54, size: 9, font, color: muted });
+
+		const bytes = await pdf.save();
+		const copy = new Uint8Array(bytes.length);
+		copy.set(bytes);
+		return new Blob([copy], { type: 'application/pdf' });
+	}
+
 	async function generateAndSend() {
-		const ok = await saveDraft();
-		if (ok) {
-			saveMessage += ' Email delivery is not configured yet — invoice is saved as draft.';
+		const saved = await saveDraft();
+		if (!saved.ok || !saved.invoiceId) return;
+		try {
+			if (!printRootEl) {
+				saveMessage += ' PDF generation failed: preview root not found.';
+				return;
+			}
+			const previousZoom = previewZoom;
+			previewZoom = 100;
+			await tick();
+			const blob = await buildTextPdfBlob();
+			previewZoom = previousZoom;
+			await tick();
+
+			// Step 1: always download to local first.
+			const safeNo = (invoiceNo || saved.invoiceNo || saved.invoiceId).replace(/[^a-zA-Z0-9._-]/g, '_');
+			const localName = `${safeNo}.pdf`;
+			const downloadUrl = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = downloadUrl;
+			a.download = localName;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(downloadUrl);
+
+			const shouldSaveToProject = window.confirm(
+				'下载完成。是否保存到对应项目中？\n\n选择“是”：保存到项目并关联到该 invoice。\n选择“否”：你可先自行检查后再手动上传。'
+			);
+			if (!shouldSaveToProject) {
+				saveMessage += ' PDF downloaded locally. Not saved to project storage.';
+				return;
+			}
+
+			const presignRes = await fetch('/api/upload/presign', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					fileName: localName,
+					contentType: 'application/pdf',
+					projectId: selectedProjectId,
+					entityType: 'invoice_pdf',
+					entityId: saved.invoiceId
+				})
+			});
+			const presignJson = (await presignRes.json()) as { ok?: boolean; error?: string; data?: { key: string; uploadUrl: string } };
+			if (!presignRes.ok || !presignJson.ok || !presignJson.data?.key || !presignJson.data?.uploadUrl) {
+				saveMessage += ` PDF generation failed: ${presignJson.error ?? 'presign error'}.`;
+				return;
+			}
+
+			const putRes = await fetch(presignJson.data.uploadUrl, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/pdf' },
+				body: blob
+			});
+			if (!putRes.ok) {
+				saveMessage += ' PDF generation failed: upload failed.';
+				return;
+			}
+
+			const pdfRes = await fetch(`/api/invoices/out/${saved.invoiceId}/pdf`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ key: presignJson.data.key })
+			});
+			const pdfJson = (await pdfRes.json()) as { ok?: boolean; error?: string; data?: { pdfUrl?: string } };
+			if (!pdfRes.ok || !pdfJson.ok) {
+				saveMessage += ` PDF generation failed: ${pdfJson.error ?? 'unknown error'}.`;
+				return;
+			}
+			saveMessage += ' PDF downloaded and saved to project storage successfully. Email delivery is not configured yet.';
+		} catch {
+			saveMessage += ' PDF generation request failed.';
 		}
 	}
 
@@ -744,7 +955,7 @@
 				</div>
 			</div>
 			<div class="sf-preview-frame" style={`--preview-zoom: ${previewZoom / 100};`}>
-				<div class="sf-print-root bg-white text-xs leading-relaxed text-slate-800">
+				<div bind:this={printRootEl} class="sf-print-root bg-white text-xs leading-relaxed text-slate-800">
 				<div class="flex justify-end">
 					<div class="min-w-[280px] text-right">
 						<img src={companyLogo} alt="Axiom logo" class="mb-2 ml-auto h-10 w-10 object-contain" />
