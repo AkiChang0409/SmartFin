@@ -33,13 +33,13 @@
 			"binding": "OCR_QUEUE",
 			"queue": "smartfin-ocr-queue"  
 			}
-		],
-		"consumers": [
-			{
-			"queue": "smartfin-ocr-queue",  
-			"dead_letter_queue": "smartfin-ocr-queue-dlq"
-			}
 		]
+//		"consumers": [
+//			{
+//			"queue": "smartfin-ocr-queue",
+//			"dead_letter_queue": "smartfin-ocr-queue-dlq"
+//			}
+//		]
 	},
 	"vars": {
 		"BETTER_AUTH_URL": "https://smartfin.smartfin.workers.dev",
