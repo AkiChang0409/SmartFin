@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(node -e \"require\\(''fs''\\).writeFileSync\\(''C:/Users/akiwc/Documents/Axiom/AR Financial Management System/SmartFin/.claude/plans/fancy-wishing-aurora-agent-a4c8c6fb150fdb539.md'', ''test''\\); console.log\\(''ok''\\)\")",
+      "Bash(node -e:*)",
+      "Bash(npx svelte-kit:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

@@ -1,10 +1,13 @@
+/**
+ * @deprecated Use `createCoreApi(ctx).writeAuditLog()` from the core module instead.
+ * This file re-exports for backward compatibility with existing route handlers.
+ */
 import { getDb, schema } from '$lib/server/db';
 
 type AuditInput = {
 	action: string;
 	entityType: string;
 	entityId?: string | null;
-	/** Scope to a project for the detail-page activity timeline (optional). */
 	projectId?: string | null;
 	metadata?: Record<string, unknown>;
 };

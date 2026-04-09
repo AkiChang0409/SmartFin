@@ -1,0 +1,20 @@
+import type { ModuleContext } from '../types';
+import { BusinessPartnerService } from './service';
+
+export type BusinessPartnerApi = ReturnType<typeof createBusinessPartnerApi>;
+
+export function createBusinessPartnerApi(ctx: ModuleContext) {
+	const svc = new BusinessPartnerService(ctx);
+
+	return {
+		getById: svc.getById.bind(svc),
+		listByType: svc.listByType.bind(svc),
+		search: svc.search.bind(svc),
+		create: svc.create.bind(svc),
+		update: svc.update.bind(svc),
+		// Legacy
+		getCustomerById: svc.getCustomerById.bind(svc),
+		listCustomers: svc.listCustomers.bind(svc),
+		createCustomer: svc.createCustomer.bind(svc)
+	};
+}

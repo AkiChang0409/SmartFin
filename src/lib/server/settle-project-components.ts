@@ -1,8 +1,13 @@
-import { and, eq, isNull, or } from 'drizzle-orm';
+/**
+ * @deprecated Import from '$lib/server/modules/employee/service' instead.
+ * Re-exports for backward compatibility with existing route handlers.
+ */
+export { periodCalendarMonth } from '$lib/server/modules/employee/service';
 
-import { periodCalendarMonth } from '$lib/server/company-allocation-settle';
+import { and, eq, isNull, or } from 'drizzle-orm';
 import type { DBClient } from '$lib/server/db';
 import { schema } from '$lib/server/db';
+import { periodCalendarMonth } from '$lib/server/modules/employee/service';
 
 function monthStart(ym: string): string {
 	return `${ym}-01`;
@@ -13,7 +18,6 @@ function sameCalendarMonth(isoDate: string | null | undefined, ym: string): bool
 	return periodCalendarMonth(isoDate) === ym;
 }
 
-/** Writes/updates settlement payout rows for manual project compensation components (monthly + one_off). */
 export async function runSettleManualProjectComponentsForMonth(params: {
 	db: DBClient;
 	projectId: string;

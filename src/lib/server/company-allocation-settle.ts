@@ -1,20 +1,18 @@
-import { and, eq, isNull } from 'drizzle-orm';
+/**
+ * @deprecated Import from '$lib/server/modules/employee/service' instead.
+ * Re-exports for backward compatibility with existing route handlers.
+ */
+export {
+	allocationPeriodDay,
+	periodCalendarMonth,
+	shadowCompensationComponentId
+} from '$lib/server/modules/employee/service';
 
+// Legacy function wrapper — existing routes call this with {db, projectId, peId, employeeId, monthYm}
+// but the new SettlementService needs a ModuleContext. We keep this for routes not yet refactored.
+import { and, eq, isNull } from 'drizzle-orm';
 import type { DBClient } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
-
-export function allocationPeriodDay(monthYm: string): string {
-	return `${monthYm}-01`;
-}
-
-export function periodCalendarMonth(period: string): string {
-	if (period.length >= 7) return period.slice(0, 7);
-	return period;
-}
-
-export function shadowCompensationComponentId(peId: string, employeeCompensationComponentId: string): string {
-	return `alloc-${peId}-${employeeCompensationComponentId}`;
-}
 
 export async function settleCompanyAllocationMonth(params: {
 	db: DBClient;

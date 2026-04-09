@@ -4,6 +4,9 @@ import { redirect } from '@sveltejs/kit';
 import { isRouteAllowed } from '$lib/server/auth/permissions';
 import { readSessionCookie } from '$lib/server/auth/session';
 
+// Register all modules at app startup (side-effect import)
+import '$lib/server/modules/register-all';
+
 function needsAppAuth(pathname: string) {
 	return (
 		pathname.startsWith('/dashboard') ||

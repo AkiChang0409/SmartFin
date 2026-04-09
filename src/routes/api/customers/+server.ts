@@ -1,53 +1,47 @@
-import { desc, isNull } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
-import { getDb, schema } from '$lib/server/db';
+import { createModuleContext } from '$lib/server/modules';
+import { createBusinessPartnerApi } from '$lib/server/modules/business-partner/api';
 import { fail, ok } from '$lib/server/http';
 
-export const GET: RequestHandler = async ({ platform }) => {
-	if (!platform) {
-		return fail('Cloudflare platform bindings are required', 500);
+export const GET: RequestHandler = async (event) => {
+	try {
+		const ctx = createModuleContext(event);
+		const bp = createBusinessPartnerApi(ctx);
+		const customers = await bp.listCustomers();
+		return ok(customers);
+	} catch (e) {
+		return fail((e as Error).message, 500);
 	}
-
-	const db = getDb(platform.env);
-	const customers = await db
-		.select()
-		.from(schema.customers)
-		.where(isNull(schema.customers.deletedAt))
-		.orderBy(desc(schema.customers.createdAt));
-
-	return ok(customers);
 };
 
-export const POST: RequestHandler = async ({ platform, request }) => {
-	if (!platform) {
-		return fail('Cloudflare platform bindings are required', 500);
+export const POST: RequestHandler = async (event) => {
+	try {
+		const ctx = createModuleContext(event);
+		const bp = createBusinessPartnerApi(ctx);
+
+		const body = (await event.request.json()) as {
+			name?: string;
+			address?: string;
+			contact?: string;
+			gstRegNo?: string;
+			metadata?: unknown;
+		};
+
+		if (!body.name) {
+			return fail('Missing required field: name');
+		}
+
+		const result = await bp.createCustomer({
+			name: body.name,
+			address: body.address,
+			contact: body.contact,
+			gstRegNo: body.gstRegNo,
+			metadata: body.metadata ? JSON.stringify(body.metadata) : undefined
+		});
+
+		return ok({ id: result.id }, 201);
+	} catch (e) {
+		return fail((e as Error).message, 500);
 	}
-
-	const body = (await request.json()) as {
-		name?: string;
-		address?: string;
-		contact?: string;
-		gstRegNo?: string;
-		metadata?: unknown;
-	};
-
-	if (!body.name) {
-		return fail('Missing required field: name');
-	}
-
-	const id = crypto.randomUUID();
-	const db = getDb(platform.env);
-	await db.insert(schema.customers).values({
-		id,
-		name: body.name,
-		address: body.address,
-		contact: body.contact,
-		gstRegNo: body.gstRegNo,
-		metadata: body.metadata ? JSON.stringify(body.metadata) : null,
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString()
-	});
-
-	return ok({ id }, 201);
 };
