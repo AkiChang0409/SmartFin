@@ -96,7 +96,8 @@ export async function runOcrPipeline(
 		llmProvider: config.llmProvider,
 		llmApiUrl: config.llmApiUrl,
 		llmApiKey: config.llmApiKey,
-		promptVersion: config.promptVersion
+		promptVersion: config.promptVersion,
+		env
 	});
 	const warnings = validateFields({
 		invoiceDate: structured.invoiceDate,

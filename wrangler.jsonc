@@ -1,6 +1,7 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "smartfin",
+	"account_id": "c09bb2823904032b6ec648b23411f2e0",
 	"compatibility_date": "2026-03-30",
 	"compatibility_flags": [
 		"nodejs_als"
@@ -10,7 +11,7 @@
 		{
 			"binding": "DB",
 			"database_name": "smartfin-db",
-			"database_id": "e6494c48-4290-49d9-aac0-9398830baa9b",
+			"database_id": "208e1ed4-437f-4da5-93d7-7058debea5c8",
 			"migrations_dir": "drizzle/migrations"
 		}
 	],
@@ -23,27 +24,34 @@
 	"kv_namespaces": [
 		{
 			"binding": "KV",
-			"id": "0dceb2c3f48145fea746b64b9c227a6b"
+			"id": "fd0eca3363a3444daff52d1a35af69eb"
 		}
 	],
 	"queues": {
 		"producers": [
 			{
-				"binding": "OCR_QUEUE",
-				"queue": "smartfin-ocr"
+			"binding": "OCR_QUEUE",
+			"queue": "smartfin-ocr-queue"  
+			}
+		],
+		"consumers": [
+			{
+			"queue": "smartfin-ocr-queue",  
+			"dead_letter_queue": "smartfin-ocr-queue-dlq"
 			}
 		]
 	},
 	"vars": {
 		"BETTER_AUTH_URL": "https://smartfin.smartfin.workers.dev",
-		"LLM_PROVIDER": "external",
-		"LLM_API_URL": "https://api.openai.com/v1/chat/completions",
+		"LLM_PROVIDER": "heuristic",
+		"WORKERS_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
 		"OCR_PROMPT_VERSION": "v1"
 	},
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare"
 	},
+	"ai": { "binding": "AI" },
 	"workers_dev": true,
 	"preview_urls": true
 }

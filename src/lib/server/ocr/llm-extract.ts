@@ -1,3 +1,5 @@
+import { callAiJson } from '$lib/server/services/ai-agent';
+
 type StructuredInvoiceCore = {
 	invoiceDate: string | null;
 	totalAmount: number | null;
@@ -18,6 +20,7 @@ type LlmExtractOptions = {
 	llmApiUrl?: string;
 	llmApiKey?: string;
 	promptVersion: string;
+	env?: Env;
 };
 
 function pickCurrency(text: string): string | null {
@@ -59,35 +62,24 @@ function heuristicExtract(rawText: string): LlmStructuredResult {
 }
 
 async function externalExtract(rawText: string, options: LlmExtractOptions): Promise<LlmStructuredResult | null> {
-	if (!options.llmApiUrl) return null;
+	const envLike = {
+		LLM_PROVIDER: options.llmProvider,
+		LLM_API_URL: options.llmApiUrl,
+		LLM_API_KEY: options.llmApiKey,
+		OCR_PROMPT_VERSION: options.promptVersion
+	} as Env;
+	const envForCall = options.env ?? envLike;
 
 	const systemPrompt = `You are an invoice data extractor. Return ONLY JSON object with keys:
 invoiceDate, totalAmount, currency, supplierName, gstAmount, poNumber, dueDate.
 Use null for unknown fields.`;
-
-	const response = await fetch(options.llmApiUrl, {
-		method: 'POST',
-		headers: {
-			'content-type': 'application/json',
-			...(options.llmApiKey ? { authorization: `Bearer ${options.llmApiKey}` } : {})
-		},
-		body: JSON.stringify({
-			promptVersion: options.promptVersion,
-			system: systemPrompt,
-			input: rawText
-		})
+	const parsedUnknown = await callAiJson(envForCall, {
+		system: systemPrompt,
+		user: rawText,
+		promptVersion: options.promptVersion
 	});
-
-	if (!response.ok) return null;
-
-	const raw = await response.text();
-	let parsed: Record<string, unknown> | null = null;
-	try {
-		parsed = JSON.parse(raw) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
-	if (!parsed) return null;
+	if (!parsedUnknown || typeof parsedUnknown !== 'object' || Array.isArray(parsedUnknown)) return null;
+	const parsed = parsedUnknown as Record<string, unknown>;
 
 	return {
 		invoiceDate: typeof parsed.invoiceDate === 'string' ? parsed.invoiceDate : null,
@@ -98,7 +90,7 @@ Use null for unknown fields.`;
 		poNumber: typeof parsed.poNumber === 'string' ? parsed.poNumber : null,
 		dueDate: typeof parsed.dueDate === 'string' ? parsed.dueDate : null,
 		llmProvider: 'external_api',
-		modelResponseRaw: raw
+		modelResponseRaw: JSON.stringify(parsed)
 	};
 }
 
@@ -106,7 +98,7 @@ export async function extractStructuredInvoiceFields(
 	rawText: string,
 	options: LlmExtractOptions
 ): Promise<LlmStructuredResult> {
-	if (options.llmProvider === 'external') {
+	if (options.llmProvider === 'external' || options.env?.AI) {
 		const external = await externalExtract(rawText, options);
 		if (external) return external;
 	}

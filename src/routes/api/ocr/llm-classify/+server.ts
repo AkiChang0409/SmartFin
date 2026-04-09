@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$lib/server/http';
+import { callAiJson } from '$lib/server/services/ai-agent';
 
 type DocType =
 	| 'contract'
@@ -229,67 +230,16 @@ async function callExternalClassify(
 	hint: DocType | undefined,
 	env: Env
 ): Promise<ClassifyResult | null> {
-	const provider = readEnv(env, 'LLM_PROVIDER').toLowerCase();
-	const apiUrl = readEnv(env, 'LLM_API_URL');
-	const apiKey = readEnv(env, 'LLM_API_KEY');
 	const promptVersion = readEnv(env, 'OCR_PROMPT_VERSION') || 'v1';
-	if (provider !== 'external' || !apiUrl) return null;
-
-	const openAiModel = readEnv(env, 'OPENAI_MODEL') || 'gpt-4o-mini';
-	const isOpenAiChatEndpoint = /api\.openai\.com\/v1\/chat\/completions/i.test(apiUrl);
 	const tenantNames = tenantNameHints(env);
 	const system = `${buildClassifySystemPrompt(hint, tenantNames)}\nPrompt version: ${promptVersion}`;
-
-	const response = await fetch(
-		apiUrl,
-		isOpenAiChatEndpoint
-			? {
-					method: 'POST',
-					headers: {
-						'content-type': 'application/json',
-						...(apiKey ? { authorization: `Bearer ${apiKey}` } : {})
-					},
-					body: JSON.stringify({
-						model: openAiModel,
-						temperature: 0,
-						response_format: { type: 'json_object' },
-						messages: [
-							{ role: 'system', content: system },
-							{ role: 'user', content: text.slice(0, 12000) }
-						]
-					})
-				}
-			: {
-					method: 'POST',
-					headers: {
-						'content-type': 'application/json',
-						...(apiKey ? { authorization: `Bearer ${apiKey}` } : {})
-					},
-					body: JSON.stringify({
-						promptVersion,
-						system,
-						input: text.slice(0, 12000)
-					})
-				}
-	);
-
-	if (!response.ok) return null;
-	const raw = await response.text();
-	let parsed: Record<string, unknown> | null = null;
-	try {
-		const json = JSON.parse(raw) as Record<string, unknown>;
-		if (isOpenAiChatEndpoint) {
-			const choices = json.choices as Array<{ message?: { content?: string } }> | undefined;
-			const content = choices?.[0]?.message?.content;
-			if (!content) return null;
-			parsed = JSON.parse(content) as Record<string, unknown>;
-		} else {
-			parsed = json;
-		}
-	} catch {
-		return null;
-	}
-	if (!parsed) return null;
+	const parsedUnknown = await callAiJson(env, {
+		system,
+		user: text.slice(0, 12000),
+		promptVersion
+	});
+	if (!parsedUnknown || typeof parsedUnknown !== 'object' || Array.isArray(parsedUnknown)) return null;
+	const parsed = parsedUnknown as Record<string, unknown>;
 
 	const docType = normalizeDocTypeFromModel(parsed.docType, 'other');
 	let confidence = 55;
