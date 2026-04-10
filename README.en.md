@@ -241,7 +241,9 @@ Config: **`workers/wrangler.ocr-consumer.jsonc`**.
 
 Set **`BETTER_AUTH_SECRET`** at minimum; **`BETTER_AUTH_URL`** must match the deployed origin in production (no trailing slash). For **`npm run dev:cf`**, create **`.dev.vars`** with at least `BETTER_AUTH_SECRET=`. Values in `.env` alone are **not** injected into the Worker, which leads to **`/api/auth/*` 404**. On localhost the app aligns the auth base URL with the request origin, so you usually do not need `BETTER_AUTH_URL` in `.dev.vars`.
 
-Cloudflare deploys typically need **`CLOUDFLARE_ACCOUNT_ID`**, **`CLOUDFLARE_API_TOKEN`**, **`CLOUDFLARE_D1_DATABASE_ID`**, etc. Use **`wrangler secret put BETTER_AUTH_SECRET`** in production; do not commit secrets.
+Cloudflare deploys typically need **`CLOUDFLARE_ACCOUNT_ID`**, **`CLOUDFLARE_API_TOKEN`**, **`CLOUDFLARE_D1_DATABASE_ID`**, etc. You **must** set **`wrangler secret put BETTER_AUTH_SECRET`** for the deployed Worker; do not commit secrets. **Without this secret, `/api/auth/*` (including `sign-up/email`) returns 404**, often as HTML like a generic asset 404.
+
+If sign-up 404s after deploy: (1) confirm the secret exists on **that** Worker; (2) if **`BETTER_AUTH_URL` in `wrangler.jsonc`** does not match the hostname users open, the app prefers the **request origin** when hostnames differ; still set `vars.BETTER_AUTH_URL` to your canonical public URL (no trailing slash).
 
 **Email (verification & password reset):** In production set **`RESEND_API_KEY`** (e.g. `wrangler secret put RESEND_API_KEY`) and **`EMAIL_FROM`** (e.g. `SmartFin <noreply@yourdomain.com>`, must match a verified domain in Resend). If unset, URLs are only logged and no email is sent. **Until you verify a domain**, Resend’s testing mode usually **only allows delivery to your account email**; to reach arbitrary recipients, verify a domain at [resend.com/domains](https://resend.com/domains) and use a `from` address on that domain.
 

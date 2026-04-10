@@ -243,7 +243,9 @@ npm run deploy:ocr-consumer
 
 本地与生产至少配置 **`BETTER_AUTH_SECRET`**；**`BETTER_AUTH_URL`** 在生产须与线上访问 origin 一致（无尾斜杠）。使用 **`npm run dev:cf`** 时，请在项目根创建 **`.dev.vars`**，至少写入 `BETTER_AUTH_SECRET=`。仅放在 `.env` 里不会注入到 Worker，会导致 `/api/auth/*` 返回 404。本地 localhost 下应用会按请求 origin 自动对齐 auth 基地址，一般无需在 `.dev.vars` 里重复写 `BETTER_AUTH_URL`。
 
-Cloudflare 部署还需 **`CLOUDFLARE_ACCOUNT_ID`**、**`CLOUDFLARE_API_TOKEN`**、**`CLOUDFLARE_D1_DATABASE_ID`** 等（以你方流水线为准）；生产环境用 **`wrangler secret put BETTER_AUTH_SECRET`** 设置密钥，勿提交到仓库。
+Cloudflare 部署还需 **`CLOUDFLARE_ACCOUNT_ID`**、**`CLOUDFLARE_API_TOKEN`**、**`CLOUDFLARE_D1_DATABASE_ID`** 等（以你方流水线为准）；生产环境**必须**用 **`wrangler secret put BETTER_AUTH_SECRET`**（对应当前 Worker 项目）写入密钥，勿提交到仓库。**未设置该 Secret 时，`/api/auth/*`（含 `sign-up/email`）会直接 404**，响应常为 HTML（与静态资源 404 页类似）。
+
+部署后若注册报 404：① 确认已为**该 Worker** 配置 `BETTER_AUTH_SECRET`；② **`wrangler.jsonc` 的 `BETTER_AUTH_URL`** 若与真实访问域名不一致（例如 vars 里仍是别的 `*.workers.dev`），代码会尽量按**当前请求的域名**对齐；仍建议在 vars 中改为你的正式访问 URL（无尾斜杠）。
 
 **邮件（注册验证、忘记密码）**：生产环境请配置 **`RESEND_API_KEY`**（建议用 `wrangler secret put RESEND_API_KEY`）及 **`EMAIL_FROM`**（例如 `SmartFin <noreply@yourdomain.com>`，需与 Resend 已验证发件域一致）。未配置时仅打印日志，无法真实发信。**未在 Resend 验证自有域名前**，测试发信通常**只能发到你在 Resend 账户里登记/绑定的邮箱**；若要对任意收件人发信，请在 [Resend Domains](https://resend.com/domains) 验证域名并把 `EMAIL_FROM` 改为该域下的地址。
 

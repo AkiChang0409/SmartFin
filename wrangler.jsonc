@@ -45,7 +45,7 @@
 	},
 	"vars": {
 		// 线上 Worker 默认站点；本地 localhost 时应用会按请求 origin 覆盖 auth 基地址。
-		"BETTER_AUTH_URL": "https://smartfin.smartfin.workers.dev",
+		"BETTER_AUTH_URL": "https://smartfin.aki-wang.workers.dev",
 		"EMAIL_FROM": "SmartFin <onboarding@resend.dev>",
 		"LLM_PROVIDER": "heuristic",
 		"WORKERS_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",

@@ -14,14 +14,30 @@ export function resolveWorkerAuthEnv(event: RequestEvent): Env | null {
 		return null;
 	}
 
-	const origin = event.url.origin;
+	const originNorm = event.url.origin.replace(/\/$/, '');
 	const isLocalHost =
-		origin.includes('127.0.0.1') ||
-		origin.includes('localhost') ||
-		/^https?:\/\/\[::1\]/.test(origin);
+		originNorm.includes('127.0.0.1') ||
+		originNorm.includes('localhost') ||
+		/^https?:\/\/\[::1\]/.test(originNorm);
 
-	const configured = p.BETTER_AUTH_URL?.replace(/\/$/, '') ?? '';
-	const baseURL = isLocalHost ? origin.replace(/\/$/, '') : configured || origin.replace(/\/$/, '');
+	const configuredRaw = p.BETTER_AUTH_URL?.trim().replace(/\/$/, '') ?? '';
+
+	let baseURL: string;
+	if (isLocalHost) {
+		baseURL = originNorm;
+	} else if (!configuredRaw) {
+		baseURL = originNorm;
+	} else {
+		// `wrangler.jsonc` may still point at another workers.dev hostname; cookies / CSRF must match the browser origin.
+		try {
+			const reqHost = new URL(originNorm).hostname;
+			const cfgUrl = configuredRaw.includes('://') ? configuredRaw : `https://${configuredRaw}`;
+			const cfgHost = new URL(cfgUrl).hostname;
+			baseURL = cfgHost === reqHost ? configuredRaw : originNorm;
+		} catch {
+			baseURL = originNorm;
+		}
+	}
 
 	if (!baseURL) {
 		return null;
