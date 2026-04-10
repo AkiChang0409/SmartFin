@@ -48,6 +48,13 @@
 				<span class="opacity-70" aria-hidden="true">+</span>
 				New project
 			</a>
+			<a
+				class="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-[13px] text-slate-600 hover:bg-slate-50"
+				href="/customers"
+			>
+				<span class="opacity-70" aria-hidden="true">◎</span>
+				Customers
+			</a>
 		</nav>
 	</aside>
 

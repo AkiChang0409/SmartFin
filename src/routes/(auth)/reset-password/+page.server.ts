@@ -1,4 +1,3 @@
 import type { PageServerLoad } from './$types';
 
-/** Session and redirects are handled in hooks.server.ts (better-auth). */
 export const load: PageServerLoad = async () => ({});

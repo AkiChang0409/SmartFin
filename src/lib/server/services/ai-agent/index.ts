@@ -151,10 +151,18 @@ async function callWorkersAiJson(env: Env, input: AiJsonCallInput): Promise<unkn
 }
 
 async function callExternalApiJson(env: Env, input: AiJsonCallInput): Promise<unknown> {
-	const provider = readEnv(env, 'LLM_PROVIDER').toLowerCase();
 	const apiUrl = readEnv(env, 'LLM_API_URL');
+	if (!apiUrl) return null;
+
+	/**
+	 * External HTTP LLM is used when `LLM_API_URL` is set (e.g. OpenAI-compatible endpoint).
+	 * Previously this only ran when `LLM_PROVIDER=external`, which blocked fallback in local dev
+	 * where wrangler defaults to `LLM_PROVIDER=heuristic` even after Workers AI returns null.
+	 * Set `LLM_USE_EXTERNAL=false` to disable HTTP LLM calls (Workers + heuristics only).
+	 */
+	if (readEnv(env, 'LLM_USE_EXTERNAL').toLowerCase() === 'false') return null;
+
 	const apiKey = readEnv(env, 'LLM_API_KEY');
-	if (provider !== 'external' || !apiUrl) return null;
 
 	const promptVersion = input.promptVersion || readEnv(env, 'OCR_PROMPT_VERSION') || 'v1';
 	const systemFull = `${input.system}\nPrompt version: ${promptVersion}`;
@@ -218,7 +226,12 @@ export async function callAiJsonWithSource(
 	env: Env,
 	input: AiJsonCallInput
 ): Promise<{ json: unknown; provider: AiProviderUsed }> {
-	const fromWorkersAi = await callWorkersAiJson(env, input);
+	const skipWorkers = readEnv(env, 'LLM_SKIP_WORKERS').toLowerCase() === 'true';
+
+	let fromWorkersAi: unknown = null;
+	if (!skipWorkers) {
+		fromWorkersAi = await callWorkersAiJson(env, input);
+	}
 	if (fromWorkersAi !== null) return { json: fromWorkersAi, provider: 'workers_ai' };
 
 	const fromExternalApi = await callExternalApiJson(env, input);

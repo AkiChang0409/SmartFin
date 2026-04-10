@@ -1566,7 +1566,16 @@
 			}
 
 			if (!saveJson.ok) {
-				throw new Error(saveJson.error || 'Save failed');
+				const d = saveJson.details;
+				const hint =
+					typeof d === 'string'
+						? d.slice(0, 280)
+						: d != null
+							? JSON.stringify(d).slice(0, 280)
+							: '';
+				throw new Error(
+					hint ? `${saveJson.error || 'Save failed'} — ${hint}` : saveJson.error || 'Save failed'
+				);
 			}
 
 			const hadBatch = pendingBatchFiles.length > 0;

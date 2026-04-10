@@ -1,19 +1,34 @@
 import type { Handle } from '@sveltejs/kit';
+import { building } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
 
+import { getAuth } from '$lib/server/auth/better-auth';
+import { resolveWorkerAuthEnv } from '$lib/server/auth/resolve-worker-env';
+import type { AuthRole } from '$lib/server/auth/config';
 import { isRouteAllowed } from '$lib/server/auth/permissions';
-import { readSessionCookie } from '$lib/server/auth/session';
 import { getDb } from '$lib/server/db';
 import { getEnabledModuleIds, isPathEnabled } from '$lib/server/modules/enabled';
 
 // Register all modules at app startup (side-effect import)
 import '$lib/server/modules/register-all';
 
+function isPublicAppPath(pathname: string) {
+	return (
+		pathname === '/login' ||
+		pathname === '/register' ||
+		pathname === '/forgot-password' ||
+		pathname.startsWith('/reset-password')
+	);
+}
+
 function needsAppAuth(pathname: string) {
+	if (isPublicAppPath(pathname)) return false;
 	return (
 		pathname.startsWith('/dashboard') ||
 		pathname.startsWith('/ar') ||
 		pathname.startsWith('/projects') ||
+		pathname.startsWith('/customers') ||
 		pathname.startsWith('/employees') ||
 		pathname.startsWith('/tax') ||
 		pathname.startsWith('/reports') ||
@@ -25,42 +40,72 @@ function needsApiAuth(pathname: string) {
 	return pathname.startsWith('/api/');
 }
 
+function isPublicAuthApi(pathname: string) {
+	return pathname.startsWith('/api/auth');
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
-	const secret =
-		(event.platform?.env.BETTER_AUTH_SECRET as string | undefined) ??
-		(globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
-			?.BETTER_AUTH_SECRET ??
-		'local-dev-secret';
+	if (building) {
+		return resolve(event);
+	}
 
-	event.locals.user = await readSessionCookie(event.cookies, secret);
+	const env = resolveWorkerAuthEnv(event);
+	if (!env) {
+		console.error(
+			'[auth] Missing BETTER_AUTH_SECRET (and Cloudflare bindings). For local dev: create `.dev.vars` with BETTER_AUTH_SECRET (see `.dev.vars.example`) and run `npm run dev:cf`.'
+		);
+		event.locals.user = null;
+		return resolve(event);
+	}
 
-	if (event.url.pathname === '/login' && event.locals.user) {
+	const auth = getAuth(env);
+	const session = await auth.api.getSession({ headers: event.request.headers });
+
+	if (session?.user) {
+		const u = session.user as { id: string; email: string; role?: string };
+		event.locals.user = {
+			id: u.id,
+			email: u.email,
+			role: (u.role as AuthRole) ?? 'employee'
+		};
+	} else {
+		event.locals.user = null;
+	}
+
+	if (
+		(event.url.pathname === '/login' || event.url.pathname === '/register') &&
+		event.locals.user
+	) {
 		throw redirect(303, '/dashboard');
 	}
 
-	if (needsAppAuth(event.url.pathname) || needsApiAuth(event.url.pathname)) {
+	const path = event.url.pathname;
+	const wantApiAuth = needsApiAuth(path);
+	const wantAppAuth = needsAppAuth(path);
+
+	if (wantAppAuth || (wantApiAuth && !isPublicAuthApi(path))) {
 		if (!event.locals.user) {
-			if (needsApiAuth(event.url.pathname)) {
+			if (wantApiAuth) {
 				return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401 });
 			}
 			throw redirect(303, '/login');
 		}
 
-		if (!isRouteAllowed(event.url.pathname, event.locals.user.role)) {
-			if (needsApiAuth(event.url.pathname)) {
+		if (!isRouteAllowed(path, event.locals.user.role)) {
+			if (wantApiAuth) {
 				return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403 });
 			}
 			throw redirect(303, '/dashboard');
 		}
 
 		if (event.platform) {
-			const db = getDb(event.platform.env);
+			const db = getDb(env);
 			const enabledIds = await getEnabledModuleIds(db);
-			if (!isPathEnabled(event.url.pathname, enabledIds)) {
+			if (!isPathEnabled(path, enabledIds)) {
 				return new Response('Not Found', { status: 404 });
 			}
 		}
 	}
 
-	return resolve(event);
+	return svelteKitHandler({ event, resolve, auth, building });
 };

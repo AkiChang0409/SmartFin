@@ -1,5 +1,8 @@
 -- Reset non-OCR tables for repeatable local testing
 DELETE FROM audit_logs;
+DELETE FROM sessions;
+DELETE FROM accounts;
+DELETE FROM verifications;
 DELETE FROM employee_salaries;
 DELETE FROM payout_records;
 DELETE FROM compensation_components;
@@ -20,12 +23,7 @@ DELETE FROM employees;
 DELETE FROM customers;
 DELETE FROM users;
 
--- Users (for auth + audit demos)
-INSERT INTO users (id, email, name, role, created_at, updated_at, deleted_at)
-VALUES
-	('usr-owner-001', 'owner@smartfin.local', 'Owner Demo', 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('usr-fin-001', 'finance@smartfin.local', 'Finance Demo', 'finance', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('usr-pm-001', 'pm@smartfin.local', 'Project Manager Demo', 'project_manager', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
+-- Auth: use /register + email verification (better-auth). No SQL user rows — passwords live in `accounts`.
 
 -- Customers
 INSERT INTO customers (id, name, address, contact, gst_reg_no, metadata, created_at, updated_at, deleted_at)
@@ -714,11 +712,11 @@ INSERT INTO audit_logs (id, actor_user_id, actor_email, action, entity_type, ent
 VALUES
 	(
 		'audit-demo-001',
-		'usr-owner-001',
+		NULL,
 		'owner@smartfin.local',
 		'login',
 		'auth',
-		'usr-owner-001',
+		NULL,
 		NULL,
 		'{"source":"mock-seed"}',
 		CURRENT_TIMESTAMP,
@@ -727,7 +725,7 @@ VALUES
 	),
 	(
 		'audit-demo-002',
-		'usr-fin-001',
+		NULL,
 		'finance@smartfin.local',
 		'project.update',
 		'project',

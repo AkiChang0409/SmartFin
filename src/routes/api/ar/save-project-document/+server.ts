@@ -34,7 +34,11 @@ function isUniqueConstraintError(text: string): boolean {
 
 function isForeignKeyConstraintError(text: string): boolean {
 	const t = text.toLowerCase();
-	return t.includes('foreign key') || t.includes('sqlite_constraint_foreignkey');
+	return (
+		t.includes('foreign key') ||
+		t.includes('sqlite_constraint_foreignkey') ||
+		t.includes('constraint failed') && t.includes('foreign key')
+	);
 }
 
 /** Audit must not fail the save if the business row was already inserted. */
@@ -76,7 +80,13 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return fail('Cloudflare platform bindings are required', 500);
 	}
 
-	const body = (await request.json()) as Record<string, unknown>;
+	let body: Record<string, unknown>;
+	try {
+		body = (await request.json()) as Record<string, unknown>;
+	} catch {
+		return fail('Invalid JSON request body', 400);
+	}
+
 	const key = str(body.key);
 	const fileType = str(body.fileType) || 'application/octet-stream';
 	const projectId = str(body.projectId);
@@ -86,51 +96,57 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return fail('Missing required fields: key, projectId, docType');
 	}
 
-	if (!(await objectExists(platform.env, key))) {
-		return fail('Uploaded file was not found in storage', 404);
+	try {
+		if (!(await objectExists(platform.env, key))) {
+			return fail('Uploaded file was not found in storage', 404);
+		}
+	} catch (e) {
+		console.error('[save-project-document] R2 head failed:', errorChainText(e));
+		return fail('Could not verify file in storage (R2). Check binding and upload.', 503, errorChainText(e));
 	}
 
 	const db = getDb(platform.env);
-	const [project] = await db
-		.select({
-			id: schema.projects.id,
-			customerId: schema.projects.customerId
-		})
-		.from(schema.projects)
-		.where(and(eq(schema.projects.id, projectId), isNull(schema.projects.deletedAt)))
-		.limit(1);
-
-	if (!project) {
-		return fail('Project not found', 404);
-	}
-
-	const now = new Date().toISOString();
-	const docTitle = str(body.docTitle);
-	const docNotes = str(body.docNotes);
-	const fileName = str(body.fileName) || 'upload';
-	const fileSizeRaw = optNum(body.fileSize);
-	const fileSize = fileSizeRaw ?? 0;
-
-	const uploadEvidence = {
-		key,
-		fileName,
-		contentType: fileType,
-		size: fileSize,
-		uploadedAt: now
-	};
-
-	const makeMetadata = (extra?: string) =>
-		buildDocumentMetadata({
-			raw: null,
-			notes: [docTitle && `Title: ${docTitle}`, docNotes, extra].filter(Boolean).join('\n') || undefined,
-			sourceType: 'upload',
-			parseStatus: 'parsed',
-			upload: uploadEvidence
-		});
-
-	const rawDetectedText = str(body.rawDetectedText);
 
 	try {
+		const [project] = await db
+			.select({
+				id: schema.projects.id,
+				customerId: schema.projects.customerId
+			})
+			.from(schema.projects)
+			.where(and(eq(schema.projects.id, projectId), isNull(schema.projects.deletedAt)))
+			.limit(1);
+
+		if (!project) {
+			return fail('Project not found', 404);
+		}
+
+		const now = new Date().toISOString();
+		const docTitle = str(body.docTitle);
+		const docNotes = str(body.docNotes);
+		const fileName = str(body.fileName) || 'upload';
+		const fileSizeRaw = optNum(body.fileSize);
+		const fileSize = fileSizeRaw ?? 0;
+
+		const uploadEvidence = {
+			key,
+			fileName,
+			contentType: fileType,
+			size: fileSize,
+			uploadedAt: now
+		};
+
+		const makeMetadata = (extra?: string) =>
+			buildDocumentMetadata({
+				raw: null,
+				notes: [docTitle && `Title: ${docTitle}`, docNotes, extra].filter(Boolean).join('\n') || undefined,
+				sourceType: 'upload',
+				parseStatus: 'parsed',
+				upload: uploadEvidence
+			});
+
+		const rawDetectedText = str(body.rawDetectedText);
+
 		switch (docType) {
 			case 'contract': {
 				const id = crypto.randomUUID();
@@ -396,7 +412,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 					createdAt: now,
 					updatedAt: now
 				});
-				await writeAuditLog(platform, locals.user, {
+				await auditSafe(platform, locals.user, {
 					action: 'document.unclassified_upload',
 					entityType: 'quotation',
 					entityId: id,
@@ -410,6 +426,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		}
 	} catch (e) {
 		const msg = errorChainText(e);
+		console.error('[save-project-document]', msg);
 		if (isUniqueConstraintError(msg)) {
 			return fail(
 				'A record with this number already exists (e.g. duplicate customer invoice no. or PO no.). Edit the number or remove the existing row.',
@@ -417,7 +434,11 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			);
 		}
 		if (isForeignKeyConstraintError(msg)) {
-			return fail('Database rejected a reference (project / customer / PO link). Check project data.', 422);
+			return fail(
+				'Database rejected a reference (e.g. audit actor user missing after DB reset — sign out and sign in again, or broken project/customer link).',
+				422,
+				msg
+			);
 		}
 		return fail('Database error while saving document', 500, msg);
 	}

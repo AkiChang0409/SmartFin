@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { authClient } from '$lib/auth-client';
 
 	const navItems = [
 		{ href: '/dashboard', label: 'Dashboard', prefix: '/dashboard', moduleId: null },
 		{ href: '/ar', label: 'AR', prefix: '/ar', moduleId: 'ar' },
+		{ href: '/customers', label: 'Customers', prefix: '/customers', moduleId: 'business-partner' },
 		{ href: '/projects', label: 'Projects', prefix: '/projects', moduleId: 'project' },
 		{ href: '/employees', label: 'Employees', prefix: '/employees', moduleId: 'employee' },
 		{ href: '/tax', label: 'Tax', prefix: '/tax', moduleId: 'tax' },
@@ -27,6 +30,11 @@
 
 	/** 单项目页：主内容区与顶栏 max-w-7xl 的左缘对齐，向右占满视口（不在更宽的盒子里居中），避免侧栏左移 */
 	const wideProjectDetailMain = $derived(/^\/projects\/(?!new$)[^/]+/.test(page.url.pathname));
+
+	async function logout() {
+		await authClient.signOut();
+		await goto('/login');
+	}
 </script>
 
 <div class="theme-shell">
@@ -58,11 +66,13 @@
 						<span class="rounded-full bg-slate-100 px-2 py-1 font-medium">{data.user.email}</span>
 						<span class="rounded-full px-2 py-1 font-medium" style="background: #eef6ec; color: #387234;">{data.user.role}</span>
 					</div>
-					<form method="POST" action="/auth/logout">
-						<button class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100" type="submit">
-							Logout
-						</button>
-					</form>
+					<button
+						type="button"
+						class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+						onclick={() => logout()}
+					>
+						Logout
+					</button>
 				{/if}
 			</div>
 		</div>

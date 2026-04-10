@@ -11,11 +11,18 @@ declare global {
 		OCR_API_URL?: string;
 		OCR_API_KEY?: string;
 		LLM_PROVIDER?: 'heuristic' | 'external';
+		/** Set to `false` to never call `LLM_API_URL` (Workers AI + heuristics only). */
+		LLM_USE_EXTERNAL?: string;
+		/** Set to `true` to skip Workers AI and use external HTTP LLM when `LLM_API_URL` is set. */
+		LLM_SKIP_WORKERS?: string;
 		LLM_API_URL?: string;
 		LLM_API_KEY?: string;
 		OCR_PROMPT_VERSION?: string;
 		BETTER_AUTH_SECRET?: string;
 		BETTER_AUTH_URL?: string;
+		/** Resend API (transactional email: verify, reset password). Optional in dev (logs only). */
+		RESEND_API_KEY?: string;
+		EMAIL_FROM?: string;
 	}
 
 	namespace App {

@@ -5,6 +5,8 @@ import { registry } from './registry';
 const PREFIX_TO_MODULE: Array<{ prefix: string; moduleId: string }> = [
 	{ prefix: '/ar', moduleId: 'ar' },
 	{ prefix: '/projects', moduleId: 'project' },
+	{ prefix: '/customers', moduleId: 'business-partner' },
+	{ prefix: '/api/customers', moduleId: 'business-partner' },
 	{ prefix: '/employees', moduleId: 'employee' },
 	{ prefix: '/tax', moduleId: 'tax' },
 	{ prefix: '/reports', moduleId: 'reporting' },

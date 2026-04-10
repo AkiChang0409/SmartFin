@@ -12,6 +12,9 @@
 // Core module
 export { users, auditLogs, companySettings } from '../modules/core/schema';
 
+// better-auth tables (sessions, accounts, verifications)
+export { sessions, accounts, verifications } from '../auth/auth-tables';
+
 // Person module (includes legacy employees table)
 export {
 	persons,
