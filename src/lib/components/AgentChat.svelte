@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { agentPageContext } from '$lib/agent/context';
+	import { setPrefill } from '$lib/agent/prefill';
 
 	type Message = {
 		role: 'user' | 'assistant';
@@ -71,21 +72,52 @@
 	}
 
 	function navigate(entry: string, prefill: Record<string, unknown>) {
-		const params = new URLSearchParams();
-		for (const [k, v] of Object.entries(prefill)) {
-			if (v !== null && v !== undefined) {
-				params.set(k, String(v));
-			}
+		if (Object.keys(prefill).length > 0) {
+			setPrefill(prefill);
 		}
-		const url = params.size > 0 ? `${entry}?${params.toString()}` : entry;
-		goto(url);
+		goto(entry);
 		open = false;
 	}
 
-	function formatData(data: unknown): string {
-		if (data === null || data === undefined) return '';
-		if (typeof data === 'string') return data;
-		return JSON.stringify(data, null, 2);
+	type ProfitData = {
+		project_name?: string;
+		revenue?: number;
+		total_cost?: number;
+		net_profit?: number;
+		profit_margin_pct?: number;
+	};
+
+	type ProjectListData = {
+		count?: number;
+		projects?: Array<{ name: string; status: string; customer_name?: string }>;
+	};
+
+	type InvoiceListData = {
+		count?: number;
+		invoices?: Array<{ invoice_no: string; total: number; currency: string; status: string }>;
+	};
+
+	function formatCurrency(val: number, currency = 'SGD'): string {
+		return new Intl.NumberFormat('en-SG', { style: 'currency', currency }).format(val);
+	}
+
+	function formatData(data: unknown): { type: 'profit' | 'projects' | 'invoices' | 'raw'; content: unknown } {
+		if (data === null || data === undefined) return { type: 'raw', content: '' };
+		if (typeof data !== 'object') return { type: 'raw', content: String(data) };
+
+		const obj = data as Record<string, unknown>;
+
+		if ('net_profit' in obj && 'revenue' in obj) {
+			return { type: 'profit', content: obj as ProfitData };
+		}
+		if ('projects' in obj && Array.isArray(obj.projects)) {
+			return { type: 'projects', content: obj as ProjectListData };
+		}
+		if ('invoices' in obj && Array.isArray(obj.invoices)) {
+			return { type: 'invoices', content: obj as InvoiceListData };
+		}
+
+		return { type: 'raw', content: JSON.stringify(data, null, 2) };
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -128,11 +160,39 @@
 						{msg.text}
 					</span>
 
-					{#if msg.role === 'assistant' && msg.data}
-						<div class="mt-1 max-w-[90%] rounded-lg bg-gray-50 p-2 text-left">
-							<pre class="overflow-x-auto text-xs text-gray-600">{formatData(msg.data)}</pre>
-						</div>
-					{/if}
+				{#if msg.role === 'assistant' && msg.data}
+					{@const formatted = formatData(msg.data)}
+					<div class="mt-1 max-w-[90%] rounded-lg bg-gray-50 p-2 text-left text-xs">
+						{#if formatted.type === 'profit'}
+							{@const profit = formatted.content as ProfitData}
+							<div class="space-y-1">
+								<div class="font-medium text-gray-800">{profit.project_name}</div>
+								<div class="flex justify-between"><span>营收</span><span class="text-green-600">{formatCurrency(profit.revenue ?? 0)}</span></div>
+								<div class="flex justify-between"><span>成本</span><span class="text-red-600">{formatCurrency(profit.total_cost ?? 0)}</span></div>
+								<div class="flex justify-between border-t pt-1 font-medium"><span>净利润</span><span class={profit.net_profit && profit.net_profit >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(profit.net_profit ?? 0)}</span></div>
+								<div class="text-right text-gray-500">利润率 {profit.profit_margin_pct ?? 0}%</div>
+							</div>
+						{:else if formatted.type === 'projects'}
+							{@const list = formatted.content as ProjectListData}
+							<div class="space-y-1">
+								<div class="text-gray-500">共 {list.count ?? 0} 个项目</div>
+								{#each (list.projects ?? []).slice(0, 5) as p}
+									<div class="flex justify-between"><span>{p.name}</span><span class="text-gray-400">{p.status}</span></div>
+								{/each}
+							</div>
+						{:else if formatted.type === 'invoices'}
+							{@const list = formatted.content as InvoiceListData}
+							<div class="space-y-1">
+								<div class="text-gray-500">共 {list.count ?? 0} 张发票</div>
+								{#each (list.invoices ?? []).slice(0, 5) as inv}
+									<div class="flex justify-between"><span>{inv.invoice_no}</span><span>{formatCurrency(inv.total, inv.currency)}</span></div>
+								{/each}
+							</div>
+						{:else}
+							<pre class="overflow-x-auto text-gray-600">{formatted.content}</pre>
+						{/if}
+					</div>
+				{/if}
 
 					{#if msg.role === 'assistant' && msg.missing_context && msg.missing_context.length > 0}
 						<div class="mt-1 text-left text-xs text-amber-600">

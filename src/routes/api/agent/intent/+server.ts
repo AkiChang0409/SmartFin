@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { AgentContext, DomainResult } from '$lib/server/agent/types';
+import type { AgentContext, DomainResult, QueryContext } from '$lib/server/agent/types';
 import { routeIntent } from '$lib/server/agent/router';
 import { getDomainAgent } from '$lib/server/agent/domains/registry';
 import { executeDomainAgent } from '$lib/server/agent/domains/executor';
@@ -63,12 +63,19 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		} satisfies DomainResult);
 	}
 
+	const queryCtx: QueryContext = {
+		env: platform.env,
+		userId: locals.user.id,
+		userRole: locals.user.role
+	};
+
 	try {
 		const domainResult = await executeDomainAgent(
 			platform.env,
 			domain,
 			routerResult,
-			locals.user.role
+			locals.user.role,
+			queryCtx
 		);
 
 		return json(domainResult);

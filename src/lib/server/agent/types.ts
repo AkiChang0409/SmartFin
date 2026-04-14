@@ -74,3 +74,24 @@ export interface DomainAgentDef {
 	actions: AgentAction[];
 	buildSystemPrompt: () => string;
 }
+
+/** Query 执行上下文，由 intent API 注入 */
+export interface QueryContext {
+	env: Env;
+	userId: string;
+	userRole: string;
+}
+
+/** Query 执行结果 */
+export interface QueryDataResult {
+	success: boolean;
+	data?: unknown;
+	error?: string;
+}
+
+/** Query 处理器类型 */
+export type QueryHandler = (
+	ctx: QueryContext,
+	actionId: string,
+	params: Record<string, unknown>
+) => Promise<QueryDataResult>;

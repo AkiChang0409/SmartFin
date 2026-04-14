@@ -1,7 +1,41 @@
 <script lang="ts">
 	import PageShell from '$lib/components/PageShell.svelte';
+	import { consumePrefill } from '$lib/agent/prefill';
 
 	let { data, form } = $props();
+
+	let projectName = $state('');
+	let selectedCustomerId = $state('');
+	let startDate = $state('');
+	let endDate = $state('');
+	let description = $state('');
+	let status = $state('active');
+
+	$effect(() => {
+		const prefill = consumePrefill();
+		if (Object.keys(prefill).length === 0) return;
+
+		if (typeof prefill.project_name === 'string') {
+			projectName = prefill.project_name;
+		}
+		if (typeof prefill.start_date === 'string') {
+			startDate = prefill.start_date;
+		}
+		if (typeof prefill.description === 'string') {
+			description = prefill.description;
+		}
+
+		if (typeof prefill.customer_name === 'string') {
+			const needle = prefill.customer_name.toLowerCase();
+			const match = data.customers.find(
+				(c: { id: string; name: string }) =>
+					c.name.toLowerCase() === needle || c.name.toLowerCase().includes(needle)
+			);
+			if (match) {
+				selectedCustomerId = match.id;
+			}
+		}
+	});
 </script>
 
 <PageShell eyebrow="Project Management" title="Create Project" description="After submission, you will be redirected to the project detail page.">
@@ -31,8 +65,9 @@
 					name="customerId"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
 					required
+					bind:value={selectedCustomerId}
 				>
-					<option value="" disabled selected>Select a customer</option>
+					<option value="" disabled>Select a customer</option>
 					{#each data.customers as customer}
 						<option value={customer.id}>{customer.name}</option>
 					{/each}
@@ -46,6 +81,7 @@
 					required
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
 					placeholder="e.g. 2026 Q2 Sea Freight Project"
+					bind:value={projectName}
 				/>
 			</label>
 
@@ -54,6 +90,7 @@
 				<select
 					name="status"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
+					bind:value={status}
 				>
 					<option value="active">active</option>
 					<option value="on_hold">on_hold</option>
@@ -67,6 +104,7 @@
 					type="date"
 					name="startDate"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
+					bind:value={startDate}
 				/>
 			</label>
 
@@ -76,6 +114,7 @@
 					type="date"
 					name="endDate"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
+					bind:value={endDate}
 				/>
 			</label>
 		</div>
@@ -87,6 +126,7 @@
 				rows="4"
 				class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
 				placeholder="Add project background, goals, and notes."
+				bind:value={description}
 			></textarea>
 		</label>
 

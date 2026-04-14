@@ -3,6 +3,7 @@
 	import { tick } from 'svelte';
 	import PageShell from '$lib/components/PageShell.svelte';
 	import companyLogo from '$lib/assets/favicon.png';
+	import { consumePrefill } from '$lib/agent/prefill';
 
 	type ProjectRow = {
 		id: string;
@@ -143,6 +144,39 @@
 	let selectedCustomerId = $state(editing?.customerId ?? '');
 	let lastBillToProjectId = $state('');
 	let editingInvoiceId = $state(editing?.id ?? '');
+
+	$effect(() => {
+		const prefill = consumePrefill();
+		if (Object.keys(prefill).length === 0) return;
+
+		if (typeof prefill.project_name === 'string' && !editingInvoiceId) {
+			const needle = prefill.project_name.toLowerCase();
+			const match = data.projects.find(
+				(p: ProjectRow) =>
+					p.name.toLowerCase() === needle || p.name.toLowerCase().includes(needle)
+			);
+			if (match) {
+				selectedProjectId = match.id;
+			}
+		}
+
+		if (typeof prefill.currency === 'string') {
+			const c = prefill.currency.toUpperCase();
+			if (['SGD', 'USD', 'CNY'].includes(c)) {
+				currency = c;
+			}
+		}
+
+		if (typeof prefill.amount === 'number' && lineItems.length > 0) {
+			lineItems[0].unitPrice = String(prefill.amount);
+			lineItems = [...lineItems];
+		}
+
+		if (typeof prefill.description === 'string' && lineItems.length > 0) {
+			lineItems[0].description = prefill.description;
+			lineItems = [...lineItems];
+		}
+	});
 
 	let saveBusy = $state(false);
 	let saveMessage = $state('');
