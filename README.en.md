@@ -14,6 +14,19 @@ SmartFin is a financial operations platform for Singapore SMEs: AR documents and
 - **Employees**: List and detail (aligned with person / project membership); individual tax UI and APIs
 - **Tax**: GST quarterly views; Corporate / Individual Tax summary APIs and pages
 - **Reporting & dashboard**: Dashboard KPIs, project profit reports and export
+- **AI Agent (v2)**:
+  - Global chat entry (floating dialog at bottom-right)
+  - **Two-layer Agent architecture**: Router Agent (intent classification) → Domain Agent (action selection)
+  - Supports `query` / `action` / `chat` intent types
+  - **Query type returns data directly**: e.g. project profit, project list, displayed as structured cards
+  - Actions filtered by user role
+  - Page navigation with form prefill (supports date parsing, dropdown matching)
+  - **Follow-up mode**: maintains context for continuous conversation
+  - Project pages auto-inject `project_id` / `project_name` context
+- **OCR enhancements**:
+  - **Workers AI Vision**: Llama 3.2 Vision model for image/scanned PDF OCR
+  - **PaddleOCR**: Optional local HTTP service (recommended for development)
+  - Image document OCR path: PaddleOCR first → Workers AI Vision fallback
 
 > **Product boundary**: `Generate & send` does not yet connect real email delivery; the OCR consumer can be deployed separately while the main Worker acts as a queue producer (see `wrangler.jsonc` and `workers/`).
 
@@ -149,8 +162,21 @@ Common endpoints below; see `src/routes/api` for the full set.
 
 **OCR / LLM**
 
+- `POST /api/ocr/workers-vision`: Image OCR (Workers AI Vision / PaddleOCR)
 - `POST /api/ocr/llm-classify`, `POST /api/ocr/llm-extract`, `POST /api/ocr/llm-email-intent`, `POST /api/ocr/llm-attachment-rank`
 - `GET /api/ocr/status/[id]`, `POST /api/ocr/[id]/confirm`
+
+**AI Agent**
+
+- `POST /api/agent/intent`: Receives natural language, page context, and conversation history; returns:
+  - `reply`: Response text
+  - `matched_action_id`: Matched action ID
+  - `prefill`: Form prefill data
+  - `data`: Structured data for query-type intents (profit, lists, etc.)
+  - `action`: Navigation target (with `entry` path)
+  - `missing_context`: Required context fields that are missing
+- Supports `history` parameter for multi-turn conversation
+- Provider strategy: Workers AI (`platform.env.AI`) first, fallback to external LLM (OpenAI-compatible), then degraded response
 
 **Customer invoices**
 
@@ -248,6 +274,17 @@ If sign-up 404s after deploy: (1) confirm the secret exists on **that** Worker; 
 **Email (verification & password reset):** In production set **`RESEND_API_KEY`** (e.g. `wrangler secret put RESEND_API_KEY`) and **`EMAIL_FROM`** (e.g. `SmartFin <noreply@yourdomain.com>`, must match a verified domain in Resend). If unset, URLs are only logged and no email is sent. **Until you verify a domain**, Resend’s testing mode usually **only allows delivery to your account email**; to reach arbitrary recipients, verify a domain at [resend.com/domains](https://resend.com/domains) and use a `from` address on that domain.
 
 Optional (external OCR/LLM): `OCR_API_URL`, `OCR_API_KEY`, `LLM_API_URL`, `LLM_API_KEY`, `LLM_PROVIDER`, `OCR_PROVIDER`, etc.
+
+**AI and OCR specific variables**:
+
+| Variable | Description |
+|----------|-------------|
+| `WORKERS_AI_MODEL` | Text LLM model (default `@cf/meta/llama-3.1-8b-instruct`) |
+| `WORKERS_AI_VISION_MODEL` | Vision OCR model (default `@cf/meta/llama-3.2-11b-vision-instruct`) |
+| `PADDLE_OCR_URL` | Local PaddleOCR HTTP service URL (e.g. `http://127.0.0.1:8765`) |
+| `OCR_PADDLE_ONLY` | If `true`, use PaddleOCR only without Workers AI fallback |
+
+AI Agent reuses the same LLM config: if Workers AI is unavailable locally, it automatically tries `LLM_API_URL` + `LLM_API_KEY` (e.g. OpenAI).
 
 ---
 
