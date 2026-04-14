@@ -95,3 +95,9 @@ export type QueryHandler = (
 	actionId: string,
 	params: Record<string, unknown>
 ) => Promise<QueryDataResult>;
+
+/** 对话历史消息 */
+export interface ChatHistoryMessage {
+	role: 'user' | 'assistant';
+	content: string;
+}

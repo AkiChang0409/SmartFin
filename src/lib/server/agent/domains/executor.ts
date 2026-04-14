@@ -1,4 +1,4 @@
-import type { DomainAgentDef, RouterResult, DomainResult, AgentAction, QueryContext } from '../types';
+import type { DomainAgentDef, RouterResult, DomainResult, AgentAction, QueryContext, ChatHistoryMessage } from '../types';
 import { callAiJsonWithSource } from '$lib/server/services/ai-agent';
 import { executeQuery } from '../query-handlers';
 
@@ -7,7 +7,8 @@ export async function executeDomainAgent(
 	domain: DomainAgentDef,
 	routerResult: RouterResult,
 	userRole: string,
-	queryCtx?: QueryContext
+	queryCtx?: QueryContext,
+	history?: ChatHistoryMessage[]
 ): Promise<DomainResult> {
 	const availableActions = domain.actions.filter((a) =>
 		a.required_roles.includes(userRole as AgentAction['required_roles'][number])
@@ -23,9 +24,10 @@ export async function executeDomainAgent(
 	}
 
 	const isQueryIntent = routerResult.intent_type === 'query';
-	const systemPrompt = buildSystemPromptForIntent(domain, isQueryIntent);
+	const systemPrompt = buildSystemPromptForIntent(domain, isQueryIntent, !!history?.length);
 
-	const userPrompt = `User message: ${routerResult.raw_message}
+	const historySection = formatHistory(history);
+	const userPrompt = `${historySection}User message: ${routerResult.raw_message}
 Intent type: ${routerResult.intent_type}
 Current page: ${routerResult.context.currentPath}
 ${routerResult.context.project_id ? `Current project ID: ${routerResult.context.project_id}, project name: ${routerResult.context.project_name ?? ''}` : ''}
@@ -104,22 +106,45 @@ User role: ${routerResult.context.user_role ?? ''}`;
 	};
 }
 
-function buildSystemPromptForIntent(domain: DomainAgentDef, isQuery: boolean): string {
+function formatHistory(history?: ChatHistoryMessage[]): string {
+	if (!history?.length) return '';
+
+	const formatted = history
+		.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+		.join('\n');
+
+	return `Previous conversation:
+${formatted}
+
+---
+Current follow-up:
+`;
+}
+
+function buildSystemPromptForIntent(domain: DomainAgentDef, isQuery: boolean, hasHistory: boolean): string {
 	const basePrompt = domain.buildSystemPrompt();
+	let additional = '';
+
+	if (hasHistory) {
+		additional += `
+
+IMPORTANT - Follow-up Context:
+- The user is continuing a previous conversation
+- "Previous conversation" section contains the chat history
+- Extract any missing parameters from the conversation history
+- If you previously asked for information and the user is now providing it, use that to complete the action`;
+	}
 
 	if (isQuery) {
-		return (
-			basePrompt +
-			`
+		additional += `
 
 IMPORTANT for QUERY intent:
 - The user is asking a question and wants data, not navigation
 - You MUST identify which action's API can answer this query
 - Extract all relevant parameters (especially project_id, project_name) into prefill
 - If project context is available, use it to fill project_id
-- If user mentions a project by name, extract it to project_name in prefill`
-		);
+- If user mentions a project by name, extract it to project_name in prefill`;
 	}
 
-	return basePrompt;
+	return basePrompt + additional;
 }

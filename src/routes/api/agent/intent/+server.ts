@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { AgentContext, DomainResult, QueryContext } from '$lib/server/agent/types';
+import type { AgentContext, DomainResult, QueryContext, ChatHistoryMessage } from '$lib/server/agent/types';
 import { routeIntent } from '$lib/server/agent/router';
 import { getDomainAgent } from '$lib/server/agent/domains/registry';
 import { executeDomainAgent } from '$lib/server/agent/domains/executor';
@@ -8,6 +8,7 @@ import { executeDomainAgent } from '$lib/server/agent/domains/executor';
 type IntentRequest = {
 	message: string;
 	context?: Partial<AgentContext>;
+	history?: ChatHistoryMessage[];
 };
 
 export const POST: RequestHandler = async ({ request, platform, locals }) => {
@@ -69,13 +70,16 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		userRole: locals.user.role
 	};
 
+	const history = Array.isArray(body.history) ? body.history : undefined;
+
 	try {
 		const domainResult = await executeDomainAgent(
 			platform.env,
 			domain,
 			routerResult,
 			locals.user.role,
-			queryCtx
+			queryCtx,
+			history
 		);
 
 		return json(domainResult);

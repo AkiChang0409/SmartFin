@@ -30,12 +30,52 @@
 	let input = $state('');
 	let loading = $state(false);
 	let messages = $state<Message[]>([]);
+	let messagesContainer: HTMLDivElement | null = $state(null);
+	let followUpMode = $state(false);
+	let inputRef: HTMLInputElement | null = $state(null);
+
+	function scrollToBottom() {
+		if (messagesContainer) {
+			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		}
+	}
+
+	$effect(() => {
+		if (open && messages.length > 0) {
+			scrollToBottom();
+		}
+	});
+
+	$effect(() => {
+		if (open) {
+			setTimeout(scrollToBottom, 50);
+		}
+	});
+
+	function getRecentHistory(): Array<{ role: 'user' | 'assistant'; content: string }> {
+		const recent = messages.slice(-6);
+		return recent.map((m) => ({
+			role: m.role,
+			content: m.text
+		}));
+	}
+
+	function startFollowUp() {
+		followUpMode = true;
+		inputRef?.focus();
+	}
+
+	function cancelFollowUp() {
+		followUpMode = false;
+	}
 
 	async function send() {
 		if (!input.trim() || loading) return;
 
 		const userMessage = input.trim();
+		const isFollowUp = followUpMode;
 		input = '';
+		followUpMode = false;
 		messages = [...messages, { role: 'user', text: userMessage }];
 		loading = true;
 
@@ -48,7 +88,8 @@
 					context: {
 						currentPath: page.url.pathname,
 						...get(agentPageContext)
-					}
+					},
+					history: isFollowUp ? getRecentHistory().slice(0, -1) : undefined
 				})
 			});
 			const data = (await res.json()) as AgentIntentResponse;
@@ -144,12 +185,13 @@
 	>
 		<div class="px-4 py-3 text-sm font-semibold text-white" style="background: var(--sf-green);">SmartFin 助手</div>
 
-		<div class="flex-1 space-y-2 overflow-y-auto p-3 text-sm">
+		<div class="flex-1 space-y-2 overflow-y-auto p-3 text-sm" bind:this={messagesContainer}>
 			{#if messages.length === 0}
 				<p class="mt-8 text-center text-gray-400">你好！有什么可以帮你的？</p>
 			{/if}
 
-			{#each messages as msg}
+			{#each messages as msg, idx}
+				{@const isLastAssistant = msg.role === 'assistant' && idx === messages.length - 1}
 				<div class={msg.role === 'user' ? 'text-right' : 'text-left'}>
 					<span
 						class={`inline-block max-w-[90%] rounded-lg px-3 py-2 ${
@@ -200,8 +242,9 @@
 						</div>
 					{/if}
 
-					{#if msg.role === 'assistant' && msg.action}
-						<div class="mt-1">
+				{#if msg.role === 'assistant' && (msg.action || isLastAssistant)}
+					<div class="mt-1 flex flex-wrap gap-1">
+						{#if msg.action}
 							<button
 								class="rounded-full px-3 py-1 text-xs transition-colors"
 								style="border: 1px solid rgba(56, 114, 52, 0.25); background: var(--sf-green-soft); color: var(--sf-green);"
@@ -209,8 +252,18 @@
 							>
 								前往 →
 							</button>
-						</div>
-					{/if}
+						{/if}
+						{#if isLastAssistant}
+							<button
+								class="rounded-full px-3 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100"
+								style="border: 1px solid #e5e7eb;"
+								onclick={startFollowUp}
+							>
+								继续追问
+							</button>
+						{/if}
+					</div>
+				{/if}
 				</div>
 			{/each}
 
@@ -221,22 +274,31 @@
 			{/if}
 		</div>
 
-		<div class="flex gap-2 border-t border-gray-200 p-2">
-			<input
-				class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-green-700 focus:outline-none"
-				placeholder="输入你想做什么..."
-				bind:value={input}
-				onkeydown={handleKeydown}
-				disabled={loading}
-			/>
-			<button
-				class="rounded-lg px-3 py-2 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-40"
-				style="background: var(--sf-green);"
-				onclick={() => void send()}
-				disabled={loading || !input.trim()}
-			>
-				发送
-			</button>
+		<div class="border-t border-gray-200 p-2">
+			{#if followUpMode}
+				<div class="mb-1 flex items-center justify-between text-xs text-amber-600">
+					<span>追问模式：将结合上文回答</span>
+					<button class="text-gray-400 hover:text-gray-600" onclick={cancelFollowUp}>取消</button>
+				</div>
+			{/if}
+			<div class="flex gap-2">
+				<input
+					class="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none {followUpMode ? 'border-amber-400 bg-amber-50' : 'border-gray-200 focus:border-green-700'}"
+					placeholder={followUpMode ? '补充信息...' : '输入你想做什么...'}
+					bind:value={input}
+					bind:this={inputRef}
+					onkeydown={handleKeydown}
+					disabled={loading}
+				/>
+				<button
+					class="rounded-lg px-3 py-2 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+					style="background: var(--sf-green);"
+					onclick={() => void send()}
+					disabled={loading || !input.trim()}
+				>
+					发送
+				</button>
+			</div>
 		</div>
 	</div>
 {/if}
