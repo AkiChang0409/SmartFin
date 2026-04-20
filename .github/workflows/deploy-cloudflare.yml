@@ -3,7 +3,7 @@ name: Deploy to Cloudflare
 on:
   push:
     branches:
-      - v2/golive
+      - v3/GoLive
 
 jobs:
   deploy:
