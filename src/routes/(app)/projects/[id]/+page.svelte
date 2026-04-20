@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { afterNavigate } from '$app/navigation';
-	import { page } from '$app/state';
-	import { tick } from 'svelte';
 	import { setAgentPageContext } from '$lib/agent/context';
 
 	let { data } = $props();
@@ -15,8 +12,6 @@
 			setAgentPageContext({});
 		};
 	});
-
-	const DOC_KINDS = ['contracts', 'quotations', 'purchaseOrders', 'expenses'] as const;
 
 	const projBase = $derived(`/projects/${data.project.id}`);
 
@@ -100,7 +95,7 @@
 				id: 'expense-details',
 				title: 'Expense Cost Breakdown',
 				description:
-					'Company-paid expenses on the project. COGS vs OpEx follows expenses.cost_layer; totals feed gross vs net profit.',
+					'Project expenses. Sales Cost vs OpEx; totals feed gross vs net profit.',
 				total: data.breakdown.expenseCost,
 				items: data.details.expenseItems,
 				fallback: 'No expense records yet.'
@@ -119,328 +114,210 @@
 	const closeDetail = () => {
 		selectedDetailId = null;
 	};
-
-	afterNavigate(() => {
-		if (page.url.pathname !== projBase) return;
-		const doc = page.url.searchParams.get('doc');
-		if (!doc || !DOC_KINDS.includes(doc as (typeof DOC_KINDS)[number])) return;
-		tick().then(() => {
-			for (const k of DOC_KINDS) {
-				const el = document.getElementById(`project-doc-${k}`);
-				if (el instanceof HTMLDetailsElement) el.open = k === doc;
-			}
-			document.getElementById(`project-doc-${doc}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-		});
-	});
 </script>
 
-<div class="space-y-5">
-		<!-- Financial overview -->
-		<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-			<div
-				class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4"
+<div class="space-y-6">
+	<!-- 页面标题 -->
+	<div>
+		<h1 class="text-xl font-semibold text-slate-900">Project Dashboard</h1>
+		<p class="mt-1 text-sm text-slate-500">Financial overview and P&L summary for this project.</p>
+	</div>
+
+	<!-- Financial overview -->
+	<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+		<div
+			class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4"
+		>
+			<div>
+				<h2 class="text-[13px] font-medium text-slate-900">Financial Overview</h2>
+				<p class="mt-0.5 text-xs text-slate-500">Click any metric to view detail breakdown.</p>
+			</div>
+			{#if fyLabel}
+				<span class="rounded-full px-2 py-0.5 text-[11px] font-medium" style="background: #e6f1fb; color: #185fa5;">
+					{fyLabel}
+				</span>
+			{/if}
+		</div>
+		<div class="grid grid-cols-2 gap-px bg-slate-200 xl:grid-cols-4">
+			<button
+				type="button"
+				class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
+				onclick={() => openDetail('revenue-details')}
 			>
-				<div>
-					<h2 class="text-[13px] font-medium text-slate-900">Financial overview</h2>
-					<p class="mt-0.5 text-xs text-slate-500">Click any metric to open the detail breakdown.</p>
-				</div>
-				{#if fyLabel}
-					<span class="rounded-full px-2 py-0.5 text-[11px] font-medium" style="background: #e6f1fb; color: #185fa5;">
-						{fyLabel}
-					</span>
-				{/if}
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Revenue</p>
+				<p class="mt-1.5 text-[22px] font-medium text-slate-900">{money(data.breakdown.revenue)}</p>
+				<p class="mt-1 text-[11px] text-slate-500">
+					{data.metricDocCounts.revenue} invoice{data.metricDocCounts.revenue === 1 ? '' : 's'}
+				</p>
+			</button>
+			<button
+				type="button"
+				class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
+				onclick={() => openDetail('purchase-details')}
+			>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Purchase Cost</p>
+				<p class="mt-1.5 text-[22px] font-medium text-slate-900">
+					{money(data.breakdown.purchaseCost)}
+				</p>
+				<p class="mt-1 text-[11px] text-slate-500">
+					{data.metricDocCounts.purchase} supplier invoice{data.metricDocCounts.purchase === 1 ? '' : 's'}
+				</p>
+			</button>
+			<button
+				type="button"
+				class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
+				onclick={() => openDetail('staff-details')}
+			>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Staff Cost</p>
+				<p class="mt-1.5 text-[22px] font-medium text-slate-900">{money(data.breakdown.staffCost)}</p>
+				<p class="mt-1 text-[11px] text-slate-500">
+					{data.metricDocCounts.staff} compensation{data.metricDocCounts.staff === 1 ? '' : 's'}
+				</p>
+			</button>
+			<button
+				type="button"
+				class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
+				onclick={() => openDetail('expense-details')}
+			>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Expense Cost</p>
+				<p class="mt-1.5 text-[22px] font-medium text-slate-900">
+					{money(data.breakdown.expenseCost)}
+				</p>
+				<p class="mt-1 text-[11px] text-slate-500">
+					{data.metricDocCounts.expense} record{data.metricDocCounts.expense === 1 ? '' : 's'} · Sales Cost{' '}
+					{money(data.breakdown.expenseSalesCost)} · OpEx {money(data.breakdown.expenseOpexCost)}
+				</p>
+			</button>
+		</div>
+		<div class="grid grid-cols-1 gap-px bg-slate-200 border-t border-slate-200 md:grid-cols-3">
+			<div class="px-5 py-3.5" style="background: var(--sf-green-soft);">
+				<p class="text-[11px] font-medium uppercase tracking-wide text-[var(--sf-green)] opacity-80">
+					Gross / Net Profit
+				</p>
+				<p class="mt-1 text-sm font-medium text-emerald-950">
+					Gross {money(data.grossProfit)}
+				</p>
+				<p
+					class="mt-0.5 text-xl font-medium {data.profit >= 0 ? 'text-emerald-900' : 'text-rose-700'}"
+				>
+					Net {money(data.profit)}
+				</p>
+				<p class="mt-0.5 text-xs text-[var(--sf-green)]">Net = Gross − OpEx expenses</p>
 			</div>
-			<div class="grid grid-cols-2 gap-px bg-slate-200 xl:grid-cols-4">
-				<button
-					type="button"
-					class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
-					onclick={() => openDetail('revenue-details')}
-				>
-					<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Revenue</p>
-					<p class="mt-1.5 text-[22px] font-medium text-slate-900">{money(data.breakdown.revenue)}</p>
-					<p class="mt-1 text-[11px] text-slate-500">
-						{data.metricDocCounts.revenue} invoice{data.metricDocCounts.revenue === 1 ? '' : 's'}
-					</p>
-				</button>
-				<button
-					type="button"
-					class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
-					onclick={() => openDetail('purchase-details')}
-				>
-					<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Purchase cost</p>
-					<p class="mt-1.5 text-[22px] font-medium text-slate-900">
-						{money(data.breakdown.purchaseCost)}
-					</p>
-					<p class="mt-1 text-[11px] text-slate-500">
-						{data.metricDocCounts.purchase} supplier invoice{data.metricDocCounts.purchase === 1 ? '' : 's'}
-					</p>
-				</button>
-				<button
-					type="button"
-					class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
-					onclick={() => openDetail('staff-details')}
-				>
-					<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Staff cost</p>
-					<p class="mt-1.5 text-[22px] font-medium text-slate-900">{money(data.breakdown.staffCost)}</p>
-					<p class="mt-1 text-[11px] text-slate-500">
-						{data.metricDocCounts.staff} compensation{data.metricDocCounts.staff === 1 ? '' : 's'}
-					</p>
-				</button>
-				<button
-					type="button"
-					class="bg-white px-5 py-4 text-left transition hover:bg-slate-50"
-					onclick={() => openDetail('expense-details')}
-				>
-					<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Expense cost</p>
-					<p class="mt-1.5 text-[22px] font-medium text-slate-900">
-						{money(data.breakdown.expenseCost)}
-					</p>
-					<p class="mt-1 text-[11px] text-slate-500">
-						{data.metricDocCounts.expense} claim{data.metricDocCounts.expense === 1 ? '' : 's'} · COGS{' '}
-						{money(data.breakdown.expenseCogsCost)} · OpEx {money(data.breakdown.expenseOpexCost)}
-					</p>
-				</button>
+			<div class="px-5 py-3.5" style="background: var(--sf-green-soft);">
+				<p class="text-[11px] font-medium uppercase tracking-wide text-[var(--sf-green)] opacity-80">
+					Profit Margin
+				</p>
+				<p class="mt-1 text-xl font-medium text-emerald-900">
+					{profitMarginPct.toFixed(1)}%
+				</p>
+				<p class="mt-0.5 text-xs text-[var(--sf-green)]">Net Profit / Revenue</p>
 			</div>
-			<div class="grid grid-cols-1 gap-px bg-slate-200 border-t border-slate-200 md:grid-cols-3">
-				<div class="px-5 py-3.5" style="background: var(--sf-green-soft);">
-					<p class="text-[11px] font-medium uppercase tracking-wide text-[var(--sf-green)] opacity-80">
-						Gross / net profit
-					</p>
-					<p class="mt-1 text-sm font-medium text-emerald-950">
-						Gross {money(data.grossProfit)}
-					</p>
-					<p
-						class="mt-0.5 text-xl font-medium {data.profit >= 0 ? 'text-emerald-900' : 'text-rose-700'}"
-					>
-						Net {money(data.profit)}
-					</p>
-					<p class="mt-0.5 text-xs text-[var(--sf-green)]">Net = gross − OpEx expenses</p>
-				</div>
-				<div class="px-5 py-3.5" style="background: var(--sf-green-soft);">
-					<p class="text-[11px] font-medium uppercase tracking-wide text-[var(--sf-green)] opacity-80">
-						Profit margin
-					</p>
-					<p class="mt-1 text-xl font-medium text-emerald-900">
-						{profitMarginPct.toFixed(1)}%
-					</p>
-					<p class="mt-0.5 text-xs text-[var(--sf-green)]">Profit / revenue</p>
-				</div>
-				<div class="bg-slate-50 px-5 py-3.5">
-					<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Cost breakdown</p>
-					<div class="mt-2 space-y-1">
-						<div class="flex items-center gap-2">
-							<span class="w-20 shrink-0 text-[11px] text-slate-600">Purchase</span>
-							<div class="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
-								<div
-									class="h-full rounded-full bg-sky-600"
-									style={`width:${costShare.purchase}%`}
-								></div>
-							</div>
-							<span class="w-9 shrink-0 text-right text-[11px] text-slate-600">
-								{costShare.purchase.toFixed(0)}%
-							</span>
+			<div class="bg-slate-50 px-5 py-3.5">
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Cost Breakdown</p>
+				<div class="mt-2 space-y-1">
+					<div class="flex items-center gap-2">
+						<span class="w-20 shrink-0 text-[11px] text-slate-600">Purchase</span>
+						<div class="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
+							<div
+								class="h-full rounded-full bg-sky-600"
+								style={`width:${costShare.purchase}%`}
+							></div>
 						</div>
-						<div class="flex items-center gap-2">
-							<span class="w-20 shrink-0 text-[11px] text-slate-600">Staff</span>
-							<div class="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
-								<div
-									class="h-full rounded-full bg-amber-500"
-									style={`width:${costShare.staff}%`}
-								></div>
-							</div>
-							<span class="w-9 shrink-0 text-right text-[11px] text-slate-600">
-								{costShare.staff.toFixed(0)}%
-							</span>
+						<span class="w-9 shrink-0 text-right text-[11px] text-slate-600">
+							{costShare.purchase.toFixed(0)}%
+						</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="w-20 shrink-0 text-[11px] text-slate-600">Staff</span>
+						<div class="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
+							<div
+								class="h-full rounded-full bg-amber-500"
+								style={`width:${costShare.staff}%`}
+							></div>
 						</div>
-						<div class="flex items-center gap-2">
-							<span class="w-20 shrink-0 text-[11px] text-slate-600">Expense</span>
-							<div class="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
-								<div
-									class="h-full rounded-full bg-pink-700"
-									style={`width:${costShare.expense}%`}
-								></div>
-							</div>
-							<span class="w-9 shrink-0 text-right text-[11px] text-slate-600">
-								{costShare.expense.toFixed(0)}%
-							</span>
+						<span class="w-9 shrink-0 text-right text-[11px] text-slate-600">
+							{costShare.staff.toFixed(0)}%
+						</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<span class="w-20 shrink-0 text-[11px] text-slate-600">Expense</span>
+						<div class="h-1 flex-1 overflow-hidden rounded-full bg-slate-200">
+							<div
+								class="h-full rounded-full bg-pink-700"
+								style={`width:${costShare.expense}%`}
+							></div>
 						</div>
+						<span class="w-9 shrink-0 text-right text-[11px] text-slate-600">
+							{costShare.expense.toFixed(0)}%
+						</span>
 					</div>
 				</div>
 			</div>
-		</section>
+		</div>
+	</section>
 
-		<!-- Document modules (sidebar links scroll here via ?doc=) -->
-		<details
-			id="project-doc-contracts"
-			class="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden"
-		>
-			<summary
-				class="flex cursor-pointer list-none items-center gap-2 border-b border-slate-200 px-5 py-4 hover:bg-slate-50/80"
+	<!-- Quick Access Cards -->
+	<section>
+		<h2 class="mb-4 text-sm font-medium text-slate-700">Quick Access</h2>
+		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+			<a
+				href="{projBase}/documents"
+				class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--sf-green)] hover:shadow-md"
 			>
-				<span class="text-slate-400 transition-transform group-open:rotate-90" aria-hidden="true">›</span>
-				<div class="min-w-0 flex-1">
-					<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contracts</p>
-					<p class="text-[13px] font-medium text-slate-900">Project contracts &amp; agreements</p>
+				<div class="flex items-center justify-between">
+					<span class="text-2xl opacity-60">▤</span>
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-[var(--sf-green-soft)] group-hover:text-[var(--sf-green)]">
+						{data.submoduleCounts.contracts + data.submoduleCounts.quotations + data.submoduleCounts.purchaseOrders}
+					</span>
 				</div>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{data.submoduleCounts.contracts}</span>
-			</summary>
-			<div class="border-t border-slate-100 px-5 py-4">
-				{#if data.arPickLists.contracts.length === 0}
-					<p class="text-sm text-slate-500">No contract records yet.</p>
-				{:else}
-					<ul class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-						{#each data.arPickLists.contracts as row}
-							<li>
-								<a
-									class="flex flex-col gap-0.5 px-3 py-2.5 text-sm hover:bg-slate-50"
-									href="{projBase}/contracts/{row.id}"
-								>
-									<span class="font-medium text-slate-800">{row.label}</span>
-									<span class="text-xs text-slate-500">{row.subtitle}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				<p class="mt-3">
-					<a
-						class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-						href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=contract`}
-					>
-						Upload new contract…
-					</a>
-				</p>
-			</div>
-		</details>
+				<h3 class="mt-3 font-medium text-slate-900 group-hover:text-[var(--sf-green)]">Documents</h3>
+				<p class="mt-1 text-xs text-slate-500">Contracts, quotations, purchase orders</p>
+			</a>
 
-		<details
-			id="project-doc-quotations"
-			class="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden"
-		>
-			<summary
-				class="flex cursor-pointer list-none items-center gap-2 border-b border-slate-200 px-5 py-4 hover:bg-slate-50/80"
+			<a
+				href="{projBase}/expenses"
+				class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--sf-green)] hover:shadow-md"
 			>
-				<span class="text-slate-400 transition-transform group-open:rotate-90" aria-hidden="true">›</span>
-				<div class="min-w-0 flex-1">
-					<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Quotations</p>
-					<p class="text-[13px] font-medium text-slate-900">Quotes &amp; proposals</p>
+				<div class="flex items-center justify-between">
+					<span class="text-2xl opacity-60">⊟</span>
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-[var(--sf-green-soft)] group-hover:text-[var(--sf-green)]">
+						{data.submoduleCounts.expenses}
+					</span>
 				</div>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{data.submoduleCounts.quotations}</span>
-			</summary>
-			<div class="border-t border-slate-100 px-5 py-4">
-				{#if data.arPickLists.quotations.length === 0}
-					<p class="text-sm text-slate-500">No quotation records yet.</p>
-				{:else}
-					<ul class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-						{#each data.arPickLists.quotations as row}
-							<li>
-								<a
-									class="flex flex-col gap-0.5 px-3 py-2.5 text-sm hover:bg-slate-50"
-									href="{projBase}/quotations/{row.id}"
-								>
-									<span class="font-medium text-slate-800">{row.label}</span>
-									<span class="text-xs text-slate-500">{row.subtitle}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				<p class="mt-3">
-					<a
-						class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-						href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=quotation`}
-					>
-						Upload new quotation…
-					</a>
-				</p>
-			</div>
-		</details>
+				<h3 class="mt-3 font-medium text-slate-900 group-hover:text-[var(--sf-green)]">Expenses</h3>
+				<p class="mt-1 text-xs text-slate-500">Project expense claims & receipts</p>
+			</a>
 
-		<details
-			id="project-doc-purchaseOrders"
-			class="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden"
-		>
-			<summary
-				class="flex cursor-pointer list-none items-center gap-2 border-b border-slate-200 px-5 py-4 hover:bg-slate-50/80"
+			<a
+				href="{projBase}/revenue"
+				class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--sf-green)] hover:shadow-md"
 			>
-				<span class="text-slate-400 transition-transform group-open:rotate-90" aria-hidden="true">›</span>
-				<div class="min-w-0 flex-1">
-					<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Purchase orders</p>
-					<p class="text-[13px] font-medium text-slate-900">POs linked to this project</p>
+				<div class="flex items-center justify-between">
+					<span class="text-2xl opacity-60">¥</span>
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-[var(--sf-green-soft)] group-hover:text-[var(--sf-green)]">
+						{data.metricDocCounts.revenue}
+					</span>
 				</div>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{data.submoduleCounts.purchaseOrders}</span>
-			</summary>
-			<div class="border-t border-slate-100 px-5 py-4">
-				{#if data.arPickLists.purchaseOrders.length === 0}
-					<p class="text-sm text-slate-500">No purchase order records yet.</p>
-				{:else}
-					<ul class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-						{#each data.arPickLists.purchaseOrders as row}
-							<li>
-								<a
-									class="flex flex-col gap-0.5 px-3 py-2.5 text-sm hover:bg-slate-50"
-									href="{projBase}/purchase-orders/{row.id}"
-								>
-									<span class="font-medium text-slate-800">{row.label}</span>
-									<span class="text-xs text-slate-500">{row.subtitle}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				<p class="mt-3">
-					<a
-						class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-						href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=purchase_order`}
-					>
-						Upload new PO…
-					</a>
-				</p>
-			</div>
-		</details>
+				<h3 class="mt-3 font-medium text-slate-900 group-hover:text-[var(--sf-green)]">Revenue</h3>
+				<p class="mt-1 text-xs text-slate-500">Customer invoices & billing</p>
+			</a>
 
-		<details
-			id="project-doc-expenses"
-			class="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm [&_summary::-webkit-details-marker]:hidden"
-		>
-			<summary
-				class="flex cursor-pointer list-none items-center gap-2 border-b border-slate-200 px-5 py-4 hover:bg-slate-50/80"
+			<a
+				href="{projBase}/employees"
+				class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[var(--sf-green)] hover:shadow-md"
 			>
-				<span class="text-slate-400 transition-transform group-open:rotate-90" aria-hidden="true">›</span>
-				<div class="min-w-0 flex-1">
-					<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Expenses</p>
-					<p class="text-[13px] font-medium text-slate-900">Expense claims &amp; receipts</p>
+				<div class="flex items-center justify-between">
+					<span class="text-2xl opacity-60">◎</span>
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 group-hover:bg-[var(--sf-green-soft)] group-hover:text-[var(--sf-green)]">
+						{data.metricDocCounts.staff}
+					</span>
 				</div>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{data.submoduleCounts.expenses}</span>
-			</summary>
-			<div class="border-t border-slate-100 px-5 py-4">
-				{#if data.arPickLists.expenses.length === 0}
-					<p class="text-sm text-slate-500">No expense records yet.</p>
-				{:else}
-					<ul class="divide-y divide-slate-100 rounded-lg border border-slate-200">
-						{#each data.arPickLists.expenses as row}
-							<li>
-								<a
-									class="flex flex-col gap-0.5 px-3 py-2.5 text-sm hover:bg-slate-50"
-									href="{projBase}/expenses/{row.id}"
-								>
-									<span class="font-medium text-slate-800">{row.label}</span>
-									<span class="text-xs text-slate-500">{row.subtitle}</span>
-								</a>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				<p class="mt-3">
-					<a
-						class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-						href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=expense`}
-					>
-						Upload expense document…
-					</a>
-				</p>
-			</div>
-		</details>
+				<h3 class="mt-3 font-medium text-slate-900 group-hover:text-[var(--sf-green)]">Team & Cost</h3>
+				<p class="mt-1 text-xs text-slate-500">Team members & compensation</p>
+			</a>
+		</div>
+	</section>
 </div>
 
 {#if selectedDetailGroup}

@@ -3,6 +3,7 @@
  * Re-exports for backward compatibility with existing route handlers.
  */
 export {
-	projectExpenseCogsSumExpr,
-	projectExpenseOpexSumExpr
+	projectExpenseOpexSumExpr,
+	projectExpenseSalesCostSumExpr,
+	projectExpenseTotalSumExpr
 } from '$lib/server/modules/expense/repository';

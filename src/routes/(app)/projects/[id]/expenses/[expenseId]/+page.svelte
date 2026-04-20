@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { CATEGORY_LABELS, EXPENSE_CATEGORY_OPTIONS } from '$lib/constants/expense-upload';
 
 	let { data, form } = $props();
 
@@ -29,6 +30,8 @@
 		const d = new Date(iso);
 		return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('en-SG');
 	};
+
+	const categoryLabel = (c: string) => (CATEGORY_LABELS as Record<string, string>)[c] ?? c;
 </script>
 
 <div class="space-y-5">
@@ -40,32 +43,25 @@
 		>
 			← Back to project overview
 		</button>
-		<a
-			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=expense`}
-		>
-			Upload document…
-		</a>
 	</div>
 
 	<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 		<div class="border-b border-slate-200 px-5 py-4">
 			<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Expense</p>
 			<h2 class="mt-1 text-lg font-medium text-slate-900">
-				{data.docMeta.upload?.fileName ??
-					`${data.expense.category}${data.expense.subcategory ? ` / ${data.expense.subcategory}` : ''}`}
+				{categoryLabel(data.expense.category)}
 			</h2>
 			<p class="mt-0.5 font-mono text-xs text-slate-400">{data.expense.id}</p>
 		</div>
 
 		<div class="grid gap-px bg-slate-200 sm:grid-cols-2">
 			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Category</p>
-				<p class="mt-1 text-sm text-slate-900">{data.expense.category}</p>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Expense Type</p>
+				<p class="mt-1 text-sm text-slate-900">{data.expense.expenseType === 'sales_cost' ? 'Sales Cost' : 'Operating Expenses'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Subcategory</p>
-				<p class="mt-1 text-sm text-slate-900">{data.expense.subcategory ?? '—'}</p>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Category</p>
+				<p class="mt-1 text-sm text-slate-900">{categoryLabel(data.expense.category)}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Amount</p>
@@ -80,41 +76,38 @@
 				<p class="mt-1 text-sm text-slate-900">{data.expense.date}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Vendor / Supplier</p>
+				<p class="mt-1 text-sm text-slate-900">{data.expense.vendorOrSupplier ?? '—'}</p>
+			</div>
+			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Staff</p>
 				<p class="mt-1 text-sm text-slate-900">{data.expense.staffName ?? '—'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Cost layer</p>
-				<p class="mt-1 text-sm text-slate-900">
-					{data.expense.costLayer === 'opex' ? 'OpEx (indirect)' : 'COGS (direct)'}
-				</p>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Tags</p>
+				<div class="mt-1 flex gap-2">
+					{#if data.expense.reimbursement}
+						<span class="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Reimbursement</span>
+					{/if}
+					{#if data.expense.businessTrip}
+						<span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Business Trip</span>
+					{/if}
+					{#if !data.expense.reimbursement && !data.expense.businessTrip}
+						<span class="text-sm text-slate-500">—</span>
+					{/if}
+				</div>
 			</div>
-			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Source</p>
-				<p class="mt-1 text-sm text-slate-900">{data.docMeta.sourceType ?? '—'}</p>
-			</div>
-			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Parse status</p>
-				<p class="mt-1 text-sm text-slate-900">{data.docMeta.parseStatus ?? '—'}</p>
-			</div>
+			{#if data.expense.destination}
+				<div class="bg-white px-5 py-3">
+					<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Destination</p>
+					<p class="mt-1 text-sm text-slate-900">{data.expense.destination}</p>
+				</div>
+			{/if}
 			<div class="bg-white px-5 py-3 sm:col-span-2">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Storage key</p>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Document Ref</p>
 				<p class="mt-1 break-all font-mono text-xs text-slate-600">
-					{data.expense.fileUrl?.startsWith('manual://') ? 'Manual (no file)' : data.expense.fileUrl}
+					{data.expense.documentRef ?? 'No file attached'}
 				</p>
-			</div>
-			<div class="bg-white px-5 py-3 sm:col-span-2">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Upload</p>
-				{#if data.docMeta.upload}
-					<p class="mt-1 text-sm text-slate-800">{data.docMeta.upload.fileName}</p>
-					<p class="mt-0.5 text-xs text-slate-500">
-						{data.docMeta.upload.contentType} · {fmtBytes(data.docMeta.upload.size)} · {fmtWhen(
-							data.docMeta.upload.uploadedAt
-						)}
-					</p>
-				{:else}
-					<p class="mt-1 text-sm text-slate-500">No upload metadata on file.</p>
-				{/if}
 			</div>
 			<div class="bg-white px-5 py-3 sm:col-span-2">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Created / updated</p>
@@ -125,13 +118,13 @@
 		</div>
 	</section>
 
-	{#if data.docMeta.notes}
+	{#if data.expense.notes}
 		<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 			<div class="border-b border-slate-200 px-5 py-3">
-				<h3 class="text-[13px] font-medium text-slate-900">Notes &amp; extracted details</h3>
+				<h3 class="text-[13px] font-medium text-slate-900">Notes</h3>
 			</div>
 			<div class="px-5 py-4">
-				<pre class="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-slate-700">{data.docMeta.notes}</pre>
+				<pre class="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-slate-700">{data.expense.notes}</pre>
 			</div>
 		</section>
 	{/if}
@@ -140,7 +133,7 @@
 		<div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
 			<div>
 				<h3 class="text-[13px] font-medium text-slate-900">File preview</h3>
-				<p class="mt-0.5 text-xs text-slate-500">Served from your R2 bucket via /api/files (local dev needs R2 binding).</p>
+				<p class="mt-0.5 text-xs text-slate-500">Served from R2 bucket.</p>
 			</div>
 			{#if data.fileDownloadUrl}
 				<a
@@ -154,7 +147,7 @@
 		<div class="p-4">
 			{#if previewMode === 'none'}
 				<p class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-					No file attached (manual entry or pending upload).
+					No file attached.
 				</p>
 			{:else if previewMode === 'pdf'}
 				<iframe
@@ -172,10 +165,8 @@
 				</div>
 			{:else}
 				<p class="text-sm text-slate-600">
-					Preview is not embedded for this file type.
-					<a class="ml-1 font-medium text-[var(--sf-green)] hover:underline" href={data.fileViewUrl} target="_blank" rel="noreferrer"
-						>Open / download</a
-					>
+					Preview not available.
+					<a class="ml-1 font-medium text-[var(--sf-green)] hover:underline" href={data.fileViewUrl} target="_blank" rel="noreferrer">Open / download</a>
 				</p>
 			{/if}
 		</div>
@@ -192,21 +183,35 @@
 		<form class="space-y-4 p-5" method="POST" action="?/update">
 			<div class="grid gap-3 sm:grid-cols-2">
 				<label class="block space-y-1 text-xs font-medium text-slate-700">
+					Expense Type
+					<select
+						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
+						name="expenseType"
+						value={data.expense.expenseType ?? 'opex'}
+					>
+						<option value="opex">Operating Expenses</option>
+						<option value="sales_cost">Sales Cost</option>
+					</select>
+				</label>
+				<label class="block space-y-1 text-xs font-medium text-slate-700">
 					Category
-					<input
+					<select
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="category"
 						required
 						value={data.expense.category}
-					/>
-				</label>
-				<label class="block space-y-1 text-xs font-medium text-slate-700">
-					Subcategory
-					<input
-						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
-						name="subcategory"
-						value={data.expense.subcategory ?? ''}
-					/>
+					>
+						<optgroup label="Operating Expenses">
+							{#each EXPENSE_CATEGORY_OPTIONS.opex as cat}
+								<option value={cat}>{CATEGORY_LABELS[cat]}</option>
+							{/each}
+						</optgroup>
+						<optgroup label="Sales Cost">
+							{#each EXPENSE_CATEGORY_OPTIONS.sales_cost as cat}
+								<option value={cat}>{CATEGORY_LABELS[cat]}</option>
+							{/each}
+						</optgroup>
+					</select>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700">
 					Amount
@@ -236,7 +241,7 @@
 						value={data.expense.date}
 					/>
 				</label>
-				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
+				<label class="block space-y-1 text-xs font-medium text-slate-700">
 					Staff
 					<input
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
@@ -244,23 +249,20 @@
 						value={data.expense.staffName ?? ''}
 					/>
 				</label>
-				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
-					Cost layer
-					<select
+				<label class="block space-y-1 text-xs font-medium text-slate-700">
+					Vendor / Supplier
+					<input
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
-						name="costLayer"
-						value={data.expense.costLayer ?? 'cogs'}
-					>
-						<option value="cogs">COGS — direct project cost</option>
-						<option value="opex">OpEx — indirect / BD / subscriptions</option>
-					</select>
+						name="vendorOrSupplier"
+						value={data.expense.vendorOrSupplier ?? ''}
+					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
-					Notes (stored in metadata)
+					Notes
 					<input
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="notes"
-						value={data.docMeta.notes ?? ''}
+						value={data.expense.notes ?? ''}
 					/>
 				</label>
 			</div>

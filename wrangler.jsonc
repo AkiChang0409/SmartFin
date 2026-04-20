@@ -56,7 +56,7 @@
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare"
 	},
-	// Workers AI 无本地模拟；`wrangler dev --local` 时必须显式 remote，否则会报 “Binding AI needs to be run remotely”
+	// Workers AI：`wrangler dev --local` 会关闭所有远程绑定，AI 无法使用。请用 `npm run dev:cf`（不带 --local）；纯离线 D1 用 `dev:cf:local`。
 	"ai": { "binding": "AI", "remote": true },
 	"workers_dev": true,
 	"preview_urls": true

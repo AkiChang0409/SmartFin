@@ -31,6 +31,11 @@ type LlmExtractionResult = {
 	contractDate?: string | null;
 	contractAmount?: number | null;
 	contractCurrency?: string | null;
+	contractPartyA?: string | null;
+	contractPartyB?: string | null;
+	contractStartDate?: string | null;
+	contractEndDate?: string | null;
+	contractPaymentTerms?: string | null;
 	quotationRef?: string | null;
 	quotationDate?: string | null;
 	quotationAmount?: number | null;
@@ -47,14 +52,30 @@ type LlmExtractionResult = {
 	invoiceCurrency?: string | null;
 	invoiceDueDate?: string | null;
 	invoiceGstAmount?: number | null;
+	/** GST registration number - indicates valid tax invoice */
+	invoiceGstRegNo?: string | null;
+	invoiceSubtotal?: number | null;
+	invoiceLineItems?: Array<{
+		description: string;
+		quantity?: number;
+		unitPrice?: number;
+		amount: number;
+	}> | null;
 	expenseCategory?: string | null;
 	expenseSubcategory?: string | null;
 	expenseAmount?: number | null;
 	expenseCurrency?: string | null;
 	expenseDate?: string | null;
 	expenseStaffName?: string | null;
+	expenseVendorName?: string | null;
 	/** cogs | opex */
 	expenseCostLayer?: string | null;
+	/** For receipts: transport, meal, accommodation, gift, service, other */
+	expenseCategoryHint?: string | null;
+	/** Receipt or ticket number */
+	expenseReceiptNumber?: string | null;
+	/** Payment method hint from receipt (e.g. GrabPay, VISA **1234, cash) */
+	expensePaymentMethodHint?: string | null;
 	/** Per extracted field: 0–100 (model or heuristic). Keys match JSON field names (e.g. supplierName). */
 	fieldConfidence?: Record<string, number>;
 	/** Optional overall band (legacy / summary). */
@@ -269,7 +290,8 @@ Return ONLY valid JSON.
 Document type: ${docType}
 ${invoiceRole ? `\n${invoiceRole}\n` : ''}
 For contract return keys:
-contractNo, contractDate, contractAmount, contractCurrency, fieldConfidence, confidence (optional)
+contractNo, contractDate, contractAmount, contractCurrency, contractPartyA, contractPartyB, contractStartDate, contractEndDate, contractPaymentTerms, fieldConfidence, confidence (optional)
+- For Chinese contracts: 甲方 = contractPartyA, 乙方 = contractPartyB, 合同金额 = contractAmount
 
 For purchase_order return keys:
 poNumber, poDate, poCurrency, supplierName, contractAmount, fieldConfidence, confidence (optional)
@@ -278,14 +300,24 @@ For quotation return keys:
 quotationRef, quotationDate, quotationAmount, quotationCurrency, sourceType, customerName, fieldConfidence, confidence (optional)
 
 For invoice_in / invoice_out return keys:
-invoiceNo, invoiceDate, invoiceAmount, invoiceCurrency, invoiceDueDate, invoiceGstAmount, poNumber, supplierName, customerName, fieldConfidence, confidence (optional)
+invoiceNo, invoiceDate, invoiceAmount, invoiceCurrency, invoiceDueDate, invoiceGstAmount, invoiceGstRegNo, invoiceSubtotal, poNumber, supplierName, customerName, fieldConfidence, confidence (optional)
+- invoiceGstRegNo: GST registration number if present (indicates valid tax invoice for input tax claim)
+- For Chinese documents (发票): 税额 = invoiceGstAmount, 纳税人识别号 = invoiceGstRegNo
+- Extract line_items if available as invoiceLineItems: [{description, quantity, unitPrice, amount}]
 
 For expense return keys:
-expenseCategory, expenseSubcategory, expenseAmount, expenseCurrency, expenseDate, expenseStaffName, expenseCostLayer (cogs or opex), fieldConfidence, confidence (optional)
+expenseCategory, expenseSubcategory, expenseAmount, expenseCurrency, expenseDate, expenseStaffName, expenseVendorName, expenseCostLayer, expenseCategoryHint, expenseReceiptNumber, expensePaymentMethodHint, fieldConfidence, confidence (optional)
+- expenseCostLayer: "cogs" for direct project costs (materials, logistics, workshop), "opex" for operating expenses (transport, meal, accommodation, subscription, etc.)
+- expenseCategoryHint: one of "transport", "meal", "accommodation", "gift", "service", "other" - for receipt type classification
+- For Grab receipts: expenseVendorName = "Grab", infer category from GrabCar/GrabFood
+- For airline/train tickets: expenseCategoryHint = "transport"
+- For meal receipts: expenseCategoryHint = "meal"
+- For hotel receipts: expenseCategoryHint = "accommodation"
 
 Rules:
 - date format must be YYYY-MM-DD or null
 - amount must be number or null
+- currency: look for $ signs, currency codes (SGD, USD, CNY), or infer from language (Chinese doc → likely CNY)
 - fieldConfidence: REQUIRED object. For every field you output with a non-null value, include a key with the SAME name as that field mapping to an integer 0-100 = your confidence that value is correct (based on label clarity, OCR ambiguity, cross-checks in the text). Omit keys for null fields. Example: {"contractNo": 88, "contractDate": 91, "contractAmount": 72}
 - confidence (optional): one of low, medium, high for the whole extraction summary
 - unknown values must be null`;
@@ -297,34 +329,66 @@ function mapParsedToExtractionResult(parsed: Record<string, unknown>): LlmExtrac
 	const expenseLayerRaw = typeof parsed.expenseCostLayer === 'string' ? parsed.expenseCostLayer.toLowerCase() : '';
 	const expenseCostLayer = expenseLayerRaw === 'opex' ? 'opex' : expenseLayerRaw === 'cogs' ? 'cogs' : null;
 
+	// Parse line items if present
+	let invoiceLineItems = null;
+	if (Array.isArray(parsed.invoiceLineItems)) {
+		invoiceLineItems = parsed.invoiceLineItems
+			.filter((item): item is Record<string, unknown> => item !== null && typeof item === 'object')
+			.map((item) => ({
+				description: typeof item.description === 'string' ? item.description : '',
+				quantity: typeof item.quantity === 'number' ? item.quantity : undefined,
+				unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : undefined,
+				amount: typeof item.amount === 'number' ? item.amount : 0
+			}));
+	}
+
 	return {
+		// Contract fields
 		contractNo: typeof parsed.contractNo === 'string' ? parsed.contractNo : null,
 		contractDate: normalizeDate(parsed.contractDate),
 		contractAmount: normalizeAmount(parsed.contractAmount),
 		contractCurrency: typeof parsed.contractCurrency === 'string' ? parsed.contractCurrency : null,
+		contractPartyA: typeof parsed.contractPartyA === 'string' ? parsed.contractPartyA : null,
+		contractPartyB: typeof parsed.contractPartyB === 'string' ? parsed.contractPartyB : null,
+		contractStartDate: normalizeDate(parsed.contractStartDate),
+		contractEndDate: normalizeDate(parsed.contractEndDate),
+		contractPaymentTerms: typeof parsed.contractPaymentTerms === 'string' ? parsed.contractPaymentTerms : null,
+		// Quotation fields
 		quotationRef: typeof parsed.quotationRef === 'string' ? parsed.quotationRef : null,
 		quotationDate: normalizeDate(parsed.quotationDate),
 		quotationAmount: normalizeAmount(parsed.quotationAmount),
 		quotationCurrency: typeof parsed.quotationCurrency === 'string' ? parsed.quotationCurrency : null,
 		sourceType: typeof parsed.sourceType === 'string' ? parsed.sourceType : null,
+		// PO fields
 		poNumber: typeof parsed.poNumber === 'string' ? parsed.poNumber : null,
 		poDate: normalizeDate(parsed.poDate),
 		poCurrency: typeof parsed.poCurrency === 'string' ? parsed.poCurrency : null,
+		// Common party fields
 		supplierName: typeof parsed.supplierName === 'string' ? parsed.supplierName : null,
 		customerName: typeof parsed.customerName === 'string' ? parsed.customerName : null,
+		// Invoice fields
 		invoiceNo: typeof parsed.invoiceNo === 'string' ? parsed.invoiceNo : null,
 		invoiceDate: normalizeDate(parsed.invoiceDate),
 		invoiceAmount: normalizeAmount(parsed.invoiceAmount),
 		invoiceCurrency: typeof parsed.invoiceCurrency === 'string' ? parsed.invoiceCurrency : null,
 		invoiceDueDate: normalizeDate(parsed.invoiceDueDate),
 		invoiceGstAmount: normalizeAmount(parsed.invoiceGstAmount),
+		invoiceGstRegNo: typeof parsed.invoiceGstRegNo === 'string' ? parsed.invoiceGstRegNo : null,
+		invoiceSubtotal: normalizeAmount(parsed.invoiceSubtotal),
+		invoiceLineItems,
+		// Expense fields
 		expenseCategory: typeof parsed.expenseCategory === 'string' ? parsed.expenseCategory : null,
 		expenseSubcategory: typeof parsed.expenseSubcategory === 'string' ? parsed.expenseSubcategory : null,
 		expenseAmount: normalizeAmount(parsed.expenseAmount),
 		expenseCurrency: typeof parsed.expenseCurrency === 'string' ? parsed.expenseCurrency : null,
 		expenseDate: normalizeDate(parsed.expenseDate),
 		expenseStaffName: typeof parsed.expenseStaffName === 'string' ? parsed.expenseStaffName : null,
+		expenseVendorName: typeof parsed.expenseVendorName === 'string' ? parsed.expenseVendorName : null,
 		expenseCostLayer,
+		expenseCategoryHint: typeof parsed.expenseCategoryHint === 'string' ? parsed.expenseCategoryHint : null,
+		expenseReceiptNumber: typeof parsed.expenseReceiptNumber === 'string' ? parsed.expenseReceiptNumber : null,
+		expensePaymentMethodHint: typeof parsed.expensePaymentMethodHint === 'string' ? parsed.expensePaymentMethodHint : null,
+		// Confidence
 		fieldConfidence,
 		confidence:
 			parsed.confidence === 'high' || parsed.confidence === 'medium' || parsed.confidence === 'low'

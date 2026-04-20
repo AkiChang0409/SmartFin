@@ -20,7 +20,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '为客户创建发票草稿，可预填项目、客户与金额信息',
 		keywords: ['开发票', '创建发票', '客户发票', 'invoice', 'create invoice', '新建发票'],
-		entry: '/ar/customer-invoices/generate',
+		entry: '/finance/customer-invoices/generate',
 		api: 'POST /api/invoices/out',
 		layer: 3,
 		required_roles: ['owner', 'finance'],
@@ -44,7 +44,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '打开文档上传页面，上传合同、报价单、采购单或费用单据',
 		keywords: ['上传文档', '上传合同', '上传报价', 'document upload', 'upload file', '上传'],
-		entry: '/ar/document-upload',
+		entry: '/finance/doc-hub/upload',
 		layer: 2,
 		required_roles: ['owner', 'finance', 'project_manager'],
 		params: [
@@ -63,7 +63,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '查看客户发票列表',
 		keywords: ['查看发票', '发票列表', 'customer invoices', 'invoices', '客户发票'],
-		entry: '/ar/customer-invoices',
+		entry: '/finance/customer-invoices',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
@@ -72,7 +72,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '查看供应商发票列表',
 		keywords: ['供应商发票', 'supplier invoice', '进项发票', '供应商账单'],
-		entry: '/ar/supplier-invoices',
+		entry: '/finance/supplier-invoices',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
@@ -81,7 +81,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '查看合同列表',
 		keywords: ['查看合同', '合同列表', 'contracts', 'project contracts'],
-		entry: '/ar/contracts',
+		entry: '/finance/contracts',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
@@ -90,7 +90,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '查看报价单列表',
 		keywords: ['报价单', 'quotation', '报价列表', '查看报价'],
-		entry: '/ar/quotations',
+		entry: '/finance/quotations',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
@@ -99,7 +99,7 @@ export const arActions: AgentAction[] = [
 		module: 'ar',
 		description: '查看采购单列表',
 		keywords: ['采购单', 'purchase order', 'po list', '查看采购单', 'PO'],
-		entry: '/ar/purchase-orders',
+		entry: '/finance/purchase-orders',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	}

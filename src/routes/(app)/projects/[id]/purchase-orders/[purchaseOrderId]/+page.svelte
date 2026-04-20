@@ -44,7 +44,7 @@
 		</button>
 		<a
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=purchase_order`}
+			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=purchase_order`}
 		>
 			Upload another PO…
 		</a>

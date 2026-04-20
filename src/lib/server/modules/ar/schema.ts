@@ -11,16 +11,21 @@ export const contracts = sqliteTable('contracts', {
 	id: text('id').primaryKey(),
 	projectId: text('project_id').references(() => projects.id),
 	businessPartnerId: text('business_partner_id'),
+	clientName: text('client_name'),
+	contractNumber: text('contract_number'),
+	effectiveDate: text('effective_date'),
+	expiryDate: text('expiry_date'),
+	scope: text('scope'),
 	type: text('type', { enum: ['customer_contract', 'supplier_contract'] }),
 	fileUrl: text('file_url').notNull(),
 	amount: real('amount'),
 	currency: text('currency').default('SGD'),
-	date: text('date'),
 	status: text('status', {
 		enum: ['draft', 'active', 'completed', 'terminated']
 	}),
 	paymentTerms: text('payment_terms'),
 	metadata: text('metadata'),
+	notes: text('notes'),
 	...timeFields
 });
 
@@ -34,7 +39,8 @@ export const quotations = sqliteTable('quotations', {
 		.notNull()
 		.references(() => projects.id),
 	businessPartnerId: text('business_partner_id'),
-	sourceType: text('source_type'),
+	clientName: text('client_name'),
+	quotationNumber: text('quotation_number'),
 	fileUrl: text('file_url'),
 	amount: real('amount'),
 	currency: text('currency').default('SGD'),
@@ -45,21 +51,46 @@ export const quotations = sqliteTable('quotations', {
 	validUntil: text('valid_until'),
 	lineItems: text('line_items'),
 	metadata: text('metadata'),
+	notes: text('notes'),
 	...timeFields
 });
 
 // ---------------------------------------------------------------------------
-// Invoices Out (customer invoices)
+// Purchase Orders
 // ---------------------------------------------------------------------------
 
+export const purchaseOrders = sqliteTable('purchase_orders', {
+	id: text('id').primaryKey(),
+	projectId: text('project_id')
+		.notNull()
+		.references(() => projects.id),
+	businessPartnerId: text('business_partner_id'),
+	clientName: text('client_name'),
+	poNumber: text('po_number').notNull().unique(),
+	fileUrl: text('file_url'),
+	supplierName: text('supplier_name'),
+	amount: real('amount'),
+	currency: text('currency').default('SGD'),
+	date: text('date'),
+	description: text('description'),
+	status: text('status', {
+		enum: ['draft', 'sent', 'confirmed', 'fulfilled']
+	}),
+	lineItems: text('line_items'),
+	metadata: text('metadata'),
+	notes: text('notes'),
+	...timeFields
+});
+
+// ---------------------------------------------------------------------------
+// Legacy compatibility views: invoices_out / invoices_in / payments
+// ---------------------------------------------------------------------------
 export const invoicesOut = sqliteTable('invoices_out', {
 	id: text('id').primaryKey(),
 	projectId: text('project_id')
 		.notNull()
 		.references(() => projects.id),
-	customerId: text('customer_id')
-		.notNull()
-		.references(() => customers.id),
+	customerId: text('customer_id').references(() => customers.id),
 	businessPartnerId: text('business_partner_id'),
 	invoiceNo: text('invoice_no').notNull().unique(),
 	date: text('date').notNull(),
@@ -76,34 +107,6 @@ export const invoicesOut = sqliteTable('invoices_out', {
 	lineItems: text('line_items'),
 	...timeFields
 });
-
-// ---------------------------------------------------------------------------
-// Purchase Orders
-// ---------------------------------------------------------------------------
-
-export const purchaseOrders = sqliteTable('purchase_orders', {
-	id: text('id').primaryKey(),
-	projectId: text('project_id')
-		.notNull()
-		.references(() => projects.id),
-	businessPartnerId: text('business_partner_id'),
-	poNumber: text('po_number').notNull().unique(),
-	fileUrl: text('file_url'),
-	supplierName: text('supplier_name'),
-	amount: real('amount'),
-	currency: text('currency').default('SGD'),
-	date: text('date'),
-	status: text('status', {
-		enum: ['draft', 'sent', 'confirmed', 'fulfilled']
-	}),
-	lineItems: text('line_items'),
-	metadata: text('metadata'),
-	...timeFields
-});
-
-// ---------------------------------------------------------------------------
-// Invoices In (supplier invoices)
-// ---------------------------------------------------------------------------
 
 export const invoicesIn = sqliteTable('invoices_in', {
 	id: text('id').primaryKey(),
@@ -126,24 +129,17 @@ export const invoicesIn = sqliteTable('invoices_in', {
 	...timeFields
 });
 
-// ---------------------------------------------------------------------------
-// Payments (NEW — tracks money in/out)
-// ---------------------------------------------------------------------------
-
 export const payments = sqliteTable('payments', {
 	id: text('id').primaryKey(),
 	direction: text('direction', { enum: ['inbound', 'outbound'] }).notNull(),
 	businessPartnerId: text('business_partner_id'),
 	projectId: text('project_id').references(() => projects.id),
-	/** Linked invoice (customer or supplier) */
 	invoiceId: text('invoice_id'),
 	invoiceType: text('invoice_type', { enum: ['customer', 'supplier'] }),
 	amount: real('amount').notNull(),
 	currency: text('currency').notNull().default('SGD'),
 	paymentDate: text('payment_date').notNull(),
-	method: text('method', {
-		enum: ['bank_transfer', 'cheque', 'cash', 'credit_card', 'other']
-	}),
+	method: text('method', { enum: ['bank_transfer', 'cheque', 'cash', 'credit_card', 'other'] }),
 	reference: text('reference'),
 	status: text('status', { enum: ['pending', 'completed', 'failed'] })
 		.notNull()
@@ -159,15 +155,15 @@ export const payments = sqliteTable('payments', {
 export const arDocumentLinks = sqliteTable('ar_document_links', {
 	id: text('id').primaryKey(),
 	fromType: text('from_type', {
-		enum: ['quotation', 'contract', 'purchase_order', 'customer_invoice', 'supplier_invoice', 'payment']
+		enum: ['quotation', 'contract', 'purchase_order', 'expense', 'revenue']
 	}).notNull(),
 	fromId: text('from_id').notNull(),
 	toType: text('to_type', {
-		enum: ['quotation', 'contract', 'purchase_order', 'customer_invoice', 'supplier_invoice', 'payment']
+		enum: ['quotation', 'contract', 'purchase_order', 'expense', 'revenue']
 	}).notNull(),
 	toId: text('to_id').notNull(),
 	linkType: text('link_type', {
-		enum: ['derived_from', 'replaces', 'partial_fulfills', 'fulfills', 'amends']
+		enum: ['quotation_to_contract', 'contract_to_revenue', 'po_to_expense', 'derived_from', 'replaces']
 	}).notNull(),
 	...timeFields
 });

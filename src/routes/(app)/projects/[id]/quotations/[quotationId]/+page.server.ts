@@ -37,7 +37,7 @@ export const actions: Actions = {
 		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
 		const form = await request.formData();
 		const amount = Number.parseFloat(String(form.get('amount') ?? '0'));
-		const sourceType = String(form.get('sourceType') ?? 'manual');
+		const quotationNumber = String(form.get('quotationNumber') ?? '').trim();
 		const currency = String(form.get('currency') ?? 'SGD');
 		const date = String(form.get('date') ?? '');
 		const notes = String(form.get('notes') ?? '');
@@ -63,7 +63,7 @@ export const actions: Actions = {
 		await db
 			.update(schema.quotations)
 			.set({
-				sourceType,
+				quotationNumber: quotationNumber || null,
 				amount: Number.isFinite(amount) ? amount : 0,
 				currency,
 				date: date || null,

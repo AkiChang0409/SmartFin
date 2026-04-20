@@ -64,7 +64,7 @@ export const actions: Actions = {
 			.set({
 				amount: Number.isFinite(amount) ? amount : 0,
 				currency,
-				date: date || null,
+				effectiveDate: date || null,
 				metadata,
 				updatedAt: new Date().toISOString()
 			})

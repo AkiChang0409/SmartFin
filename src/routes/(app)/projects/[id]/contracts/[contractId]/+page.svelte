@@ -44,7 +44,7 @@
 		</button>
 		<a
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=contract`}
+			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=contract`}
 		>
 			Upload another contract…
 		</a>
@@ -70,7 +70,7 @@
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Contract date</p>
-				<p class="mt-1 text-sm text-slate-900">{data.contract.date ?? '—'}</p>
+				<p class="mt-1 text-sm text-slate-900">{data.contract.effectiveDate ?? '—'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Source</p>
@@ -198,7 +198,7 @@
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="date"
 						type="date"
-						value={data.contract.date ?? ''}
+						value={data.contract.effectiveDate ?? ''}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">

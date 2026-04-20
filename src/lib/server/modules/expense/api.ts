@@ -12,6 +12,9 @@ export function createExpenseApi(ctx: ModuleContext) {
 		create: svc.create.bind(svc),
 		update: svc.update.bind(svc),
 		softDelete: svc.softDelete.bind(svc),
-		getCategories: svc.getCategories.bind(svc)
+		getCategories: svc.getCategories.bind(svc),
+		getRevenueByProject: svc.getRevenueByProject.bind(svc),
+		getProjectRevenueTotal: svc.getProjectRevenueTotal.bind(svc),
+		createRevenue: svc.createRevenue.bind(svc)
 	};
 }

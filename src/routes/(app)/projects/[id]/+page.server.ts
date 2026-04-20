@@ -5,8 +5,9 @@ import type { Actions, PageServerLoad } from './$types';
 import { writeAuditLog } from '$lib/server/audit';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
 import {
-	projectExpenseCogsSumExpr,
-	projectExpenseOpexSumExpr
+	projectExpenseOpexSumExpr,
+	projectExpenseSalesCostSumExpr,
+	projectExpenseTotalSumExpr
 } from '$lib/server/project-expense-sums';
 import {
 	staffCostPayoutJoinConditions,
@@ -39,13 +40,13 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		)
 		.where(staffPayoutWhere);
 	const expenseWhere = and(eq(schema.expenses.projectId, params.id), isNull(schema.expenses.deletedAt));
-	const [expenseCogsRow, expenseOpexRow] = await Promise.all([
-		db.select({ total: projectExpenseCogsSumExpr() }).from(schema.expenses).where(expenseWhere),
-		db.select({ total: projectExpenseOpexSumExpr() }).from(schema.expenses).where(expenseWhere)
+	const [expenseOpexRow, expenseSalesCostRow] = await Promise.all([
+		db.select({ total: projectExpenseOpexSumExpr() }).from(schema.expenses).where(expenseWhere),
+		db.select({ total: projectExpenseSalesCostSumExpr() }).from(schema.expenses).where(expenseWhere)
 	]);
-	const expenseCogsCost = expenseCogsRow[0]?.total ?? 0;
 	const expenseOpexCost = expenseOpexRow[0]?.total ?? 0;
-	const expenseCost = expenseCogsCost + expenseOpexCost;
+	const expenseSalesCost = expenseSalesCostRow[0]?.total ?? 0;
+	const expenseCost = expenseOpexCost + expenseSalesCost;
 
 	const [revenueItems, purchaseItems, staffItems, expenseRows] = await Promise.all([
 		db
@@ -89,11 +90,10 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 			.select({
 				id: schema.expenses.id,
 				category: schema.expenses.category,
-				subcategory: schema.expenses.subcategory,
 				date: schema.expenses.date,
 				amount: schema.expenses.amount,
 				currency: schema.expenses.currency,
-				costLayer: schema.expenses.costLayer
+				expenseType: schema.expenses.expenseType
 			})
 			.from(schema.expenses)
 			.where(and(eq(schema.expenses.projectId, params.id), isNull(schema.expenses.deletedAt)))
@@ -104,7 +104,7 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		id: row.id,
 		label: row.category,
 		date: row.date,
-		status: [row.costLayer === 'opex' ? 'OpEx' : 'COGS', row.subcategory].filter(Boolean).join(' · ') || null,
+		status: row.expenseType === 'sales_cost' ? 'Sales Cost' : 'OpEx',
 		amount: row.amount
 	}));
 
@@ -113,12 +113,12 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		purchaseCost: purchaseCost?.total ?? 0,
 		staffCost: staffCost?.total ?? 0,
 		expenseCost,
-		expenseCogsCost,
+		expenseSalesCost,
 		expenseOpexCost
 	};
 
 	const grossProfit =
-		breakdown.revenue - breakdown.purchaseCost - breakdown.staffCost - breakdown.expenseCogsCost;
+		breakdown.revenue - breakdown.purchaseCost - breakdown.staffCost - breakdown.expenseSalesCost;
 	const profit = grossProfit - breakdown.expenseOpexCost;
 
 	return {

@@ -1,4 +1,4 @@
-import { and, between, eq, isNull, sql } from 'drizzle-orm';
+import { and, between, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 import { getDb, schema } from '$lib/server/modules/legacy-db';
@@ -89,18 +89,18 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 		.where(
 			and(between(schema.invoicesIn.invoiceDate, range.start, range.end), isNull(schema.invoicesIn.deletedAt))
 		);
-	const [box13] = await db
-		.select({ total: sql<number>`coalesce(sum(${schema.invoicesOut.total}), 0)` })
-		.from(schema.invoicesOut)
-		.where(and(between(schema.invoicesOut.date, range.start, range.end), isNull(schema.invoicesOut.deletedAt)));
-
 	const manualRows = await db
 		.select({ key: schema.companySettings.key, value: schema.companySettings.value })
 		.from(schema.companySettings)
 		.where(
 			and(
 				isNull(schema.companySettings.deletedAt),
-				sql`${schema.companySettings.key} in ('gst_box9_manual','gst_box10_manual','gst_box11_manual','gst_box12_manual')`
+				inArray(schema.companySettings.key, [
+					'gst_box9_manual',
+					'gst_box10_manual',
+					'gst_box11_manual',
+					'gst_box12_manual'
+				])
 			)
 		);
 	const manualMap = new Map(manualRows.map((item) => [item.key, Number.parseFloat(item.value)]));
@@ -122,7 +122,7 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 	const b12 = Number.isFinite(manualMap.get('gst_box12_manual'))
 		? (manualMap.get('gst_box12_manual') ?? 0)
 		: 0;
-	const b13 = box13?.total ?? 0;
+	const b13 = b4;
 
 	return ok({
 		year: params.year,
@@ -147,13 +147,13 @@ export const GET: RequestHandler = async ({ params, platform }) => {
 			manualBoxes: ['box9', 'box10', 'box11', 'box12'],
 			notes: [
 				'Box 1–3: value of supplies (subtotal excl. GST) from customer invoices by gst_type.',
-				'Box 4: sum of boxes 1–3',
-				'Box 5: supplier invoice amounts (invoices_in.amount) plus expenses (expenses.amount). Expenses rows usually lack a split-out GST field — see Box 7 note.',
+				'Box 4: sum of boxes 1–3 (Box 4 = Box 1 + Box 2 + Box 3).',
+				'Box 5: supplier invoice amounts (invoices_in.amount) plus expenses (expenses.amount) (Box 5 = purchases + expenses). Expenses rows usually lack a split-out GST field — see Box 7 note.',
 				'Box 6: output GST from standard-rated sales only (invoices_out.gst_amount where gst_type = standard).',
 				'Box 7: input GST from supplier tax invoices only (invoices_in.gst_amount). Expense records do not currently store GST; their tax is not in Box 7 until modeled.',
-				'Box 8 = Box 6 − Box 7 (simplified). IRAS net payable can also involve Boxes 9–12 — maintain manually where applicable.',
+				'Box 8 = Box 6 − Box 7 (simplified) (Box 8 = Box 6 - Box 7). IRAS net payable can also involve Boxes 9–12 — maintain manually where applicable.',
 				'Box 9–12: company_settings keys gst_box9_manual … gst_box12_manual.',
-				'Box 13: sum of invoices_out.total (typically subtotal + GST) for the quarter — not the same as Box 4.'
+				'Box 13: set equal to Box 4 for this page (Box 13 = Box 4).'
 			]
 		}
 	});

@@ -5,18 +5,28 @@ import type { Actions, PageServerLoad } from './$types';
 import { writeAuditLog } from '$lib/server/audit';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
 
-const MANUAL_BOX_KEYS = [
-	'gst_box9_manual',
-	'gst_box10_manual',
-	'gst_box11_manual',
-	'gst_box12_manual'
-] as const;
+const MANUAL_BOX_KEYS = ['gst_box9_manual', 'gst_box10_manual', 'gst_box11_manual', 'gst_box12_manual'] as const;
 
 type ManualBoxKey = (typeof MANUAL_BOX_KEYS)[number];
 
-export const load: PageServerLoad = async ({ platform }) => {
+function getDefaultQuarter() {
+	const now = new Date();
+	const year = now.getUTCFullYear();
+	const quarter = Math.floor(now.getUTCMonth() / 3) + 1;
+	return { year, quarter };
+}
+
+export const load: PageServerLoad = async ({ platform, url }) => {
+	const fallback = getDefaultQuarter();
+	const year = Number.parseInt(url.searchParams.get('year') ?? `${fallback.year}`, 10);
+	const quarter = Number.parseInt(url.searchParams.get('quarter') ?? `${fallback.quarter}`, 10);
+	const safeYear = Number.isFinite(year) ? year : fallback.year;
+	const safeQuarter = [1, 2, 3, 4].includes(quarter) ? quarter : fallback.quarter;
+
 	if (!platform) {
 		return {
+			year: safeYear,
+			quarter: safeQuarter,
 			values: {
 				gst_box9_manual: 0,
 				gst_box10_manual: 0,
@@ -30,10 +40,14 @@ export const load: PageServerLoad = async ({ platform }) => {
 	const rows = await db
 		.select({ key: schema.companySettings.key, value: schema.companySettings.value })
 		.from(schema.companySettings)
-		.where(and(inArray(schema.companySettings.key, [...MANUAL_BOX_KEYS]), isNull(schema.companySettings.deletedAt)));
+		.where(
+			and(inArray(schema.companySettings.key, [...MANUAL_BOX_KEYS]), isNull(schema.companySettings.deletedAt))
+		);
 
 	const valueMap = new Map(rows.map((row) => [row.key, Number.parseFloat(row.value)]));
 	return {
+		year: safeYear,
+		quarter: safeQuarter,
 		values: {
 			gst_box9_manual: valueMap.get('gst_box9_manual') ?? 0,
 			gst_box10_manual: valueMap.get('gst_box10_manual') ?? 0,
@@ -52,6 +66,11 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const db = getDb(platform.env);
 		const now = new Date().toISOString();
+		const year = Number.parseInt(String(form.get('year') ?? ''), 10);
+		const quarter = Number.parseInt(String(form.get('quarter') ?? ''), 10);
+		if (!Number.isFinite(year) || ![1, 2, 3, 4].includes(quarter)) {
+			return fail(400, { message: 'Invalid year or quarter' });
+		}
 
 		for (const key of MANUAL_BOX_KEYS) {
 			const raw = String(form.get(key) ?? '0');
@@ -86,15 +105,16 @@ export const actions: Actions = {
 		await writeAuditLog(platform, locals.user, {
 			action: 'tax.manual_boxes.update',
 			entityType: 'tax_settings',
-			entityId: 'gst_manual_boxes',
-			metadata: Object.fromEntries(
-				MANUAL_BOX_KEYS.map((key) => [
-					key,
-					Number.parseFloat(String(form.get(key) ?? '0')) || 0
-				])
-			)
+			entityId: `gst_${year}_q${quarter}`,
+			metadata: {
+				year,
+				quarter,
+				values: Object.fromEntries(
+					MANUAL_BOX_KEYS.map((key) => [key, Number.parseFloat(String(form.get(key) ?? '0')) || 0])
+				)
+			}
 		});
 
-		return { ok: true };
+		return { ok: true, year, quarter };
 	}
 };

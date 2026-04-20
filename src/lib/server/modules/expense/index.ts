@@ -18,22 +18,22 @@ export const expenseActions: AgentAction[] = [
 	{
 		id: 'view_expense_claims',
 		module: 'expense',
-		description: '查看项目费用与报销记录',
-		keywords: ['报销', '费用记录', 'expense', 'claims'],
-		entry: '/projects',
+		description: '查看费用记录（Operating Expenses 与 Sales Cost）',
+		keywords: ['费用', 'expense', 'cost', 'opex', 'sales cost'],
+		entry: '/expenses',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager', 'employee']
 	},
 	{
 		id: 'create_expense_record',
 		module: 'expense',
-		description: '创建费用草稿记录并进入确认页面',
-		keywords: ['创建费用', '新增报销', 'new expense', 'expense draft'],
-		entry: '/projects',
+		description: '录入费用记录（录入即确认，无草稿状态）',
+		keywords: ['创建费用', '录入费用', 'new expense'],
+		entry: '/expenses/upload',
 		layer: 3,
-		required_roles: ['owner', 'finance', 'project_manager', 'employee'],
+		required_roles: ['owner', 'finance', 'project_manager'],
 		params: [
-			{ name: 'project_id', type: 'string', required: true, description: '项目ID', extract_from_context: true },
+			{ name: 'project_id', type: 'string', required: false, description: '项目ID（可选）', extract_from_context: true },
 			{ name: 'amount', type: 'number', required: false, description: '费用金额' }
 		]
 	}

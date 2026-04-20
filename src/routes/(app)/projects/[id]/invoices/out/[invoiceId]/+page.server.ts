@@ -35,11 +35,13 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 
 	if (!invoice) throw error(404, 'Invoice not found');
 
-	const [customer] = await db
-		.select({ name: schema.customers.name })
-		.from(schema.customers)
-		.where(eq(schema.customers.id, invoice.customerId))
-		.limit(1);
+	const [customer] = invoice.customerId
+		? await db
+				.select({ name: schema.customers.name })
+				.from(schema.customers)
+				.where(eq(schema.customers.id, invoice.customerId))
+				.limit(1)
+		: [];
 
 	const { fileViewUrl, fileDownloadUrl } = r2FileUrls(invoice.pdfUrl);
 	const docMeta: DocumentMetadata = {};

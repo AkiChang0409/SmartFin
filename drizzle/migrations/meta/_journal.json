@@ -120,6 +120,34 @@
       "when": 1776100000000,
       "tag": "0018_ar_modular_schema_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1776200000000,
+      "tag": "0019_expense_system_refactor",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1776300000000,
+      "tag": "0020_expense_revenue_redesign",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1776400000000,
+      "tag": "0021_final_schema_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1776500000000,
+      "tag": "0022_legacy_compat_views",
+      "breakpoints": true
     }
   ]
 }

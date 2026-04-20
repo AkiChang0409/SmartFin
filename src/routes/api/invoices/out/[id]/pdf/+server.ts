@@ -14,7 +14,7 @@ function buildSimpleInvoicePdf(params: {
 	invoiceNo: string;
 	date: string;
 	dueDate: string | null;
-	currency: string;
+	currency: string | null;
 	customerName: string;
 	total: number;
 	lines: Array<{ desc: string; qty: number; price: number }>;
@@ -113,12 +113,13 @@ export const POST: RequestHandler = async ({ params, platform, request }) => {
 	}
 
 	const parsed = parseStoredInvoiceLineItems(invoice.lineItems);
+	const invoiceCurrency = invoice.currency ?? 'SGD';
 	const pdfBytes = buildSimpleInvoicePdf({
 		invoiceNo: invoice.invoiceNo,
 		date: invoice.date,
 		dueDate: invoice.dueDate,
-		currency: invoice.currency,
-		customerName: invoice.customerName ?? invoice.customerId,
+		currency: invoiceCurrency,
+		customerName: invoice.customerName ?? invoice.customerId ?? 'Unknown customer',
 		total: invoice.total,
 		lines: parsed.lines
 	});

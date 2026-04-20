@@ -5,8 +5,8 @@ import type { Actions, PageServerLoad } from './$types';
 import { periodCalendarMonth, settleCompanyAllocationMonth } from '$lib/server/company-allocation-settle';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
 import {
-	projectExpenseCogsSumExpr,
-	projectExpenseOpexSumExpr
+	projectExpenseOpexSumExpr,
+	projectExpenseSalesCostSumExpr
 } from '$lib/server/project-expense-sums';
 import {
 	staffCostPayoutJoinConditions,
@@ -141,11 +141,11 @@ export const load: PageServerLoad = async ({ params, platform, parent, url }) =>
 		.where(and(eq(schema.invoicesIn.projectId, params.id), isNull(schema.invoicesIn.deletedAt)));
 
 	const expenseWhere = and(eq(schema.expenses.projectId, params.id), isNull(schema.expenses.deletedAt));
-	const [expCogsRow, expOpexRow] = await Promise.all([
-		db.select({ total: projectExpenseCogsSumExpr() }).from(schema.expenses).where(expenseWhere),
+	const [expSalesCostRow, expOpexRow] = await Promise.all([
+		db.select({ total: projectExpenseSalesCostSumExpr() }).from(schema.expenses).where(expenseWhere),
 		db.select({ total: projectExpenseOpexSumExpr() }).from(schema.expenses).where(expenseWhere)
 	]);
-	const expenseTotal = (expCogsRow[0]?.total ?? 0) + (expOpexRow[0]?.total ?? 0);
+	const expenseTotal = (expSalesCostRow[0]?.total ?? 0) + (expOpexRow[0]?.total ?? 0);
 
 	const staffCostAllTime = staffAllRow?.total ?? 0;
 	const purchaseTotal = purchaseRow?.total ?? 0;

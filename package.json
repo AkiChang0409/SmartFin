@@ -6,7 +6,8 @@
 	"scripts": {
 		"dev": "vite dev",
 		"dev:vite": "vite dev",
-		"dev:cf": "npm run build && wrangler dev .svelte-kit/cloudflare/_worker.js --local --port 5173",
+		"dev:cf": "npm run build && wrangler dev .svelte-kit/cloudflare/_worker.js --port 5173",
+		"dev:cf:local": "npm run build && wrangler dev .svelte-kit/cloudflare/_worker.js --local --port 5173",
 		"build": "vite build",
 		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
@@ -38,6 +39,7 @@
 		"wrangler": "^4.63.0"
 	},
 	"dependencies": {
+		"@thednp/dommatrix": "^3.0.4",
 		"better-auth": "^1.5.6",
 		"drizzle-orm": "^0.45.2",
 		"fflate": "^0.8.2",

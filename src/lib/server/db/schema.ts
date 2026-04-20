@@ -57,7 +57,7 @@ export {
 } from '../modules/employee/schema';
 
 // Expense module
-export { expenses, expenseCategories } from '../modules/expense/schema';
+export { documents, businessTrips, expenses, revenue, expenseCategories } from '../modules/expense/schema';
 
 // Tax module
 export { gstReturns, personIncome, timeLogs } from '../modules/tax/schema';

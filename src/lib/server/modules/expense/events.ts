@@ -3,5 +3,14 @@ export const EXPENSE_EVENTS = {
 	EXPENSE_DELETED: 'expense.deleted'
 } as const;
 
-export type ExpenseCreatedPayload = { expenseId: string; projectId: string; amount: number; costLayer: string };
-export type ExpenseDeletedPayload = { expenseId: string; projectId: string };
+export type ExpenseCreatedPayload = {
+	expenseId: string;
+	projectId: string | null | undefined;
+	amount: number;
+	expenseType: string;
+};
+
+export type ExpenseDeletedPayload = {
+	expenseId: string;
+	projectId: string | null | undefined;
+};

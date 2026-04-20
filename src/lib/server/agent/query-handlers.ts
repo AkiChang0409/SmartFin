@@ -83,7 +83,10 @@ async function handleProjectProfitQuery(
 			getRevenue: () => ar.getProjectRevenue(resolved.id),
 			getPurchaseCost: () => ar.getProjectPurchaseCost(resolved.id),
 			getStaffCost: () => employee.getProjectStaffCost(resolved.id),
-			getExpenseSums: () => expense.getProjectExpenseSums(resolved.id)
+			getExpenseSums: async () => {
+				const sums = await expense.getProjectExpenseSums(resolved.id);
+				return { cogs: sums.salesCost, opex: sums.opex };
+			}
 		});
 
 		const totalCost =

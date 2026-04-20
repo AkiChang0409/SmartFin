@@ -44,7 +44,7 @@
 		</button>
 		<a
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/ar/document-upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=quotation`}
+			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=quotation`}
 		>
 			Upload another quotation…
 		</a>
@@ -74,7 +74,7 @@
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Source</p>
-				<p class="mt-1 text-sm text-slate-900">{data.docMeta.sourceType ?? data.quotation.sourceType ?? '—'}</p>
+				<p class="mt-1 text-sm text-slate-900">{data.docMeta.sourceType ?? data.quotation.quotationNumber ?? '—'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Parse status</p>
@@ -193,11 +193,11 @@
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
-					Source type
+					Quotation Number
 					<input
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
-						name="sourceType"
-						value={data.quotation.sourceType ?? 'manual'}
+						name="quotationNumber"
+						value={data.quotation.quotationNumber ?? ''}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">

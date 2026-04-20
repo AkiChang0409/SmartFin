@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 	if (!expense) throw error(404, 'Expense not found');
 
 	const docMeta = parseDocumentMetadata(expense.metadata);
-	const { fileViewUrl, fileDownloadUrl } = r2FileUrls(expense.fileUrl);
+	const { fileViewUrl, fileDownloadUrl } = r2FileUrls(expense.documentRef);
 
 	return { expense, docMeta, fileViewUrl, fileDownloadUrl };
 };
@@ -37,16 +37,15 @@ export const actions: Actions = {
 		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });
 		const form = await request.formData();
 		const category = String(form.get('category') ?? '').trim();
-		const subcategory = String(form.get('subcategory') ?? '').trim();
+		const expenseType = String(form.get('expenseType') ?? 'opex');
 		const amount = Number.parseFloat(String(form.get('amount') ?? '0'));
 		const currency = String(form.get('currency') ?? 'SGD');
 		const date = String(form.get('date') ?? '');
 		const staffName = String(form.get('staffName') ?? '').trim();
+		const vendorOrSupplier = String(form.get('vendorOrSupplier') ?? '').trim();
 		const notes = String(form.get('notes') ?? '').trim();
-		const costLayerRaw = String(form.get('costLayer') ?? 'cogs').toLowerCase();
-		const costLayer = costLayerRaw === 'opex' ? 'opex' : 'cogs';
 
-		if (!category || !date) return fail(400, { message: 'Record ID, expense category, and date are required.' });
+		if (!category || !date) return fail(400, { message: 'Category and date are required.' });
 
 		const db = getDb(platform.env);
 		const [current] = await db
@@ -69,14 +68,16 @@ export const actions: Actions = {
 		await db
 			.update(schema.expenses)
 			.set({
+				expenseType: expenseType as 'opex' | 'sales_cost',
 				category,
-				subcategory: subcategory || null,
 				amount: Number.isFinite(amount) ? amount : 0,
 				currency,
+				sgdEquivalent: currency === 'SGD' ? (Number.isFinite(amount) ? amount : 0) : 0,
 				date,
 				staffName: staffName || null,
-				costLayer,
+				vendorOrSupplier: vendorOrSupplier || null,
 				metadata,
+				notes: notes || null,
 				updatedAt: new Date().toISOString()
 			})
 			.where(
@@ -92,7 +93,7 @@ export const actions: Actions = {
 			entityType: 'expense',
 			entityId: params.expenseId,
 			projectId: params.id,
-			metadata: { category, costLayer }
+			metadata: { category, expenseType }
 		});
 
 		return { ok: true };

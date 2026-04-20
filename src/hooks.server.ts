@@ -26,7 +26,9 @@ function needsAppAuth(pathname: string) {
 	if (isPublicAppPath(pathname)) return false;
 	return (
 		pathname.startsWith('/dashboard') ||
+		pathname.startsWith('/expenses') ||
 		pathname.startsWith('/ar') ||
+		pathname.startsWith('/finance') ||
 		pathname.startsWith('/projects') ||
 		pathname.startsWith('/customers') ||
 		pathname.startsWith('/employees') ||

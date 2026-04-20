@@ -50,7 +50,7 @@ export function matchByRules(message: string, context: AgentContext): RouterResu
 }
 
 function inferDomainFromPath(path: string): string | null {
-	if (path.startsWith('/ar')) return 'ar';
+	if (path.startsWith('/ar') || path.startsWith('/finance')) return 'ar';
 	if (path.startsWith('/projects')) return 'project';
 	if (path.startsWith('/expenses')) return 'expense';
 	if (path.startsWith('/tax')) return 'tax';

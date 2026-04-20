@@ -157,7 +157,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 					fileUrl: key,
 					amount: optNum(body.contractAmount),
 					currency: str(body.contractCurrency) || 'SGD',
-					date: str(body.contractDate) || null,
+					effectiveDate: str(body.contractDate) || null,
 					metadata: makeMetadata(extra),
 					createdAt: now,
 					updatedAt: now
@@ -182,7 +182,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 				await db.insert(schema.quotations).values({
 					id,
 					projectId,
-					sourceType: str(body.quotationChannel) || 'document_upload',
+					quotationNumber: str(body.quotationRef) || null,
 					fileUrl: key,
 					amount: optNum(body.quotationAmount),
 					currency: str(body.quotationCurrency) || 'SGD',
@@ -315,32 +315,25 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			case 'expense': {
 				const id = crypto.randomUUID();
 				const category =
-					str(body.expenseCategory) || str(body.otherTag) || str(docTitle) || 'Uncategorized expense';
-				const subcategory = str(body.expenseSubcategory) || null;
+					str(body.expenseCategory) || str(body.otherTag) || str(docTitle) || 'others';
 				const amount = num0(body.expenseAmount);
 				const currency = str(body.expenseCurrency) || 'SGD';
 				const date = str(body.expenseDate) || now.slice(0, 10);
 				const staffName = str(body.expenseStaffName) || null;
-				const costLayer = normalizeExpenseCostLayer(body.expenseCostLayer);
-				const ocrPayload = rawDetectedText
-					? JSON.stringify({
-							source: 'document_upload',
-							textPreview: rawDetectedText.slice(0, 12000),
-							savedAt: now
-						})
-					: null;
+				const expenseType = str(body.expenseCostLayer) === 'sales_cost' ? 'sales_cost' : 'opex';
 				await db.insert(schema.expenses).values({
 					id,
 					projectId,
+					expenseType: expenseType as 'opex' | 'sales_cost',
 					category,
-					subcategory,
 					amount,
 					currency,
+					sgdEquivalent: currency === 'SGD' ? amount : 0,
 					date,
-					costLayer,
 					staffName,
-					fileUrl: key,
-					ocrData: ocrPayload,
+					reimbursement: false,
+					businessTrip: false,
+					documentRef: key,
 					metadata: makeMetadata(),
 					createdAt: now,
 					updatedAt: now
@@ -353,7 +346,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 					metadata: {
 						source: 'ar_document_upload',
 						fileName,
-						costLayer,
+						expenseType,
 						category
 					}
 				});
@@ -403,7 +396,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 				await db.insert(schema.quotations).values({
 					id,
 					projectId,
-					sourceType: 'unclassified_upload',
+					quotationNumber: null,
 					fileUrl: key,
 					amount: null,
 					currency: 'SGD',

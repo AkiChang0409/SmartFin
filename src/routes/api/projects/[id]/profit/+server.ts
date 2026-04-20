@@ -23,7 +23,10 @@ export const GET: RequestHandler = async (event) => {
 			getRevenue: () => ar.getProjectRevenue(event.params.id),
 			getPurchaseCost: () => ar.getProjectPurchaseCost(event.params.id),
 			getStaffCost: () => employee.getProjectStaffCost(event.params.id),
-			getExpenseSums: () => expense.getProjectExpenseSums(event.params.id)
+			getExpenseSums: async () => {
+				const sums = await expense.getProjectExpenseSums(event.params.id);
+				return { cogs: sums.salesCost, opex: sums.opex };
+			}
 		});
 
 		return ok({

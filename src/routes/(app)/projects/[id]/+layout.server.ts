@@ -73,7 +73,7 @@ export const load: LayoutServerLoad = async ({ params, platform }) => {
 			.select({
 				id: schema.contracts.id,
 				fileUrl: schema.contracts.fileUrl,
-				date: schema.contracts.date,
+				date: schema.contracts.effectiveDate,
 				amount: schema.contracts.amount,
 				currency: schema.contracts.currency
 			})
@@ -87,7 +87,7 @@ export const load: LayoutServerLoad = async ({ params, platform }) => {
 				date: schema.quotations.date,
 				amount: schema.quotations.amount,
 				currency: schema.quotations.currency,
-				sourceType: schema.quotations.sourceType
+				quotationNumber: schema.quotations.quotationNumber
 			})
 			.from(schema.quotations)
 			.where(and(eq(schema.quotations.projectId, params.id), isNull(schema.quotations.deletedAt)))
@@ -108,7 +108,7 @@ export const load: LayoutServerLoad = async ({ params, platform }) => {
 			.select({
 				id: schema.expenses.id,
 				category: schema.expenses.category,
-				subcategory: schema.expenses.subcategory,
+				expenseType: schema.expenses.expenseType,
 				date: schema.expenses.date,
 				amount: schema.expenses.amount,
 				currency: schema.expenses.currency
@@ -127,7 +127,7 @@ export const load: LayoutServerLoad = async ({ params, platform }) => {
 		quotations: quotationsPick.map((row) => ({
 			id: row.id,
 			label: fileLabelFromUrl(row.fileUrl ?? '', row.date),
-			subtitle: `${row.date ?? '—'} · ${row.amount ?? 0} ${row.currency ?? 'SGD'}${row.sourceType ? ` · ${row.sourceType}` : ''}`
+			subtitle: `${row.date ?? '—'} · ${row.amount ?? 0} ${row.currency ?? 'SGD'}${row.quotationNumber ? ` · ${row.quotationNumber}` : ''}`
 		})),
 		purchaseOrders: purchaseOrdersPick.map((row) => ({
 			id: row.id,
@@ -136,7 +136,7 @@ export const load: LayoutServerLoad = async ({ params, platform }) => {
 		})),
 		expenses: expensesPickRows.map((row) => ({
 			id: row.id,
-			label: row.subcategory ? `${row.category} / ${row.subcategory}` : row.category,
+			label: `${row.expenseType === 'sales_cost' ? 'SC' : 'OpEx'}: ${row.category}`,
 			subtitle: `${row.date ?? '—'} · ${row.amount ?? 0} ${row.currency ?? 'SGD'}`
 		}))
 	};

@@ -235,15 +235,19 @@ export const GET: RequestHandler = async ({ platform, url }) => {
 	]);
 
 	for (const row of rangeRevenueRows) {
+		if (!row.projectId) continue;
 		projectRevenue.set(row.projectId, Number(row.total ?? 0));
 	}
 	for (const row of rangeSupplierRows) {
+		if (!row.projectId) continue;
 		projectCost.set(row.projectId, (projectCost.get(row.projectId) ?? 0) + Number(row.total ?? 0));
 	}
 	for (const row of rangeStaffRows) {
+		if (!row.projectId) continue;
 		projectCost.set(row.projectId, (projectCost.get(row.projectId) ?? 0) + Number(row.total ?? 0));
 	}
 	for (const row of rangeExpenseRows) {
+		if (!row.projectId) continue;
 		projectCost.set(row.projectId, (projectCost.get(row.projectId) ?? 0) + Number(row.total ?? 0));
 	}
 

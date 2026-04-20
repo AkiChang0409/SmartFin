@@ -1,6 +1,7 @@
 import type { ModuleContext } from '../types';
-import { ExpenseRepository, ExpenseCategoryRepository } from './repository';
+import { ExpenseRepository, RevenueRepository, ExpenseCategoryRepository } from './repository';
 import { createEvent } from '../event-bus';
+import type { ExpenseType } from '$lib/constants/expense-upload';
 
 // ---------------------------------------------------------------------------
 // ExpenseService
@@ -8,10 +9,12 @@ import { createEvent } from '../event-bus';
 
 export class ExpenseService {
 	private repo: ExpenseRepository;
+	private revenueRepo: RevenueRepository;
 	private categoryRepo: ExpenseCategoryRepository;
 
 	constructor(private ctx: ModuleContext) {
 		this.repo = new ExpenseRepository(ctx.db);
+		this.revenueRepo = new RevenueRepository(ctx.db);
 		this.categoryRepo = new ExpenseCategoryRepository(ctx.db);
 	}
 
@@ -24,25 +27,27 @@ export class ExpenseService {
 	}
 
 	async create(data: {
-		projectId: string;
+		projectId?: string | null;
+		expenseType: ExpenseType;
 		category: string;
-		subcategory?: string;
 		amount: number;
 		currency?: string;
 		date: string;
-		costLayer?: string;
-		attributionType?: string;
-		personId?: string;
-		staffName?: string;
-		fileUrl?: string;
-		ocrData?: string;
-		metadata?: string;
+		vendorOrSupplier?: string | null;
+		staffName?: string | null;
+		reimbursement?: boolean;
+		businessTrip?: boolean;
+		destination?: string | null;
+		notes?: string | null;
+		metadata?: string | null;
+		documentRef?: string | null;
 	}) {
 		const result = await this.repo.create({
 			...data,
 			currency: data.currency ?? 'SGD',
-			costLayer: data.costLayer ?? 'cogs',
-			attributionType: data.attributionType ?? 'direct'
+			sgdEquivalent: (data.currency ?? 'SGD') === 'SGD' ? data.amount : 0,
+			reimbursement: data.reimbursement ?? false,
+			businessTrip: data.businessTrip ?? false
 		});
 
 		await this.ctx.eventBus.emit(
@@ -50,7 +55,7 @@ export class ExpenseService {
 				expenseId: result.id,
 				projectId: data.projectId,
 				amount: data.amount,
-				costLayer: data.costLayer ?? 'cogs'
+				expenseType: data.expenseType
 			})
 		);
 
@@ -73,6 +78,34 @@ export class ExpenseService {
 				projectId: expense.projectId
 			})
 		);
+	}
+
+	// Revenue methods
+	async getRevenueByProject(projectId: string) {
+		return this.revenueRepo.findByProject(projectId);
+	}
+
+	async getProjectRevenueTotal(projectId: string) {
+		return this.revenueRepo.getProjectRevenueTotal(projectId);
+	}
+
+	async createRevenue(data: {
+		projectId?: string | null;
+		invoiceType: 'standard' | 'zero_rate' | 'tax_invoice';
+		invoiceNumber?: string | null;
+		clientName?: string | null;
+		date: string;
+		amount: number;
+		currency?: string;
+		gstAmount?: number;
+		notes?: string | null;
+	}) {
+		return this.revenueRepo.create({
+			...data,
+			currency: data.currency ?? 'SGD',
+			sgdEquivalent: (data.currency ?? 'SGD') === 'SGD' ? data.amount : 0,
+			gstAmount: data.gstAmount ?? 0
+		});
 	}
 
 	async getCategories() {

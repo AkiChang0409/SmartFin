@@ -164,7 +164,7 @@ export const GET: RequestHandler = async ({ platform, url }) => {
 				id: schema.expenses.id,
 				date: schema.expenses.date,
 				ref: schema.expenses.category,
-				note: schema.expenses.subcategory,
+				note: schema.expenses.notes,
 				amount: schema.expenses.amount
 			})
 			.from(schema.expenses)

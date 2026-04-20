@@ -3,7 +3,11 @@ import { CompanySettingsRepository } from './core/repository';
 import { registry } from './registry';
 
 const PREFIX_TO_MODULE: Array<{ prefix: string; moduleId: string }> = [
+	{ prefix: '/expenses', moduleId: 'expense' },
+	{ prefix: '/api/expenses', moduleId: 'expense' },
+	{ prefix: '/api/business-trips', moduleId: 'expense' },
 	{ prefix: '/ar', moduleId: 'ar' },
+	{ prefix: '/finance', moduleId: 'ar' },
 	{ prefix: '/projects', moduleId: 'project' },
 	{ prefix: '/customers', moduleId: 'business-partner' },
 	{ prefix: '/api/customers', moduleId: 'business-partner' },
@@ -17,7 +21,8 @@ const PREFIX_TO_MODULE: Array<{ prefix: string; moduleId: string }> = [
 	{ prefix: '/api/tax', moduleId: 'tax' },
 	{ prefix: '/api/reports', moduleId: 'reporting' },
 	{ prefix: '/api/dashboard', moduleId: 'reporting' },
-	{ prefix: '/api/settings', moduleId: 'core' }
+	{ prefix: '/api/settings', moduleId: 'core' },
+	{ prefix: '/api/documents', moduleId: 'ar' }
 ];
 
 export function moduleForPath(pathname: string): string | null {

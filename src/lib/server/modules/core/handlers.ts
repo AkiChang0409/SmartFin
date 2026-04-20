@@ -46,13 +46,13 @@ export function registerCoreHandlers(bus: EventBus, ctx: ModuleContext) {
 
 	// Auto-audit expense events
 	bus.on('expense.created', async (event) => {
-		const p = event.payload as { expenseId: string; projectId: string; amount: number; costLayer: string };
+		const p = event.payload as { expenseId: string; projectId: string | null | undefined; amount: number; expenseType: string };
 		await audit.writeLog({
 			action: 'expense.created',
 			entityType: 'expense',
 			entityId: p.expenseId,
-			projectId: p.projectId,
-			metadata: { amount: p.amount, costLayer: p.costLayer }
+			projectId: p.projectId ?? undefined,
+			metadata: { amount: p.amount, expenseType: p.expenseType }
 		});
 	});
 
