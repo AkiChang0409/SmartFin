@@ -29,6 +29,13 @@
 	// --- Project picker state ---
 	type ProjectInfo = { id: string; name: string; customerName: string | null; status: string; startDate: string | null; endDate: string | null };
 	let selectedProject = $state<ProjectInfo | null>(null);
+
+	/** Server resolves ?projectId=… (e.g. from project Expenses) and links the project automatically */
+	$effect(() => {
+		const incoming = data.preselectedProject;
+		if (incoming) selectedProject = incoming;
+	});
+
 	let showProjectPicker = $state(false);
 	let projectSearchQ = $state('');
 	let projectSearchStatus = $state('');
@@ -95,7 +102,7 @@
 	let detectRawText = $state('');
 	let expenseId = $state<string | null>(null);
 
-	/** .docx 纯文本预览（与检测使用相同抽取逻辑） */
+	/** Plain-text preview for .docx (same extraction path as detection) */
 	let wordPreviewText = $state('');
 	let wordPreviewStatus = $state<'idle' | 'loading' | 'ready' | 'error'>('idle');
 	let wordPreviewError = $state('');
@@ -106,7 +113,7 @@
 		return isLikelyDocxMimeOrName(f.type, f.name) || isLegacyDocMimeOrName(f.type, f.name);
 	});
 
-	/** PDF / 图片预览缩放（100 = 原始大小，外层可滚动查看） */
+	/** PDF/image preview zoom (100 = native size; scroll outer container) */
 	let previewZoomPct = $state(100);
 	const previewScale = $derived(previewZoomPct / 100);
 
@@ -156,25 +163,25 @@
 			if (looksLikeLegacyWordDoc(buf) && !looksLikeZip(buf)) {
 				wordPreviewStatus = 'error';
 				wordPreviewError =
-					'旧版 Word（.doc）不支持预览与检测。请在 Word 中使用「另存为」→ .docx 后再上传。';
+					'Legacy Word (.doc) cannot be previewed or detected here. In Word use Save As → .docx, then upload.';
 				wordPreviewText = '';
 				return;
 			}
 			if (!shouldParseAsDocx(f.type, f.name, buf)) {
 				wordPreviewStatus = 'error';
-				wordPreviewError = '该文件不是有效的 .docx（未找到 Word 正文 XML）。';
+				wordPreviewError = 'This file is not a valid .docx (missing Word document.xml).';
 				wordPreviewText = '';
 				return;
 			}
 			const t = tryExtractDocxPlainText(buf);
 			if (!t) {
 				wordPreviewStatus = 'error';
-				wordPreviewError = '无法从该 .docx 中提取文本（文件可能损坏或仅为扫描图）。';
+				wordPreviewError = 'Could not extract text from this .docx (file may be corrupt or image-only).';
 				wordPreviewText = '';
 				return;
 			}
 			wordPreviewText =
-				t.length > 80_000 ? `${t.slice(0, 80_000)}\n\n…（预览已截断，检测仍使用完整文本）` : t;
+				t.length > 80_000 ? `${t.slice(0, 80_000)}\n\n… (preview truncated; detection still uses full text)` : t;
 			wordPreviewStatus = 'ready';
 		});
 		return () => {
@@ -323,7 +330,7 @@
 			}
 			if (!res.ok || !json?.ok) {
 				const detailMsg = json?.details?.message;
-				throw new Error([json?.error || '检测失败', detailMsg, txt].filter(Boolean).join(': '));
+				throw new Error([json?.error || 'Detection failed', detailMsg, txt].filter(Boolean).join(': '));
 			}
 			const data = json.data as {
 				suggestions?: Record<string, unknown>;
@@ -354,15 +361,15 @@
 			}
 			metaFields = nextMeta;
 			const confidenceLabel =
-				typeof data.confidence === 'number' ? `，置信度 ${Math.round(data.confidence)}%` : '';
-			const providerLabel = data.provider ? `（${data.provider}）` : '';
+				typeof data.confidence === 'number' ? `, confidence ${Math.round(data.confidence)}%` : '';
+			const providerLabel = data.provider ? ` (${data.provider})` : '';
 			const textLen = data.rawTextLength ?? 0;
-			const textLenLabel = textLen > 0 ? `，提取字符 ${textLen}` : '，未提取到文本';
+			const textLenLabel = textLen > 0 ? `, ${textLen} characters extracted` : ', no text extracted';
 			const ocrWarnings = data.ocr?.warnings ?? [];
-			const warnLabel = ocrWarnings.length > 0 ? `\n注意：${ocrWarnings.join('；')}` : '';
-			message = `已完成 OCR+AI 检测${providerLabel}${confidenceLabel}${textLenLabel}，请核对后再保存。${warnLabel}`;
+			const warnLabel = ocrWarnings.length > 0 ? `\nNote: ${ocrWarnings.join('; ')}` : '';
+			message = `OCR+AI detection finished${providerLabel}${confidenceLabel}${textLenLabel}. Review before saving.${warnLabel}`;
 		} catch (e) {
-			error = e instanceof Error ? e.message : '检测失败';
+			error = e instanceof Error ? e.message : 'Detection failed';
 		} finally {
 			detecting = false;
 		}
@@ -409,7 +416,7 @@
 
 	async function upload(): Promise<void> {
 		if (needsFile && !selectedFile) {
-			error = '请先选择文件。';
+			error = 'Please choose a file first.';
 			return;
 		}
 
@@ -422,10 +429,10 @@
 
 			if (isAllowance) {
 				if (!staffName) {
-					throw new Error('Allowance 需要填写 Staff Name。');
+					throw new Error('Allowance requires Staff Name.');
 				}
 				if (!allowanceDateStart || !allowanceDateEnd) {
-					throw new Error('Allowance 需要填写起止日期。');
+					throw new Error('Allowance requires start and end dates.');
 				}
 				const res = await fetch('/api/expenses/upload', {
 					method: 'POST',
@@ -442,19 +449,19 @@
 				if (!res.ok || !json?.ok) {
 					const detailMsg = json?.details?.message;
 					throw new Error(
-						[json?.error || '保存失败', detailMsg, txt].filter(Boolean).join(': ')
+						[json?.error || 'Save failed', detailMsg, txt].filter(Boolean).join(': ')
 					);
 				}
 				expenseId = json.data?.expenseId ?? null;
-				message = `Allowance 记录已创建。Expense ID: ${expenseId ?? '-'}`;
+				message = `Allowance record created. Expense ID: ${expenseId ?? '-'}`;
 				return;
 			}
 
 			if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
-				throw new Error('请先填写有效的金额（Amount），保存时会写入 expenses 表。');
+				throw new Error('Enter a valid Amount before saving (stored on the expense record).');
 			}
 			if (!expenseDate?.trim()) {
-				throw new Error('请先填写日期（Date）。');
+				throw new Error('Please set the Date.');
 			}
 
 			const entityId = crypto.randomUUID();
@@ -477,7 +484,7 @@
 				// keep presignJson null
 			}
 			if (!presignRes.ok || !presignJson?.ok || !presignJson?.data) {
-				throw new Error(presignJson?.error || presignTxt || `无法创建上传目标（${presignRes.status}）`);
+				throw new Error(presignJson?.error || presignTxt || `Could not create upload target (${presignRes.status})`);
 			}
 
 			const putRes = await fetch(presignJson.data.uploadUrl, {
@@ -485,7 +492,7 @@
 				headers: { 'content-type': selectedFile!.type || 'application/octet-stream' },
 				body: selectedFile
 			});
-			if (!putRes.ok) throw new Error('文件上传到存储失败');
+			if (!putRes.ok) throw new Error('File upload to storage failed');
 
 			const saveRes = await fetch('/api/expenses/upload', {
 				method: 'POST',
@@ -507,15 +514,15 @@
 			if (!saveRes.ok || !saveJson?.ok) {
 				const detailMsg = saveJson?.details?.message;
 				throw new Error(
-					[saveJson?.error || '保存失败', detailMsg, saveTxt].filter(Boolean).join(': ')
+					[saveJson?.error || 'Save failed', detailMsg, saveTxt].filter(Boolean).join(': ')
 				);
 			}
 
 			uploadedDocumentId = saveJson.data?.documentId ?? null;
 			expenseId = saveJson.data?.expenseId ?? null;
-			message = `已保存：Document ${uploadedDocumentId ?? '-'}，Expense ${expenseId ?? '-'}`;
+			message = `Saved: Document ${uploadedDocumentId ?? '-'}, Expense ${expenseId ?? '-'}`;
 		} catch (e) {
-			error = e instanceof Error ? e.message : '上传失败';
+			error = e instanceof Error ? e.message : 'Upload failed';
 		} finally {
 			uploading = false;
 		}
@@ -525,7 +532,7 @@
 <PageShell
 	eyebrow="Finance / Expenses"
 	title={pageTitle}
-	description="选文件后右侧可预览；可选 OCR+AI 预填表单。确认后点 Upload Document 将同时写入 R2、documents 与 expenses。"
+	description="After you pick a file, preview it on the right. Optionally run OCR+AI to prefill the form. Upload Document writes to R2, documents, and expenses."
 >
 	{#snippet actions()}
 		<div class="flex flex-wrap items-center gap-2">
@@ -536,7 +543,7 @@
 					{#if selectedProject.customerName}
 						<span class="text-emerald-600">({selectedProject.customerName})</span>
 					{/if}
-					<button type="button" class="ml-1 text-emerald-500 hover:text-emerald-800" onclick={clearProject} title="取消关联">✕</button>
+					<button type="button" class="ml-1 text-emerald-500 hover:text-emerald-800" onclick={clearProject} title="Unlink project">✕</button>
 				</span>
 			{/if}
 			<button
@@ -554,7 +561,7 @@
 	>
 		<!-- Left: Upload form -->
 		<section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-			<h2 class="text-sm font-semibold text-slate-900">费用录入</h2>
+			<h2 class="text-sm font-semibold text-slate-900">Expense intake</h2>
 
 			<div class="mt-4 space-y-4">
 				<!-- Expense Type + Category -->
@@ -598,7 +605,7 @@
 				<!-- Allowance-specific fields -->
 				{#if isAllowance}
 					<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
-						<p class="text-xs font-semibold text-amber-800">出差日补贴（无文件，纯手填）</p>
+						<p class="text-xs font-semibold text-amber-800">Trip daily allowance (no file — manual entry)</p>
 						<label class="block">
 							<span class="mb-1 block text-xs font-medium text-slate-700">Staff Name</span>
 							<select class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={staffName}>
@@ -644,12 +651,12 @@
 			<!-- Common financial fields (non-allowance) -->
 			{#if !isAllowance}
 				{#if needsFile}
-					<p class="text-[11px] text-slate-500">有文件时：保存前须填写 Amount 与 Date（将写入 expenses）。可先点右侧「OCR + AI」预填。</p>
+					<p class="text-[11px] text-slate-500">With a file: Amount and Date are required before save. Use OCR + AI on the right to prefill.</p>
 				{/if}
 				<div class="grid gap-3 md:grid-cols-2">
 					<label>
 						<span class="mb-1 block text-xs font-medium text-slate-700">Amount</span>
-						<input type="number" step="0.01" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={amount} placeholder="必填（可先 OCR 预填）" />
+						<input type="number" step="0.01" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={amount} placeholder="Required (OCR can prefill)" />
 					</label>
 					<label>
 						<span class="mb-1 block text-xs font-medium text-slate-700">Currency</span>
@@ -678,7 +685,7 @@
 					{#if commonVisibility.vendorOrSupplier}
 						<label>
 							<span class="mb-1 block text-xs font-medium text-slate-700">Vendor / Supplier</span>
-							<input type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={vendorOrSupplier} placeholder="供应商/商户名称" />
+							<input type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={vendorOrSupplier} placeholder="Vendor / merchant name" />
 						</label>
 					{/if}
 					{#if commonVisibility.staffName}
@@ -699,8 +706,8 @@
 			{#if metadataFieldDefs.length > 0 && !isAllowance}
 				<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
 					<p class="text-xs font-semibold text-blue-800">
-						{CATEGORY_LABELS[category] ?? category} 场景字段
-						<span class="ml-1 font-normal text-blue-600">（LLM 可自动提取，也可手动填写）</span>
+						{CATEGORY_LABELS[category] ?? category} — extra fields
+						<span class="ml-1 font-normal text-blue-600">(LLM may fill these; you can edit manually)</span>
 					</p>
 					<div class="grid gap-3 md:grid-cols-2">
 						{#each metadataFieldDefs as field (field.key)}
@@ -746,25 +753,25 @@
 			<div class="flex flex-wrap items-center gap-4">
 				<label class="flex items-center gap-2 text-sm text-slate-700">
 					<input type="checkbox" class="rounded border-slate-300" bind:checked={reimbursement} />
-					Reimbursement (员工垫付)
+					Reimbursement (staff paid out of pocket)
 				</label>
 				<label class="flex items-center gap-2 text-sm text-slate-700">
 					<input type="checkbox" class="rounded border-slate-300" bind:checked={businessTrip} />
-					Business Trip (出差)
+					Business trip
 				</label>
 			</div>
 
 			{#if businessTrip && !isAllowance}
 				<label class="block">
 					<span class="mb-1 block text-xs font-medium text-slate-700">Destination</span>
-					<input type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={destination} placeholder="出差目的地" />
+					<input type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={destination} placeholder="Trip destination" />
 				</label>
 			{/if}
 
 			<!-- Notes -->
 			<label class="block">
 				<span class="mb-1 block text-xs font-medium text-slate-700">Notes</span>
-				<input type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={notes} placeholder="备注" />
+				<input type="text" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={notes} placeholder="Notes" />
 			</label>
 
 				<!-- Preview -->
@@ -795,18 +802,18 @@
 			</div>
 		</section>
 
-		<!-- Right: file preview + optional OCR detect（与左侧等宽，避免检测后内容撑开导致视觉失衡） -->
+		<!-- Right: preview + optional OCR (same column width as form) -->
 		<section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-4">
-			<h2 class="text-sm font-semibold text-slate-900">文件预览</h2>
+			<h2 class="text-sm font-semibold text-slate-900">File preview</h2>
 			{#if needsFile && selectedFile && previewUrl}
 				<div class="mt-3 flex flex-wrap items-center gap-2">
-					<span class="text-[11px] font-medium text-slate-500">缩放</span>
+					<span class="text-[11px] font-medium text-slate-500">Zoom</span>
 					<button
 						type="button"
 						class="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40"
 						disabled={previewZoomPct <= 50}
 						onclick={() => setPreviewZoom(previewZoomPct - 10)}
-						title="缩小"
+						title="Zoom out"
 					>
 						−
 					</button>
@@ -814,7 +821,7 @@
 						type="button"
 						class="rounded border border-slate-300 bg-white px-2 py-1 text-xs tabular-nums text-slate-700 hover:bg-slate-50"
 						onclick={() => { previewZoomPct = 100; }}
-						title="重置为 100%"
+						title="Reset to 100%"
 					>
 						{previewZoomPct}%
 					</button>
@@ -823,7 +830,7 @@
 						class="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40"
 						disabled={previewZoomPct >= 200}
 						onclick={() => setPreviewZoom(previewZoomPct + 10)}
-						title="放大"
+						title="Zoom in"
 					>
 						+
 					</button>
@@ -833,7 +840,7 @@
 						rel="noreferrer"
 						class="ml-auto text-xs font-medium text-[var(--sf-green)] hover:underline"
 					>
-						新标签打开
+						Open in new tab
 					</a>
 				</div>
 				<div
@@ -857,7 +864,7 @@
 							/>
 						{:else}
 							<p class="p-4 text-xs text-slate-600">
-								无法内嵌预览此类型。已选择：<span class="font-medium">{selectedFile.name}</span>
+								Inline preview not available for this type. Selected: <span class="font-medium">{selectedFile.name}</span>
 							</p>
 						{/if}
 					</div>
@@ -869,21 +876,21 @@
 						disabled={detecting}
 						onclick={() => void runOcrDetect()}
 					>
-						{detecting ? '检测中…' : 'OCR + AI 检测并填充'}
+						{detecting ? 'Detecting…' : 'OCR + AI detect & fill'}
 					</button>
-					<p class="text-[11px] text-slate-500 self-center">可选；不点则完全手填。检测不会保存记录。</p>
+					<p class="text-[11px] text-slate-500 self-center">Optional; skip for fully manual entry. Detection does not save a record.</p>
 				</div>
 			{:else if needsFile && selectedFile && isWordCandidateFile}
 				<p class="mt-2 text-[11px] text-slate-500">
-					Word（.docx）将抽取正文文本预览；检测时直接使用文档内文字（无需 Vision OCR）。
+					Word (.docx) shows extracted body text here; detection uses that text (no vision OCR).
 				</p>
 				{#if wordPreviewStatus === 'loading'}
-					<p class="mt-4 text-sm text-slate-600">正在读取 Word 文本…</p>
+					<p class="mt-4 text-sm text-slate-600">Reading Word text…</p>
 				{:else if wordPreviewStatus === 'error'}
 					<p class="mt-4 text-sm text-rose-700">{wordPreviewError}</p>
 				{:else if wordPreviewStatus === 'ready' && wordPreviewText}
 					<div class="mt-3 flex flex-wrap items-center gap-2">
-						<span class="text-[11px] font-medium text-slate-500">字号</span>
+						<span class="text-[11px] font-medium text-slate-500">Font size</span>
 						<button
 							type="button"
 							class="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
@@ -916,13 +923,13 @@
 						disabled={detecting || wordPreviewStatus === 'loading' || wordPreviewStatus === 'error'}
 						onclick={() => void runOcrDetect()}
 					>
-						{detecting ? '检测中…' : '检测并填充'}
+						{detecting ? 'Detecting…' : 'Detect & fill'}
 					</button>
-					<p class="text-[11px] text-slate-500 self-center">从 .docx 抽取全文后由 AI 解析字段。</p>
+					<p class="text-[11px] text-slate-500 self-center">Full .docx text is sent to the model for field parsing.</p>
 				</div>
 			{:else if needsFile && selectedFile}
 				<p class="mt-3 text-xs text-slate-600">
-					无法在浏览器内预览此类型：<span class="font-medium">{selectedFile.name}</span>。仍可填写表单并保存；若需自动填充，请尝试检测（取决于文件格式）。
+					No in-browser preview for <span class="font-medium">{selectedFile.name}</span>. You can still complete the form and save; try Detect for autofill when the format allows it.
 				</p>
 				<div class="mt-3 flex flex-wrap gap-2">
 					<button
@@ -931,31 +938,31 @@
 						disabled={detecting}
 						onclick={() => void runOcrDetect()}
 					>
-						{detecting ? '检测中…' : 'OCR + AI 检测并填充'}
+						{detecting ? 'Detecting…' : 'OCR + AI detect & fill'}
 					</button>
 				</div>
 			{:else if needsFile}
-				<p class="mt-3 text-xs text-slate-500">请选择文件后将在此显示预览。</p>
+				<p class="mt-3 text-xs text-slate-500">Choose a file to see a preview here.</p>
 			{/if}
 
-			<h2 class="mt-6 text-sm font-semibold text-slate-900">保存结果</h2>
+			<h2 class="mt-6 text-sm font-semibold text-slate-900">Save result</h2>
 			<div class="mt-2 space-y-1 text-xs text-slate-600">
 				<p><span class="font-medium text-slate-800">Document ID:</span> {uploadedDocumentId ?? '—'}</p>
 				<p><span class="font-medium text-slate-800">Expense ID:</span> {expenseId ?? '—'}</p>
 				{#if expenseId}
-					<p><a class="text-[var(--sf-green)] hover:underline" href="/expenses">在费用列表中查看</a></p>
+					<p><a class="text-[var(--sf-green)] hover:underline" href="/expenses">View in expense list</a></p>
 				{/if}
 			</div>
 
 			{#if detectRawText || (detectSnapshot !== null)}
 				<details class="mt-4 rounded-lg border border-slate-200 bg-slate-50" open={!!detectRawText}>
 					<summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100/80">
-						OCR 提取文本（{detectRawText.length} 字符）— 点击展/收
+						OCR text ({detectRawText.length} chars) — click to expand/collapse
 					</summary>
 					{#if detectRawText}
 						<pre class="max-h-64 overflow-auto whitespace-pre-wrap break-words border-t border-slate-200 px-3 py-2 text-[11px] leading-relaxed text-slate-700">{detectRawText}</pre>
 					{:else}
-						<p class="border-t border-slate-200 px-3 py-2 text-[11px] text-amber-700">未提取到文本（可能为图片型 PDF 或扫描件）</p>
+						<p class="border-t border-slate-200 px-3 py-2 text-[11px] text-amber-700">No text extracted (image-only PDF or scan)</p>
 					{/if}
 				</details>
 			{/if}
@@ -964,8 +971,8 @@
 			<ul class="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-600">
 				<li><strong>OpEx</strong>: transport, accommodation, meal, gift, allowance, ai_subscription, logistics, purchase, others</li>
 				<li><strong>Sales Cost</strong>: invoice, receipt</li>
-				<li><strong>Allowance</strong>: 无文件上传，纯手填。日费率按目的地自动带出。</li>
-				<li>Boolean 标记（reimbursement / business_trip）按场景默认值预选。</li>
+				<li><strong>Allowance</strong>: no file upload; manual entry only. Daily rate is suggested from the destination.</li>
+				<li>Boolean flags (reimbursement / business_trip) default per category presets.</li>
 			</ul>
 		</section>
 	</div>

@@ -18,9 +18,9 @@ export const arActions: AgentAction[] = [
 	{
 		id: 'create_customer_invoice',
 		module: 'ar',
-		description: '为客户创建发票草稿，可预填项目、客户与金额信息',
-		keywords: ['开发票', '创建发票', '客户发票', 'invoice', 'create invoice', '新建发票'],
-		entry: '/finance/customer-invoices/generate',
+		description: 'Create a customer invoice draft; can prefill project, customer, and amount',
+		keywords: ['invoice', 'create invoice', 'customer invoice', 'sales invoice', 'AR invoice'],
+		entry: '/finance/doc-hub/customer-invoices/generate',
 		api: 'POST /api/invoices/out',
 		layer: 3,
 		required_roles: ['owner', 'finance'],
@@ -29,21 +29,21 @@ export const arActions: AgentAction[] = [
 				name: 'project_id',
 				type: 'string',
 				required: false,
-				description: '关联项目ID',
+				description: 'Linked project ID',
 				extract_from_context: true
 			},
-			{ name: 'project_name', type: 'string', required: false, description: '关联项目名称' },
-			{ name: 'customer_name', type: 'string', required: false, description: '客户名称' },
-			{ name: 'amount', type: 'number', required: false, description: '发票金额' },
-			{ name: 'currency', type: 'string', required: false, description: '币种：SGD/USD/CNY' },
-			{ name: 'description', type: 'string', required: false, description: '发票描述' }
+			{ name: 'project_name', type: 'string', required: false, description: 'Linked project name' },
+			{ name: 'customer_name', type: 'string', required: false, description: 'Customer name' },
+			{ name: 'amount', type: 'number', required: false, description: 'Invoice amount' },
+			{ name: 'currency', type: 'string', required: false, description: 'Currency: SGD / USD / CNY' },
+			{ name: 'description', type: 'string', required: false, description: 'Invoice description' }
 		]
 	},
 	{
 		id: 'upload_project_document',
 		module: 'ar',
-		description: '打开文档上传页面，上传合同、报价单、采购单或费用单据',
-		keywords: ['上传文档', '上传合同', '上传报价', 'document upload', 'upload file', '上传'],
+		description: 'Open document upload for contracts, quotations, purchase orders, or expense documents',
+		keywords: ['document upload', 'upload contract', 'upload quotation', 'upload file', 'doc hub'],
 		entry: '/finance/doc-hub/upload',
 		layer: 2,
 		required_roles: ['owner', 'finance', 'project_manager'],
@@ -52,54 +52,54 @@ export const arActions: AgentAction[] = [
 				name: 'project_id',
 				type: 'string',
 				required: false,
-				description: '关联项目ID',
+				description: 'Linked project ID',
 				extract_from_context: true
 			},
-			{ name: 'doc_type', type: 'string', required: false, description: '文档类型：contract/quotation/po/expense' }
+			{ name: 'doc_type', type: 'string', required: false, description: 'Document type: contract / quotation / po / expense' }
 		]
 	},
 	{
 		id: 'view_customer_invoices',
 		module: 'ar',
-		description: '查看客户发票列表',
-		keywords: ['查看发票', '发票列表', 'customer invoices', 'invoices', '客户发票'],
-		entry: '/finance/customer-invoices',
+		description: 'View customer (sales) invoices',
+		keywords: ['customer invoices', 'outgoing invoices', 'AR list', 'invoices'],
+		entry: '/finance/doc-hub/customer-invoices',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
 	{
 		id: 'view_supplier_invoices',
 		module: 'ar',
-		description: '查看供应商发票列表',
-		keywords: ['供应商发票', 'supplier invoice', '进项发票', '供应商账单'],
-		entry: '/finance/supplier-invoices',
+		description: 'View supplier (purchase) invoices',
+		keywords: ['supplier invoice', 'AP invoice', 'vendor bill', 'incoming invoice'],
+		entry: '/finance/doc-hub/supplier-invoices',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
 	{
 		id: 'view_contracts',
 		module: 'ar',
-		description: '查看合同列表',
-		keywords: ['查看合同', '合同列表', 'contracts', 'project contracts'],
-		entry: '/finance/contracts',
+		description: 'View contracts',
+		keywords: ['contracts', 'contract list', 'project contracts'],
+		entry: '/finance/doc-hub/contracts',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
 	{
 		id: 'view_quotations',
 		module: 'ar',
-		description: '查看报价单列表',
-		keywords: ['报价单', 'quotation', '报价列表', '查看报价'],
-		entry: '/finance/quotations',
+		description: 'View quotations',
+		keywords: ['quotation', 'quote', 'quotation list'],
+		entry: '/finance/doc-hub/quotations',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
 	{
 		id: 'view_purchase_orders',
 		module: 'ar',
-		description: '查看采购单列表',
-		keywords: ['采购单', 'purchase order', 'po list', '查看采购单', 'PO'],
-		entry: '/finance/purchase-orders',
+		description: 'View purchase orders',
+		keywords: ['purchase order', 'PO list', 'procurement orders'],
+		entry: '/finance/doc-hub/purchase-orders',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	}

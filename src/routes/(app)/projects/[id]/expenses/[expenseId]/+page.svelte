@@ -9,15 +9,6 @@
 	const money = (value: number | null | undefined) =>
 		new Intl.NumberFormat('en-SG', { style: 'currency', currency: data.expense.currency ?? 'SGD' }).format(value ?? 0);
 
-	const previewMode = $derived.by((): 'pdf' | 'image' | 'none' | 'other' => {
-		if (!data.fileViewUrl) return 'none';
-		const fn = data.docMeta.upload?.fileName?.toLowerCase() ?? '';
-		const ct = (data.docMeta.upload?.contentType ?? '').toLowerCase();
-		if (ct.includes('pdf') || fn.endsWith('.pdf')) return 'pdf';
-		if (ct.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(fn)) return 'image';
-		return 'other';
-	});
-
 	const fmtBytes = (n: number | undefined) => {
 		if (n == null || !Number.isFinite(n)) return '—';
 		if (n < 1024) return `${n} B`;
@@ -145,17 +136,17 @@
 			{/if}
 		</div>
 		<div class="p-4">
-			{#if previewMode === 'none'}
+			{#if data.previewDisplay === 'none'}
 				<p class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
 					No file attached.
 				</p>
-			{:else if previewMode === 'pdf'}
+			{:else if data.previewDisplay === 'pdf'}
 				<iframe
 					class="h-[min(75vh,900px)] w-full rounded-lg border border-slate-200 bg-slate-100"
 					title="Expense PDF preview"
 					src={data.fileViewUrl}
 				></iframe>
-			{:else if previewMode === 'image'}
+			{:else if data.previewDisplay === 'image'}
 				<div class="flex justify-center rounded-lg border border-slate-200 bg-slate-50 p-4">
 					<img
 						class="max-h-[min(75vh,900px)] max-w-full object-contain"

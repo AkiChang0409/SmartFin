@@ -31,6 +31,7 @@ function needsAppAuth(pathname: string) {
 		pathname.startsWith('/finance') ||
 		pathname.startsWith('/projects') ||
 		pathname.startsWith('/customers') ||
+		pathname.startsWith('/suppliers') ||
 		pathname.startsWith('/employees') ||
 		pathname.startsWith('/tax') ||
 		pathname.startsWith('/reports') ||

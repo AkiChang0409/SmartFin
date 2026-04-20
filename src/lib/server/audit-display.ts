@@ -27,9 +27,10 @@ export function summarizeAuditForProject(action: string, meta: Record<string, un
 		case 'project.remove':
 			return 'Project removed';
 		case 'contract.create': {
-			if (str('source') === 'ar_document_upload') {
+			const src = str('source');
+			if (src === 'ar_document_upload' || src === 'doc_hub_upload') {
 				const fn = str('fileName');
-				return fn ? `Uploaded contract document (${fn})` : 'Uploaded contract document (AR)';
+				return fn ? `Uploaded contract document (${fn})` : 'Uploaded contract document';
 			}
 			return 'Added a contract record';
 		}
@@ -38,9 +39,10 @@ export function summarizeAuditForProject(action: string, meta: Record<string, un
 		case 'contract.delete':
 			return 'Removed a contract record';
 		case 'quotation.create': {
-			if (str('source') === 'ar_document_upload') {
+			const src = str('source');
+			if (src === 'ar_document_upload' || src === 'doc_hub_upload') {
 				const fn = str('fileName');
-				return fn ? `Uploaded quotation document (${fn})` : 'Uploaded quotation document (AR)';
+				return fn ? `Uploaded quotation document (${fn})` : 'Uploaded quotation document';
 			}
 			return 'Added a quotation record';
 		}
@@ -66,6 +68,12 @@ export function summarizeAuditForProject(action: string, meta: Record<string, un
 		case 'purchase_order.delete':
 			return 'Removed a purchase order';
 		case 'expense.create': {
+			if (str('source') === 'ar_document_upload') {
+				const fn = str('fileName');
+				const cat = str('category');
+				if (fn && cat) return `Uploaded expense document (${fn}) · ${cat}`;
+				if (fn) return `Uploaded expense document (${fn})`;
+			}
 			const cat = str('category');
 			const amt = num('amount');
 			const cur = str('currency') || 'SGD';
@@ -91,6 +99,16 @@ export function summarizeAuditForProject(action: string, meta: Record<string, un
 			if (sup) return `Uploaded supplier invoice — ${sup}`;
 			return 'Uploaded supplier invoice (AR)';
 		}
+		case 'invoice_in.update':
+			return 'Updated supplier invoice';
+		case 'invoice_in.delete':
+			return 'Removed supplier invoice';
+		case 'invoice_out.update': {
+			const st = str('status');
+			return st ? `Updated customer invoice (status: ${st})` : 'Updated customer invoice';
+		}
+		case 'invoice_out.delete':
+			return 'Removed customer invoice';
 		case 'document.unclassified_upload': {
 			const fn = str('fileName');
 			const tag = str('tag');

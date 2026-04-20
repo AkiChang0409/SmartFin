@@ -2,8 +2,8 @@ import type { AgentContext, RouterResult } from '../types';
 import { domainRegistry } from '../domains/registry';
 
 /**
- * 基于关键词 + 路径的规则路由
- * 返回 null 表示规则无法确定，需要 LLM 兜底
+ * Keyword + path heuristic routing for the agent.
+ * Returns null when uncertain so the LLM can decide.
  */
 export function matchByRules(message: string, context: AgentContext): RouterResult | null {
 	const msgLower = message.toLowerCase();
@@ -61,40 +61,40 @@ function inferDomainFromPath(path: string): string | null {
 
 function inferIntentType(msg: string): 'action' | 'query' | 'chat' {
 	const queryPatterns = [
-		'查看',
-		'多少',
-		'几个',
-		'列表',
-		'统计',
-		'报表',
-		'利润',
-		'哪些',
-		'有没有',
 		'how much',
 		'how many',
 		'show me',
+		'show ',
 		'list',
 		'what is',
 		'what are',
-		'查询',
-		'搜索'
+		'view ',
+		'display',
+		'summary',
+		'search',
+		'find ',
+		'query',
+		'total ',
+		'count',
+		'report',
+		'profit',
+		'margin',
+		'which ',
+		'any '
 	];
 	const actionPatterns = [
-		'创建',
-		'新建',
-		'添加',
-		'上传',
-		'生成',
-		'开一个',
-		'录入',
 		'create',
-		'new',
-		'add',
+		'new ',
+		'add ',
 		'upload',
 		'generate',
-		'修改',
-		'删除',
-		'编辑'
+		'open ',
+		'record',
+		'edit',
+		'update',
+		'delete',
+		'remove',
+		'submit'
 	];
 
 	const isQuery = queryPatterns.some((p) => msg.includes(p));

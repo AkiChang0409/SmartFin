@@ -9,5 +9,5 @@ export async function runImageDocumentOcr(
 	_env: Env,
 	_input: { imageBytes: Uint8Array; mimeType: string; fileName: string }
 ): Promise<WorkersVisionOcrResult> {
-	return { ok: false, error: '图片型 OCR 功能待实现' };
+	return { ok: false, error: 'Image OCR is not implemented yet' };
 }

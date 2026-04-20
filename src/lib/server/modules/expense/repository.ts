@@ -7,17 +7,24 @@ import { BaseRepository } from '../base-repository';
 // Expense aggregation SQL helpers — redesigned for opex / sales_cost
 // ---------------------------------------------------------------------------
 
+/**
+ * Effective SGD amount for aggregation. Matches list UIs that use `sgdEquivalent || amount`:
+ * writers often set `sgdEquivalent: 0` when FX is unknown; SQL coalesce(0, amount) wrongly yields 0.
+ */
+const expenseSgdAmountExpr = () =>
+	sql`coalesce(nullif(${expenses.sgdEquivalent}, 0), ${expenses.amount})`;
+
 /** Project-scoped operating expenses (expense_type = 'opex') */
 export const projectExpenseOpexSumExpr = () =>
-	sql<number>`coalesce(sum(case when ${expenses.expenseType} = 'opex' then coalesce(${expenses.sgdEquivalent}, ${expenses.amount}) else 0 end), 0)`;
+	sql<number>`coalesce(sum(case when ${expenses.expenseType} = 'opex' then ${expenseSgdAmountExpr()} else 0 end), 0)`;
 
 /** Project-scoped sales cost (expense_type = 'sales_cost') */
 export const projectExpenseSalesCostSumExpr = () =>
-	sql<number>`coalesce(sum(case when ${expenses.expenseType} = 'sales_cost' then coalesce(${expenses.sgdEquivalent}, ${expenses.amount}) else 0 end), 0)`;
+	sql<number>`coalesce(sum(case when ${expenses.expenseType} = 'sales_cost' then ${expenseSgdAmountExpr()} else 0 end), 0)`;
 
 /** Total project expenses */
 export const projectExpenseTotalSumExpr = () =>
-	sql<number>`coalesce(sum(coalesce(${expenses.sgdEquivalent}, ${expenses.amount})), 0)`;
+	sql<number>`coalesce(sum(${expenseSgdAmountExpr()}), 0)`;
 
 // ---------------------------------------------------------------------------
 // ExpenseRepository

@@ -16,7 +16,7 @@ export async function executeDomainAgent(
 
 	if (availableActions.length === 0) {
 		return {
-			reply: '你当前没有权限操作此模块的功能。',
+			reply: 'You do not have permission to use actions in this module.',
 			action: null,
 			prefill: {},
 			missing_context: []
@@ -63,7 +63,7 @@ User role: ${routerResult.context.user_role ?? ''}`;
 			const baseReply =
 				typeof parsed?.reply === 'string' && parsed.reply.trim()
 					? parsed.reply.trim()
-					: '查询结果如下：';
+					: 'Here is what I found:';
 
 			return {
 				reply: baseReply,
@@ -75,7 +75,7 @@ User role: ${routerResult.context.user_role ?? ''}`;
 		}
 
 		if (!queryResult.success) {
-			const missingCtx = queryResult.error?.includes('项目 ID')
+			const missingCtx = queryResult.error?.toLowerCase().includes('project id')
 				? ['project_id']
 				: [];
 
@@ -84,7 +84,7 @@ User role: ${routerResult.context.user_role ?? ''}`;
 				: null;
 
 			return {
-				reply: queryResult.error ?? '查询失败，请稍后重试。',
+				reply: queryResult.error ?? 'The query failed. Please try again shortly.',
 				action: matchedAction && fallbackEntry
 					? { id: matchedAction.id, entry: fallbackEntry, layer: matchedAction.layer }
 					: null,
@@ -119,11 +119,11 @@ User role: ${routerResult.context.user_role ?? ''}`;
 	let reply =
 		typeof parsed?.reply === 'string' && parsed.reply.trim()
 			? parsed.reply.trim()
-			: '我理解了你的需求，请查看下方操作。';
+			: 'Here is a suggested next step below.';
 
 	// If action couldn't be resolved due to missing project, add helpful message
 	if (matchedAction && !resolvedEntry) {
-		reply = '请告诉我具体是哪个项目？或者先进入项目详情页后再操作。';
+		reply = 'Which project should this apply to? Open a project detail page first, or name the project.';
 	}
 
 	return {

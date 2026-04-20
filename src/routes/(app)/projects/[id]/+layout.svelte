@@ -28,7 +28,7 @@
 	const base = $derived(`/projects/${data.project.id}`);
 	const path = $derived(page.url.pathname);
 
-	// 项目内导航状态判断
+	// Active nav item within project workspace
 	const isDashboard = $derived(path === base);
 	const isDocuments = $derived(path.startsWith(`${base}/documents`));
 	const isExpenses = $derived(path.startsWith(`${base}/expenses`));
@@ -36,7 +36,7 @@
 	const isMembers = $derived(path.startsWith(`${base}/employees`) || path.startsWith(`${base}/members`));
 	const isInvoices = $derived(path.startsWith(`${base}/invoices`));
 
-	// 项目导航菜单配置
+	// Project workspace nav items
 	type NavItem = {
 		href: string;
 		label: string;
@@ -47,7 +47,17 @@
 
 	const navItems = $derived<NavItem[]>([
 		{ href: base, label: 'Dashboard', icon: '◫', active: isDashboard },
-		{ href: `${base}/documents`, label: 'Documents', icon: '▤', active: isDocuments, count: data.submoduleCounts.contracts + data.submoduleCounts.quotations + data.submoduleCounts.purchaseOrders },
+		{
+			href: `${base}/documents`,
+			label: 'Documents',
+			icon: '▤',
+			active: isDocuments,
+			count:
+				data.submoduleCounts.contracts +
+				data.submoduleCounts.quotations +
+				data.submoduleCounts.purchaseOrders +
+				data.submoduleCounts.expenses
+		},
 		{ href: `${base}/expenses`, label: 'Expenses', icon: '⊟', active: isExpenses, count: data.submoduleCounts.expenses },
 		{ href: `${base}/revenue`, label: 'Revenue', icon: '¥', active: isRevenue || isInvoices },
 		{ href: `${base}/employees`, label: 'Team & Cost', icon: '◎', active: isMembers }
@@ -70,10 +80,10 @@
 </script>
 
 <div class="flex min-h-[calc(100vh-3.5rem)]">
-	<!-- 项目侧边栏 -->
+	<!-- Project sidebar -->
 	<aside class="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-50/50 lg:block">
 		<div class="sticky top-14 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden">
-			<!-- 返回项目列表 -->
+			<!-- Back to project list -->
 			<div class="shrink-0 border-b border-slate-200 p-4">
 				<a 
 					href="/projects" 
@@ -84,7 +94,7 @@
 				</a>
 			</div>
 
-			<!-- 当前项目信息 -->
+			<!-- Current project summary -->
 			<div class="shrink-0 border-b border-slate-200 p-4">
 				<div class="flex items-start justify-between gap-2">
 					<div class="min-w-0 flex-1">
@@ -103,7 +113,7 @@
 				{/if}
 			</div>
 
-			<!-- 项目导航菜单 -->
+			<!-- Project section links -->
 			<nav class="flex-1 overflow-y-auto p-4">
 				<p class="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
 					Project Navigation
@@ -129,7 +139,7 @@
 				</div>
 			</nav>
 
-			<!-- 项目设置按钮 -->
+			<!-- Project settings -->
 			<div class="shrink-0 border-t border-slate-200 p-4">
 				<button
 					type="button"
@@ -143,9 +153,9 @@
 		</div>
 	</aside>
 
-	<!-- 主内容区 -->
+	<!-- Main column -->
 	<div class="flex min-w-0 flex-1 flex-col">
-		<!-- 移动端项目导航 -->
+		<!-- Mobile project nav -->
 		<div class="border-b border-slate-200 bg-slate-50/80 px-4 py-3 lg:hidden">
 			<div class="mb-2 flex items-center justify-between">
 				<a href="/projects" class="text-xs text-slate-500 hover:text-[var(--sf-green)]">← All Projects</a>
@@ -177,10 +187,10 @@
 			</div>
 		</div>
 
-		<!-- 页面内容 -->
+		<!-- Page body -->
 		<main class="flex-1 overflow-y-auto">
 			<div class="mx-auto w-full max-w-5xl px-6 py-6">
-				<!-- 面包屑和页面标题 -->
+				<!-- Breadcrumb -->
 				<header class="mb-6">
 					<nav class="mb-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
 						<a class="hover:text-[var(--sf-green)] hover:underline" href="/projects">Projects</a>
@@ -195,7 +205,7 @@
 					</nav>
 				</header>
 
-				<!-- 子页面内容 -->
+				<!-- Nested route outlet -->
 				<div class="min-w-0">
 					{@render children?.()}
 				</div>
@@ -203,18 +213,18 @@
 		</main>
 	</div>
 
-	<!-- 活动日志侧栏 - 仅在大屏显示 -->
+	<!-- Activity feed (large screens) -->
 	<aside class="hidden w-72 shrink-0 border-l border-slate-200 bg-slate-50/30 xl:block">
 		<div class="sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto p-4">
 			<section class="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 				<div class="shrink-0 border-b border-slate-200 px-4 py-3">
 					<h2 class="text-[13px] font-semibold text-slate-900">Recent Updates</h2>
-					<p class="mt-0.5 text-[11px] text-slate-500">项目动态与审计日志</p>
+					<p class="mt-0.5 text-[11px] text-slate-500">Project activity and audit log</p>
 				</div>
 				<div class="min-h-0 flex-1 overflow-y-auto px-3 py-3">
 					{#if data.activityFeed.length === 0}
 						<p class="px-2 py-8 text-center text-xs text-slate-500">
-							暂无动态
+							No recent activity
 						</p>
 					{:else}
 						<div class="flex flex-col gap-2.5">

@@ -117,7 +117,7 @@
 </script>
 
 <div class="space-y-6">
-	<!-- 页面标题 -->
+	<!-- Page heading -->
 	<div>
 		<h1 class="text-xl font-semibold text-slate-900">Project Dashboard</h1>
 		<p class="mt-1 text-sm text-slate-500">Financial overview and P&L summary for this project.</p>

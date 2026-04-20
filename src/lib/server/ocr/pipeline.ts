@@ -90,7 +90,7 @@ function readEnvString(env: Env, key: string): string {
  *
  * PDF  → raw UTF-8 decode (null bytes stripped) — same as SmartFinOnline
  * DOCX → fflate unzip + <w:t> node extraction
- * Image → stub "图片型，等待后续 OCR 实现"
+ * Image → stub pending image OCR
  */
 export async function runOcrPipeline(
 	fileType: string,
@@ -123,7 +123,7 @@ export async function runOcrPipeline(
 			confidence: 0,
 			confidenceBand: 'low',
 			needsReview: true,
-			validationWarnings: ['图片型文件，等待后续 OCR 功能实现'],
+			validationWarnings: ['Image file: OCR for images is not available yet.'],
 			sourceSnippets: {},
 			extractionMethod: 'external_ocr',
 			ocrProvider: 'workers_ai',
@@ -161,7 +161,7 @@ export async function runOcrPipeline(
 	const hasGoodText = textLen > 100;
 
 	if (!hasGoodText) {
-		validationWarnings.push('提取文本内容过短，该文件可能为扫描图片型 PDF（无文字层）');
+		validationWarnings.push('Extracted text is very short; this may be a scanned PDF without a text layer.');
 		return {
 			documentDate: null,
 			totalAmount: null,

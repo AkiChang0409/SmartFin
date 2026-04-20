@@ -44,29 +44,29 @@ function normalizeEmailType(raw: unknown): EmailType {
 }
 
 function buildIntentSystemPrompt(): string {
-	return `你是一个企业邮件分类助手。根据用户提供的邮件信息，判断业务类型和目标附件特征。
+	return `You classify business email intent for an ERP workflow from subject, sender, body snippet, and attachment names.
 
-请返回JSON对象（仅此一个 JSON，不要 markdown）：
+Return a single JSON object (JSON only, no markdown):
 {
   "email_type": "invoice|purchase_order|quotation|contract|other",
-  "target_attachment_keywords": ["invoice", "发票", "tax"],
-  "priority_attachment": "最可能是目标的附件文件名，没有把握则 null",
+  "target_attachment_keywords": ["invoice", "tax"],
+  "priority_attachment": "best-matching attachment filename from the user list, or null if unsure",
   "confidence": 0.0
 }
 
-规则：
-- confidence 为 0 到 1 的小数，表示你对整体判断的把握。
-- target_attachment_keywords 为短词列表，用于在附件文件名中匹配。
-- priority_attachment 必须是用户给出的附件文件名之一，否则填 null。
-- 只返回 JSON，不要解释。`;
+Rules:
+- confidence is a decimal from 0 to 1 for overall certainty.
+- target_attachment_keywords: short tokens to match against attachment filenames.
+- priority_attachment must be one of the provided attachment names, else null.
+- Return JSON only, no prose.`;
 }
 
 function buildIntentUserMessage(p: IntentPayload): string {
 	const names = Array.isArray(p.attachmentNames) ? p.attachmentNames.filter(Boolean) : [];
 	return `Subject: ${p.subject ?? ''}
 From: ${p.sender ?? ''}
-正文摘要（前500字）: ${(p.bodyPreview ?? '').slice(0, 500)}
-附件列表: ${names.length ? names.join(', ') : '(无)'}`;
+Body preview (first 500 chars): ${(p.bodyPreview ?? '').slice(0, 500)}
+Attachments: ${names.length ? names.join(', ') : '(none)'}`;
 }
 
 function heuristicIntent(p: IntentPayload): EmailIntentResult {
@@ -80,13 +80,13 @@ function heuristicIntent(p: IntentPayload): EmailIntentResult {
 		.toLowerCase();
 
 	let email_type: EmailType = 'other';
-	if (/\binvoice\b|发票|tax\s+invoice|账单/.test(blob)) email_type = 'invoice';
-	else if (/\bpurchase\s+order\b|\bpo\b|采购单/.test(blob)) email_type = 'purchase_order';
-	else if (/\bquotation\b|\bquote\b|报价|rfq/.test(blob)) email_type = 'quotation';
-	else if (/\bcontract\b|合同|agreement/.test(blob)) email_type = 'contract';
+	if (/\binvoice\b|tax\s+invoice|billing/.test(blob)) email_type = 'invoice';
+	else if (/\bpurchase\s+order\b|\bpo\b/.test(blob)) email_type = 'purchase_order';
+	else if (/\bquotation\b|\bquote\b|rfq/.test(blob)) email_type = 'quotation';
+	else if (/\bcontract\b|agreement/.test(blob)) email_type = 'contract';
 
 	const kw: string[] = [];
-	if (email_type === 'invoice') kw.push('invoice', '发票', 'tax');
+	if (email_type === 'invoice') kw.push('invoice', 'tax');
 	if (email_type === 'purchase_order') kw.push('po', 'purchase');
 	if (email_type === 'quotation') kw.push('quote', 'quotation');
 	if (email_type === 'contract') kw.push('contract', 'agreement');

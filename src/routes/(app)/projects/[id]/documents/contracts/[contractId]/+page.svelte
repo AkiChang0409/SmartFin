@@ -6,7 +6,7 @@
 	const base = $derived(`/projects/${data.project.id}`);
 
 	const money = (value: number | null | undefined) =>
-		new Intl.NumberFormat('en-SG', { style: 'currency', currency: data.purchaseOrder.currency ?? 'SGD' }).format(
+		new Intl.NumberFormat('en-SG', { style: 'currency', currency: data.contract.currency ?? 'SGD' }).format(
 			value ?? 0
 		);
 
@@ -38,47 +38,39 @@
 		<button
 			type="button"
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			onclick={() => goto(base)}
+			onclick={() => goto(`${base}/documents`)}
 		>
-			← Back to project overview
+			← Back to documents
 		</button>
 		<a
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=purchase_order`}
+			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=contract`}
 		>
-			Upload another PO…
+			Upload another contract…
 		</a>
 	</div>
 
 	<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 		<div class="border-b border-slate-200 px-5 py-4">
-			<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Purchase order</p>
+			<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contract</p>
 			<h2 class="mt-1 text-lg font-medium text-slate-900">
-				{data.docMeta.upload?.fileName ?? data.purchaseOrder.poNumber}
+				{data.docMeta.upload?.fileName ?? 'Contract record'}
 			</h2>
-			<p class="mt-0.5 font-mono text-xs text-slate-400">{data.purchaseOrder.id}</p>
+			<p class="mt-0.5 font-mono text-xs text-slate-400">{data.contract.id}</p>
 		</div>
 
 		<div class="grid gap-px bg-slate-200 sm:grid-cols-2">
 			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">PO number</p>
-				<p class="mt-1 text-sm text-slate-900">{data.purchaseOrder.poNumber}</p>
-			</div>
-			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Supplier</p>
-				<p class="mt-1 text-sm text-slate-900">{data.purchaseOrder.supplierName ?? '—'}</p>
-			</div>
-			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Amount</p>
-				<p class="mt-1 text-sm text-slate-900">{money(data.purchaseOrder.amount)}</p>
+				<p class="mt-1 text-sm text-slate-900">{money(data.contract.amount)}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Currency</p>
-				<p class="mt-1 text-sm text-slate-900">{data.purchaseOrder.currency ?? 'SGD'}</p>
+				<p class="mt-1 text-sm text-slate-900">{data.contract.currency ?? 'SGD'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">PO date</p>
-				<p class="mt-1 text-sm text-slate-900">{data.purchaseOrder.date ?? '—'}</p>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Contract date</p>
+				<p class="mt-1 text-sm text-slate-900">{data.contract.effectiveDate ?? '—'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Source</p>
@@ -91,7 +83,7 @@
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Storage key</p>
 				<p class="mt-1 break-all font-mono text-xs text-slate-600">
-					{data.purchaseOrder.fileUrl?.startsWith('manual://') ? 'Manual (no file)' : data.purchaseOrder.fileUrl}
+					{data.contract.fileUrl?.startsWith('manual://') ? 'Manual (no file)' : data.contract.fileUrl}
 				</p>
 			</div>
 			<div class="bg-white px-5 py-3 sm:col-span-2">
@@ -110,7 +102,7 @@
 			<div class="bg-white px-5 py-3 sm:col-span-2">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Created / updated</p>
 				<p class="mt-1 text-sm text-slate-800">
-					{fmtWhen(data.purchaseOrder.createdAt)} · {fmtWhen(data.purchaseOrder.updatedAt)}
+					{fmtWhen(data.contract.createdAt)} · {fmtWhen(data.contract.updatedAt)}
 				</p>
 			</div>
 		</div>
@@ -150,14 +142,14 @@
 			{:else if previewMode === 'pdf'}
 				<iframe
 					class="h-[min(75vh,900px)] w-full rounded-lg border border-slate-200 bg-slate-100"
-					title="Purchase order PDF preview"
+					title="Contract PDF preview"
 					src={data.fileViewUrl}
 				></iframe>
 			{:else if previewMode === 'image'}
 				<div class="flex justify-center rounded-lg border border-slate-200 bg-slate-50 p-4">
 					<img
 						class="max-h-[min(75vh,900px)] max-w-full object-contain"
-						alt="Purchase order attachment preview"
+						alt="Contract attachment preview"
 						src={data.fileViewUrl}
 					/>
 				</div>
@@ -181,24 +173,6 @@
 			Edit fields
 		</summary>
 		<form class="space-y-4 p-5" method="POST" action="?/update">
-			<label class="block space-y-1 text-xs font-medium text-slate-700">
-				PO number
-				<input
-					class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
-					name="poNumber"
-					required
-					value={data.purchaseOrder.poNumber}
-				/>
-			</label>
-			<label class="block space-y-1 text-xs font-medium text-slate-700">
-				Supplier
-				<input
-					class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
-					name="supplierName"
-					required
-					value={data.purchaseOrder.supplierName ?? ''}
-				/>
-			</label>
 			<div class="grid gap-3 sm:grid-cols-2">
 				<label class="block space-y-1 text-xs font-medium text-slate-700">
 					Amount
@@ -207,7 +181,7 @@
 						name="amount"
 						type="number"
 						step="0.01"
-						value={data.purchaseOrder.amount ?? 0}
+						value={data.contract.amount ?? 0}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700">
@@ -215,7 +189,7 @@
 					<input
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="currency"
-						value={data.purchaseOrder.currency ?? 'SGD'}
+						value={data.contract.currency ?? 'SGD'}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
@@ -224,7 +198,7 @@
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="date"
 						type="date"
-						value={data.purchaseOrder.date ?? ''}
+						value={data.contract.effectiveDate ?? ''}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">

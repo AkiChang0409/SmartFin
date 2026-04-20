@@ -98,7 +98,7 @@ function isoFromYmd(y: number, m: number, d: number): string {
 	return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/** 从 OCR 文本中按上下文给日期打分，用于消歧（多张日期时优先「单据/订单」日期，而非到期日、交货日等） */
+/** Score date mentions in OCR text by surrounding context to disambiguate (prefer document/order dates over due/delivery dates). */
 type ScoredDateHint = { iso: string; score: number; raw: string; window: string };
 
 function scoreDateWindow(ctx: string, docType: ExpenseDocType | null): number {
@@ -167,7 +167,7 @@ function collectScoredDatesFromText(text: string, docType: ExpenseDocType | null
 			d = b;
 			mo = a;
 		} else if (a <= 12 && b <= 12) {
-			// 常见 SG/EU：日.月.年
+			// Common SG/EU: day.month.year
 			d = a;
 			mo = b;
 		}
@@ -221,7 +221,7 @@ function formatDateCandidatesForPrompt(ranked: ScoredDateHint[]): string {
 		return `${i + 1}. ${h.iso} (contextScore=${h.score}, asPrinted="${h.raw}") — …${h.window}…`;
 	});
 	return (
-		`\n\n---\nDATE_CANDIDATES (按上下文优先级排序；expenseDate 应优先选与「单据/订单/发票」相关的日期，不要选 due/delivery/valid until 等):\n` +
+		`\n\n---\nDATE_CANDIDATES (ranked by contextual relevance; expenseDate should match the document/invoice/order date, not due/delivery/valid-until):\n` +
 		`${lines.join('\n')}\n---\n`
 	);
 }
@@ -305,7 +305,7 @@ Rules:
 currency (enumeration — critical for form binding):
 - suggestions.currency MUST be exactly one of: SGD, USD, CNY, MYR, EUR (ISO 4217 three-letter codes only).
 - NEVER output currency symbols alone as the value: do not use "¥", "￥", "$", "€", "S$", "US$", "RM" as the final currency string.
-- Map from document text: ¥ or ￥ or 人民币 or RMB or 元（在人民币语境下）→ CNY; S$ or SG$ → SGD; US$ or USD → USD; € → EUR; RM → MYR.
+- Map from document text: ¥ or ￥ or RMB or explicit CNY → CNY; S$ or SG$ → SGD; US$ or USD → USD; € → EUR; RM → MYR.
 - If the document shows an amount with ¥ nearby, choose CNY unless the text explicitly states another currency.
 
 expenseDate (critical):

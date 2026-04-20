@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	if (!platform) {
 		return json(
 			{
-				reply: 'AI 服务暂时不可用，请稍后再试。',
+				reply: 'The AI assistant is unavailable right now. Please try again later.',
 				action: null,
 				prefill: {},
 				missing_context: []
@@ -46,8 +46,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return json({
 			reply:
 				routerResult.intent_type === 'chat'
-					? '你好！我是 SmartFin 助手，可以帮你创建项目、管理发票、查看报表等。请告诉我你想做什么？'
-					: '我不太确定你想操作哪个模块，能再说详细一些吗？',
+					? 'Hi! I am the SmartFin assistant. I can help with projects, invoices, reports, and more. What would you like to do?'
+					: 'I am not sure which area you mean. Can you add a bit more detail?',
 			action: null,
 			prefill: {},
 			missing_context: []
@@ -57,7 +57,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	const domain = getDomainAgent(routerResult.domain);
 	if (!domain) {
 		return json({
-			reply: '该功能模块暂未启用。',
+			reply: 'That module is not enabled for this workspace.',
 			action: null,
 			prefill: {},
 			missing_context: []
@@ -85,7 +85,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return json(domainResult);
 	} catch {
 		return json({
-			reply: 'AI 服务暂时不可用，请稍后重试。',
+			reply: 'The AI assistant hit an error. Please try again in a moment.',
 			action: null,
 			prefill: {},
 			missing_context: []

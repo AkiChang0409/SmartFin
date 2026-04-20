@@ -1,6 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
+import { writeAuditLog } from '$lib/server/audit';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
 import { fail, ok } from '$lib/server/http';
 import { objectExists } from '$lib/server/r2';
@@ -104,6 +105,15 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			createdAt: now,
 			updatedAt: now
 		});
+		if (projectId) {
+			await writeAuditLog(platform, locals.user, {
+				action: 'contract.create',
+				entityType: 'contract',
+				entityId: contractId,
+				projectId,
+				metadata: { source: 'doc_hub_upload', fileName }
+			});
+		}
 		return ok({ entityType: 'contract', entityId: contractId, documentId }, 201);
 	}
 
@@ -164,6 +174,13 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			createdAt: now,
 			updatedAt: now
 		});
+		await writeAuditLog(platform, locals.user, {
+			action: 'quotation.create',
+			entityType: 'quotation',
+			entityId: quotationId,
+			projectId,
+			metadata: { source: 'doc_hub_upload', fileName }
+		});
 		return ok({ entityType: 'quotation', entityId: quotationId, documentId }, 201);
 	}
 
@@ -189,10 +206,11 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 
 	const poId = crypto.randomUUID();
+	const resolvedPoNumber = str(extracted.po_number) || `PO-${Date.now().toString(36).toUpperCase()}`;
 	await db.insert(schema.purchaseOrders).values({
 		id: poId,
 		projectId,
-		poNumber: str(extracted.po_number) || `PO-${Date.now().toString(36).toUpperCase()}`,
+		poNumber: resolvedPoNumber,
 		supplierName: str(extracted.supplier_name) || 'Unknown supplier',
 		clientName: str(extracted.client_name) || null,
 		date: str(extracted.date) || null,
@@ -224,6 +242,17 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		notes: notes ?? 'Archive only. Not included in cashflow calculation.',
 		createdAt: now,
 		updatedAt: now
+	});
+	await writeAuditLog(platform, locals.user, {
+		action: 'purchase_order.create',
+		entityType: 'purchase_order',
+		entityId: poId,
+		projectId,
+		metadata: {
+			source: 'doc_hub_upload',
+			fileName,
+			poNumber: resolvedPoNumber
+		}
 	});
 	return ok({ entityType: 'purchase_order', entityId: poId, documentId }, 201);
 };

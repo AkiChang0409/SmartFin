@@ -52,7 +52,7 @@
 	let tempEditMode = $state(false);
 	let tempBoxes = $state<Record<BoxKey, number>>(boxesFromGst(data.gst.boxes));
 
-	/** Load Period 后或同页数据刷新：用服务端计算结果同步草稿（不随本地编辑变化） */
+	/** After loading a period or server refresh: sync draft boxes from server totals (not from in-progress local edits). */
 	$effect(() => {
 		const y = data.year;
 		const q = data.quarter;

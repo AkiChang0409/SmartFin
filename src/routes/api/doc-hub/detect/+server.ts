@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			confidence: 0,
 			confidenceBand: 'low',
 			isImageFile: true,
-			message: '图片型文件，等待后续 OCR 功能实现',
+			message: 'Image file: OCR for images is not available yet.',
 			baseExtract: null,
 			extracted: null
 		});
@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	} catch (e) {
 		const message = e instanceof Error ? e.message : String(e);
 		const stack = e instanceof Error ? e.stack : '';
-		return fail(`文档提取失败: ${message}`, 500, {
+		return fail(`Document extraction failed: ${message}`, 500, {
 			message,
 			stack: stack?.slice(0, 1500) ?? '',
 			fileType: fileType,

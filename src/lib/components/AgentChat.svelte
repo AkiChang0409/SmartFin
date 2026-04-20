@@ -98,7 +98,7 @@
 				...messages,
 				{
 					role: 'assistant',
-					text: data.reply ?? '我没有理解你的意思，能换个方式说吗？',
+					text: data.reply ?? 'I did not quite follow. Could you rephrase that?',
 					action: data.action ?? null,
 					prefill: data.prefill ?? {},
 					data: data.data,
@@ -106,7 +106,7 @@
 				}
 			];
 		} catch {
-			messages = [...messages, { role: 'assistant', text: '出现了一些问题，请稍后再试。' }];
+			messages = [...messages, { role: 'assistant', text: 'Something went wrong. Please try again shortly.' }];
 		} finally {
 			loading = false;
 		}
@@ -172,7 +172,7 @@
 <button
 	class="fixed right-6 bottom-6 z-50 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-opacity hover:opacity-90"
 	style="background: var(--sf-green);"
-	aria-label="AI 助手"
+	aria-label="AI assistant"
 	onclick={() => (open = !open)}
 >
 	{#if open}✕{:else}✦{/if}
@@ -183,11 +183,11 @@
 		class="fixed right-6 bottom-20 z-50 flex w-80 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl"
 		style="max-height: 480px;"
 	>
-		<div class="px-4 py-3 text-sm font-semibold text-white" style="background: var(--sf-green);">SmartFin 助手</div>
+		<div class="px-4 py-3 text-sm font-semibold text-white" style="background: var(--sf-green);">SmartFin assistant</div>
 
 		<div class="flex-1 space-y-2 overflow-y-auto p-3 text-sm" bind:this={messagesContainer}>
 			{#if messages.length === 0}
-				<p class="mt-8 text-center text-gray-400">你好！有什么可以帮你的？</p>
+				<p class="mt-8 text-center text-gray-400">Hi! How can I help?</p>
 			{/if}
 
 			{#each messages as msg, idx}
@@ -209,15 +209,15 @@
 							{@const profit = formatted.content as ProfitData}
 							<div class="space-y-1">
 								<div class="font-medium text-gray-800">{profit.project_name}</div>
-								<div class="flex justify-between"><span>营收</span><span class="text-green-600">{formatCurrency(profit.revenue ?? 0)}</span></div>
-								<div class="flex justify-between"><span>成本</span><span class="text-red-600">{formatCurrency(profit.total_cost ?? 0)}</span></div>
-								<div class="flex justify-between border-t pt-1 font-medium"><span>净利润</span><span class={profit.net_profit && profit.net_profit >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(profit.net_profit ?? 0)}</span></div>
-								<div class="text-right text-gray-500">利润率 {profit.profit_margin_pct ?? 0}%</div>
+								<div class="flex justify-between"><span>Revenue</span><span class="text-green-600">{formatCurrency(profit.revenue ?? 0)}</span></div>
+								<div class="flex justify-between"><span>Total cost</span><span class="text-red-600">{formatCurrency(profit.total_cost ?? 0)}</span></div>
+								<div class="flex justify-between border-t pt-1 font-medium"><span>Net profit</span><span class={profit.net_profit && profit.net_profit >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(profit.net_profit ?? 0)}</span></div>
+								<div class="text-right text-gray-500">Margin {profit.profit_margin_pct ?? 0}%</div>
 							</div>
 						{:else if formatted.type === 'projects'}
 							{@const list = formatted.content as ProjectListData}
 							<div class="space-y-1">
-								<div class="text-gray-500">共 {list.count ?? 0} 个项目</div>
+								<div class="text-gray-500">{list.count ?? 0} project(s)</div>
 								{#each (list.projects ?? []).slice(0, 5) as p}
 									<div class="flex justify-between"><span>{p.name}</span><span class="text-gray-400">{p.status}</span></div>
 								{/each}
@@ -225,7 +225,7 @@
 						{:else if formatted.type === 'invoices'}
 							{@const list = formatted.content as InvoiceListData}
 							<div class="space-y-1">
-								<div class="text-gray-500">共 {list.count ?? 0} 张发票</div>
+								<div class="text-gray-500">{list.count ?? 0} invoice(s)</div>
 								{#each (list.invoices ?? []).slice(0, 5) as inv}
 									<div class="flex justify-between"><span>{inv.invoice_no}</span><span>{formatCurrency(inv.total, inv.currency)}</span></div>
 								{/each}
@@ -238,7 +238,7 @@
 
 					{#if msg.role === 'assistant' && msg.missing_context && msg.missing_context.length > 0}
 						<div class="mt-1 text-left text-xs text-amber-600">
-							需要补充：{msg.missing_context.join('、')}
+							Still need: {msg.missing_context.join(', ')}
 						</div>
 					{/if}
 
@@ -250,7 +250,7 @@
 								style="border: 1px solid rgba(56, 114, 52, 0.25); background: var(--sf-green-soft); color: var(--sf-green);"
 								onclick={() => navigate(msg.action!.entry, msg.prefill ?? {})}
 							>
-								前往 →
+								Go →
 							</button>
 						{/if}
 						{#if isLastAssistant}
@@ -259,7 +259,7 @@
 								style="border: 1px solid #e5e7eb;"
 								onclick={startFollowUp}
 							>
-								继续追问
+								Follow up
 							</button>
 						{/if}
 					</div>
@@ -269,7 +269,7 @@
 
 			{#if loading}
 				<div class="text-left">
-					<span class="inline-block rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-400">思考中...</span>
+					<span class="inline-block rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-400">Thinking…</span>
 				</div>
 			{/if}
 		</div>
@@ -277,14 +277,14 @@
 		<div class="border-t border-gray-200 p-2">
 			{#if followUpMode}
 				<div class="mb-1 flex items-center justify-between text-xs text-amber-600">
-					<span>追问模式：将结合上文回答</span>
-					<button class="text-gray-400 hover:text-gray-600" onclick={cancelFollowUp}>取消</button>
+					<span>Follow-up mode: replies use prior messages</span>
+					<button class="text-gray-400 hover:text-gray-600" onclick={cancelFollowUp}>Cancel</button>
 				</div>
 			{/if}
 			<div class="flex gap-2">
 				<input
 					class="flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none {followUpMode ? 'border-amber-400 bg-amber-50' : 'border-gray-200 focus:border-green-700'}"
-					placeholder={followUpMode ? '补充信息...' : '输入你想做什么...'}
+					placeholder={followUpMode ? 'Add detail…' : 'What would you like to do?'}
 					bind:value={input}
 					bind:this={inputRef}
 					onkeydown={handleKeydown}
@@ -296,7 +296,7 @@
 					onclick={() => void send()}
 					disabled={loading || !input.trim()}
 				>
-					发送
+					Send
 				</button>
 			</div>
 		</div>

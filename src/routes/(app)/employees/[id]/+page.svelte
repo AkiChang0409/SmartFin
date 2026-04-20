@@ -3,6 +3,12 @@
 
 	let { data, form } = $props();
 
+	let profileEditing = $state(false);
+
+	$effect(() => {
+		if (form && 'profileUpdated' in form && form.profileUpdated) profileEditing = false;
+	});
+
 	const today = new Date().toISOString().slice(0, 10);
 	const calendarYear = new Date().getFullYear();
 	const taxYearMin = 2018;
@@ -12,10 +18,15 @@
 	function formatSgd(n: number) {
 		return new Intl.NumberFormat('en-SG', { style: 'currency', currency: 'SGD' }).format(n);
 	}
+
+	function dash(s: string | null | undefined) {
+		const t = s?.trim();
+		return t ? t : '—';
+	}
 </script>
 
 <PageShell
-	eyebrow="Employee"
+	eyebrow="HR"
 	title={data.employee.name}
 	description={`Type: ${data.employee.type} · Status: ${data.employee.status}`}
 >
@@ -29,66 +40,136 @@
 		</p>
 	{/if}
 
-	<form class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" method="POST" action="?/updateProfile">
-		<h2 class="text-lg font-semibold text-slate-900">Profile</h2>
-		<div class="grid gap-4 md:grid-cols-2">
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">Name</span>
-				<input name="name" required value={data.employee.name} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
-			</label>
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">Type</span>
-				<select name="type" value={data.employee.type} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]">
-					<option value="full_time">full_time</option>
-					<option value="part_time">part_time</option>
-					<option value="freelancer">freelancer</option>
-					<option value="advisor">advisor</option>
-					<option value="overseas_staff">overseas_staff</option>
-				</select>
-			</label>
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">Status</span>
-				<select name="status" value={data.employee.status} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]">
-					<option value="active">active</option>
-					<option value="inactive">inactive</option>
-				</select>
-			</label>
-			<label class="flex items-center gap-2 text-sm pt-6">
-				<input type="checkbox" name="cpfApplicable" checked={data.employee.cpfApplicable ?? true} class="rounded border-slate-300" />
-				<span class="text-slate-700">CPF applicable (company default)</span>
-			</label>
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">Start date</span>
-				<input type="date" name="startDate" value={data.employee.startDate ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
-			</label>
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">End date</span>
-				<input type="date" name="endDate" value={data.employee.endDate ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
-			</label>
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">Contact</span>
-				<input name="contact" value={data.employee.contact ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
-			</label>
-			<label class="space-y-1 text-sm">
-				<span class="text-slate-700">Tax ID</span>
-				<input name="taxId" value={data.employee.taxId ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
-			</label>
-			<label class="space-y-1 text-sm md:col-span-2">
-				<span class="text-slate-700">Tax resident label</span>
-				<input
-					name="taxResidentLabel"
-					value={data.employee.taxResidentLabel ?? ''}
-					placeholder="e.g. Singapore citizen, PR, non-resident"
-					class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
-				/>
-			</label>
+	<div class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h2 class="text-lg font-semibold text-slate-900">Profile</h2>
+			<div class="flex flex-wrap items-center gap-2">
+				{#if profileEditing}
+					<button
+						type="button"
+						class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+						onclick={() => {
+							profileEditing = false;
+						}}
+					>
+						Cancel
+					</button>
+				{:else}
+					<button
+						type="button"
+						class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+						onclick={() => {
+							profileEditing = true;
+						}}
+					>
+						Edit
+					</button>
+				{/if}
+				<a class="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50" href="/employees">Back to list</a>
+			</div>
 		</div>
 
-		<div class="flex flex-wrap gap-3">
-			<button class="rounded-md bg-[var(--sf-green)] px-4 py-2 text-sm font-medium text-white hover:bg-[#2f5e2c]" type="submit">Save profile</button>
-			<a class="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" href="/employees">Back to list</a>
-		</div>
-	</form>
+		{#if profileEditing}
+			<form class="space-y-4" method="POST" action="?/updateProfile">
+				<div class="grid gap-4 md:grid-cols-2">
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">Name</span>
+						<input name="name" required value={data.employee.name} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
+					</label>
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">Type</span>
+						<select name="type" value={data.employee.type} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]">
+							<option value="full_time">full_time</option>
+							<option value="part_time">part_time</option>
+							<option value="freelancer">freelancer</option>
+							<option value="advisor">advisor</option>
+							<option value="overseas_staff">overseas_staff</option>
+						</select>
+					</label>
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">Status</span>
+						<select name="status" value={data.employee.status} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]">
+							<option value="active">active</option>
+							<option value="inactive">inactive</option>
+						</select>
+					</label>
+					<label class="flex items-center gap-2 text-sm pt-6">
+						<input type="checkbox" name="cpfApplicable" checked={data.employee.cpfApplicable ?? true} class="rounded border-slate-300" />
+						<span class="text-slate-700">CPF applicable (company default)</span>
+					</label>
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">Start date</span>
+						<input type="date" name="startDate" value={data.employee.startDate ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
+					</label>
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">End date</span>
+						<input type="date" name="endDate" value={data.employee.endDate ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
+					</label>
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">Contact</span>
+						<input name="contact" value={data.employee.contact ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
+					</label>
+					<label class="space-y-1 text-sm">
+						<span class="text-slate-700">Tax ID</span>
+						<input name="taxId" value={data.employee.taxId ?? ''} class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]" />
+					</label>
+					<label class="space-y-1 text-sm md:col-span-2">
+						<span class="text-slate-700">Tax resident label</span>
+						<input
+							name="taxResidentLabel"
+							value={data.employee.taxResidentLabel ?? ''}
+							placeholder="e.g. Singapore citizen, PR, non-resident"
+							class="w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--sf-green)]"
+						/>
+					</label>
+				</div>
+				<div class="flex flex-wrap gap-3">
+					<button class="rounded-md bg-[var(--sf-green)] px-4 py-2 text-sm font-medium text-white hover:bg-[#2f5e2c]" type="submit">Save profile</button>
+				</div>
+			</form>
+		{:else}
+			<dl class="grid gap-4 border-t border-slate-100 pt-4 md:grid-cols-2">
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Name</dt>
+					<dd class="mt-1 text-sm text-slate-900">{data.employee.name}</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Type</dt>
+					<dd class="mt-1 text-sm text-slate-900">{data.employee.type}</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Status</dt>
+					<dd class="mt-1 text-sm text-slate-900">
+						<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{data.employee.status}</span>
+					</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">CPF applicable</dt>
+					<dd class="mt-1 text-sm text-slate-900">{data.employee.cpfApplicable !== false ? 'Yes' : 'No'}</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Start date</dt>
+					<dd class="mt-1 text-sm text-slate-900">{dash(data.employee.startDate)}</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">End date</dt>
+					<dd class="mt-1 text-sm text-slate-900">{dash(data.employee.endDate)}</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Contact</dt>
+					<dd class="mt-1 text-sm text-slate-900">{dash(data.employee.contact)}</dd>
+				</div>
+				<div>
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Tax ID</dt>
+					<dd class="mt-1 text-sm text-slate-900">{dash(data.employee.taxId)}</dd>
+				</div>
+				<div class="md:col-span-2">
+					<dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Tax resident label</dt>
+					<dd class="mt-1 text-sm text-slate-900">{dash(data.employee.taxResidentLabel)}</dd>
+				</div>
+			</dl>
+		{/if}
+	</div>
 
 	<section class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
 		<div>

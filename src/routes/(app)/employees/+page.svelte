@@ -4,7 +4,7 @@
 </script>
 
 <PageShell
-	eyebrow="Employee"
+	eyebrow="HR"
 	title="Employee Management"
 	description="Manage employee profiles and track monthly fixed salary records."
 >

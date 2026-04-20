@@ -44,17 +44,17 @@ export function parseDateToPrefill(value: unknown): string {
 
 	const input = value.trim().toLowerCase();
 
-	// Handle Chinese relative dates
+	// Relative dates (English shortcuts)
 	const today = new Date();
-	if (input === '今天' || input === 'today') {
+	if (input === 'today') {
 		return formatDate(today);
 	}
-	if (input === '明天' || input === 'tomorrow') {
+	if (input === 'tomorrow') {
 		const d = new Date(today);
 		d.setDate(d.getDate() + 1);
 		return formatDate(d);
 	}
-	if (input === '昨天' || input === 'yesterday') {
+	if (input === 'yesterday') {
 		const d = new Date(today);
 		d.setDate(d.getDate() - 1);
 		return formatDate(d);

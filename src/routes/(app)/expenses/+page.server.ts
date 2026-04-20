@@ -1,4 +1,4 @@
-import { desc, isNull } from 'drizzle-orm';
+import { desc, eq, isNull } from 'drizzle-orm';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 
@@ -12,10 +12,11 @@ export const load: PageServerLoad = async ({ platform }) => {
 
 	const db = getDb(platform.env);
 
-	const expenses = await db
+	const expenseRows = await db
 		.select({
 			id: schema.expenses.id,
 			projectId: schema.expenses.projectId,
+			projectName: schema.projects.name,
 			expenseType: schema.expenses.expenseType,
 			category: schema.expenses.category,
 			docType: schema.expenses.docType,
@@ -29,12 +30,19 @@ export const load: PageServerLoad = async ({ platform }) => {
 			reimbursement: schema.expenses.reimbursement,
 			businessTrip: schema.expenses.businessTrip,
 			destination: schema.expenses.destination,
+			documentRef: schema.expenses.documentRef,
 			notes: schema.expenses.notes,
 			createdAt: schema.expenses.createdAt
 		})
 		.from(schema.expenses)
+		.leftJoin(schema.projects, eq(schema.expenses.projectId, schema.projects.id))
 		.where(isNull(schema.expenses.deletedAt))
 		.orderBy(desc(schema.expenses.date), desc(schema.expenses.createdAt));
+
+	const expenses = expenseRows.map((row) => ({
+		...row,
+		hasAttachment: Boolean(row.documentRef && !row.documentRef.startsWith('manual://'))
+	}));
 
 	const employees = await db
 		.select({
@@ -47,7 +55,7 @@ export const load: PageServerLoad = async ({ platform }) => {
 
 	const totals = expenses.reduce(
 		(acc, exp) => {
-			const amt = exp.sgdEquivalent || exp.amount || 0;
+			const amt = exp.sgdEquivalent ?? exp.amount ?? 0;
 			acc.total += amt;
 			if (exp.expenseType === 'sales_cost') {
 				acc.salesCost += amt;

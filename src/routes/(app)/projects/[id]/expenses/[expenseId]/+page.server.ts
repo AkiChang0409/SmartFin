@@ -4,8 +4,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 import { writeAuditLog } from '$lib/server/audit';
 import { buildDocumentMetadata, parseDocumentMetadata } from '$lib/server/document-metadata';
+import { resolveExpenseFilePreview } from '$lib/server/expense-file-preview';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
-import { r2FileUrls } from '$lib/server/r2-file-urls';
 
 export const load: PageServerLoad = async ({ params, platform, parent }) => {
 	await parent();
@@ -27,9 +27,13 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 	if (!expense) throw error(404, 'Expense not found');
 
 	const docMeta = parseDocumentMetadata(expense.metadata);
-	const { fileViewUrl, fileDownloadUrl } = r2FileUrls(expense.documentRef);
+	const { fileViewUrl, fileDownloadUrl, previewDisplay } = await resolveExpenseFilePreview(
+		db,
+		expense.documentRef,
+		docMeta
+	);
 
-	return { expense, docMeta, fileViewUrl, fileDownloadUrl };
+	return { expense, docMeta, fileViewUrl, fileDownloadUrl, previewDisplay };
 };
 
 export const actions: Actions = {

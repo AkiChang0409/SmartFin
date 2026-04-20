@@ -52,7 +52,7 @@
 <div class="space-y-6">
 	<div>
 		<h1 class="text-xl font-semibold text-slate-900">Revenue</h1>
-		<p class="mt-1 text-sm text-slate-500">Track project revenue. 录入即代表已收款。</p>
+		<p class="mt-1 text-sm text-slate-500">Track project revenue. Recording here means cash has been received.</p>
 	</div>
 
 	<!-- Summary cards -->
@@ -84,7 +84,7 @@
 		</button>
 		<a
 			class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-			href={`/finance/customer-invoices/generate?projectId=${encodeURIComponent(data.project.id)}`}
+			href={`/finance/doc-hub/customer-invoices/generate?projectId=${encodeURIComponent(data.project.id)}`}
 		>
 			Generate Invoice
 		</a>
@@ -189,7 +189,7 @@
 		<div class="relative w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
 			<div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
 				<h3 class="text-base font-semibold text-slate-900">Record Revenue</h3>
-				<p class="text-sm text-slate-500">录入即代表已收款。先开发票、收款，再录入系统。</p>
+				<p class="text-sm text-slate-500">Recording means payment received. Issue the invoice, collect payment, then record it here.</p>
 			</div>
 			<form method="POST" action="?/createRevenue" use:enhance class="space-y-4 p-5">
 				<div class="grid grid-cols-2 gap-4">
@@ -236,7 +236,7 @@
 				</div>
 				<div>
 					<label class="block text-sm font-medium text-slate-700" for="revenueNotes">Notes</label>
-					<textarea id="revenueNotes" name="notes" rows="2" class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="备注"></textarea>
+					<textarea id="revenueNotes" name="notes" rows="2" class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="Notes"></textarea>
 				</div>
 				<div class="flex justify-end gap-2 border-t border-slate-200 pt-4">
 					<button type="button" class="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onclick={() => (showNewRevenue = false)}>Cancel</button>

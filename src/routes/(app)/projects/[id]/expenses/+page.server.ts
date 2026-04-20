@@ -1,9 +1,12 @@
-import { desc, isNull, eq, and, sql } from 'drizzle-orm';
+import { desc, isNull, eq, and, inArray } from 'drizzle-orm';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 
+import { parseDocumentMetadata } from '$lib/server/document-metadata';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
 import { ALLOWANCE_RATES } from '$lib/constants/expense-upload';
+
+const DOCUMENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const load: PageServerLoad = async ({ params, platform, parent }) => {
 	const { project } = await parent();
@@ -20,7 +23,7 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 	const db = getDb(platform.env);
 	const projectId = params.id;
 
-	const expenses = await db
+	const expenseRows = await db
 		.select({
 			id: schema.expenses.id,
 			expenseType: schema.expenses.expenseType,
@@ -36,6 +39,8 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 			reimbursement: schema.expenses.reimbursement,
 			businessTrip: schema.expenses.businessTrip,
 			destination: schema.expenses.destination,
+			documentRef: schema.expenses.documentRef,
+			metadata: schema.expenses.metadata,
 			notes: schema.expenses.notes,
 			createdAt: schema.expenses.createdAt
 		})
@@ -43,9 +48,55 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		.where(and(eq(schema.expenses.projectId, projectId), isNull(schema.expenses.deletedAt)))
 		.orderBy(desc(schema.expenses.date), desc(schema.expenses.createdAt));
 
-	const totals = expenses.reduce(
+	const docIdRefs = [
+		...new Set(
+			expenseRows
+				.map((e) => e.documentRef)
+				.filter((r): r is string => !!r && DOCUMENT_ID_RE.test(r))
+		)
+	];
+	const fileKeyByDocumentId = new Map<string, string>();
+	if (docIdRefs.length > 0) {
+		const docRows = await db
+			.select({ id: schema.documents.id, fileKey: schema.documents.fileKey })
+			.from(schema.documents)
+			.where(inArray(schema.documents.id, docIdRefs));
+		for (const d of docRows) {
+			fileKeyByDocumentId.set(d.id, d.fileKey);
+		}
+	}
+
+	function resolveStorageKey(documentRef: string | null): string | null {
+		if (!documentRef || documentRef.startsWith('manual://')) return null;
+		if (DOCUMENT_ID_RE.test(documentRef)) {
+			return fileKeyByDocumentId.get(documentRef) ?? null;
+		}
+		return documentRef;
+	}
+
+	const expenses = expenseRows.map((exp) => {
+		const storageKey = resolveStorageKey(exp.documentRef);
+		const hasAttachment = Boolean(exp.documentRef && !exp.documentRef.startsWith('manual://'));
+		const meta = parseDocumentMetadata(exp.metadata ?? null);
+		let statusLabel = '—';
+		if (meta.parseStatus === 'reviewed') statusLabel = 'Reviewed';
+		else if (meta.parseStatus === 'parsed') statusLabel = 'Parsed';
+		else if (meta.parseStatus === 'not_parsed') statusLabel = 'Pending review';
+		else if (storageKey || (exp.documentRef && !exp.documentRef.startsWith('manual://')))
+			statusLabel = 'Document';
+		else statusLabel = 'Manual';
+
+		return {
+			...exp,
+			projectName: project.name,
+			hasAttachment,
+			statusLabel
+		};
+	});
+
+	const totals = expenseRows.reduce(
 		(acc, exp) => {
-			const amt = exp.sgdEquivalent || exp.amount || 0;
+			const amt = exp.sgdEquivalent ?? exp.amount ?? 0;
 			acc.total += amt;
 			if (exp.expenseType === 'sales_cost') {
 				acc.salesCost += amt;

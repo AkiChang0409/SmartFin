@@ -13,17 +13,16 @@ export class BusinessPartnerRepository extends BaseRepository<typeof businessPar
 	}
 
 	async findByType(type: 'customer' | 'supplier' | 'both') {
+		const conditions = [isNull(businessPartners.deletedAt)];
+		if (type === 'both') {
+			conditions.push(eq(businessPartners.type, 'both'));
+		} else {
+			conditions.push(or(eq(businessPartners.type, type), eq(businessPartners.type, 'both'))!);
+		}
 		return this.db
 			.select()
 			.from(businessPartners)
-			.where(
-				and(
-					isNull(businessPartners.deletedAt),
-					type === 'both'
-						? undefined
-						: or(eq(businessPartners.type, type), eq(businessPartners.type, 'both'))
-				)
-			);
+			.where(and(...conditions));
 	}
 
 	async search(query: string) {

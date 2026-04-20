@@ -36,9 +36,9 @@ export interface AgentIntentResult {
 	missing_context: string[];
 }
 
-// ============ Multi-Agent 新增类型 ============
+// ============ Multi-agent orchestration types ============
 
-/** Router Agent 的输出 */
+/** Router agent output */
 export interface RouterResult {
 	intent_type: 'action' | 'query' | 'chat';
 	domain: string | null;
@@ -47,7 +47,7 @@ export interface RouterResult {
 	context: AgentContext;
 }
 
-/** Domain Agent 的输出 */
+/** Domain agent output */
 export interface DomainResult {
 	reply: string;
 	action: {
@@ -60,7 +60,7 @@ export interface DomainResult {
 	missing_context: string[];
 }
 
-/** 模块描述，供 Router Agent 分类用 */
+/** Module descriptor for router classification */
 export interface DomainDescriptor {
 	id: string;
 	name: string;
@@ -68,35 +68,35 @@ export interface DomainDescriptor {
 	keywords: string[];
 }
 
-/** Domain Agent 定义 */
+/** Domain agent definition */
 export interface DomainAgentDef {
 	descriptor: DomainDescriptor;
 	actions: AgentAction[];
 	buildSystemPrompt: () => string;
 }
 
-/** Query 执行上下文，由 intent API 注入 */
+/** Query execution context (injected by intent API) */
 export interface QueryContext {
 	env: Env;
 	userId: string;
 	userRole: string;
 }
 
-/** Query 执行结果 */
+/** Query execution result */
 export interface QueryDataResult {
 	success: boolean;
 	data?: unknown;
 	error?: string;
 }
 
-/** Query 处理器类型 */
+/** Query handler signature */
 export type QueryHandler = (
 	ctx: QueryContext,
 	actionId: string,
 	params: Record<string, unknown>
 ) => Promise<QueryDataResult>;
 
-/** 对话历史消息 */
+/** Chat history entry */
 export interface ChatHistoryMessage {
 	role: 'user' | 'assistant';
 	content: string;

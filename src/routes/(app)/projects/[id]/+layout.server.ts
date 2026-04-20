@@ -21,10 +21,12 @@ function fileLabelFromUrl(fileUrl: string | null, fallbackDate: string | null): 
 	}
 }
 
-export const load: LayoutServerLoad = async ({ params, platform }) => {
+export const load: LayoutServerLoad = async ({ params, platform, depends }) => {
 	if (!platform) {
 		throw error(500, 'Cloudflare platform bindings are required');
 	}
+
+	depends(`app:project-activity:${params.id}`);
 
 	const db = getDb(platform.env);
 	const [project] = await db

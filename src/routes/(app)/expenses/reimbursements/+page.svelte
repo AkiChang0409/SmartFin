@@ -14,7 +14,7 @@
 <PageShell
 	eyebrow="Finance"
 	title="Reimbursement Records"
-	description="员工垫付记录查询（reimbursement = true 的费用）。小公司场景，无审批流程。"
+	description="Staff out-of-pocket expenses flagged for reimbursement (reimbursement = true). No approval workflow in this build."
 >
 	<!-- Summary -->
 	<div class="grid grid-cols-2 gap-4 md:grid-cols-2">

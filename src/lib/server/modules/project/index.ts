@@ -18,8 +18,8 @@ export const projectActions: AgentAction[] = [
 	{
 		id: 'view_projects',
 		module: 'project',
-		description: '查看项目列表',
-		keywords: ['项目列表', '查看项目', 'projects', 'project list'],
+		description: 'View the project list',
+		keywords: ['projects', 'project list', 'all projects'],
 		entry: '/projects',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager', 'employee']
@@ -27,28 +27,28 @@ export const projectActions: AgentAction[] = [
 	{
 		id: 'create_project',
 		module: 'project',
-		description: '新建项目并填写基础信息',
-		keywords: ['创建项目', '新建项目', 'create project', 'new project', '开一个项目'],
+		description: 'Create a project with basic details',
+		keywords: ['create project', 'new project', 'add project'],
 		entry: '/projects/new',
 		layer: 2,
 		required_roles: ['owner', 'finance', 'project_manager'],
 		params: [
-			{ name: 'project_name', type: 'string', required: false, description: '项目名称' },
-			{ name: 'customer_name', type: 'string', required: false, description: '客户名称' },
+			{ name: 'project_name', type: 'string', required: false, description: 'Project name' },
+			{ name: 'customer_name', type: 'string', required: false, description: 'Customer name' },
 			{
 				name: 'project_type',
 				type: 'string',
 				required: false,
-				description: '项目类型：delivery/ongoing/internal'
+				description: 'Project type: delivery / ongoing / internal'
 			},
-			{ name: 'start_date', type: 'date', required: false, description: '开始日期' }
+			{ name: 'start_date', type: 'date', required: false, description: 'Start date' }
 		]
 	},
 	{
 		id: 'view_project_detail',
 		module: 'project',
-		description: '查看某个项目的详细信息',
-		keywords: ['项目详情', '项目信息', 'project detail', '查看项目'],
+		description: 'View details for a specific project',
+		keywords: ['project detail', 'project info', 'open project'],
 		entry: '/projects/[id]',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager', 'employee'],
@@ -57,7 +57,7 @@ export const projectActions: AgentAction[] = [
 				name: 'project_id',
 				type: 'string',
 				required: true,
-				description: '项目ID',
+				description: 'Project ID',
 				extract_from_context: true
 			}
 		]
@@ -65,8 +65,8 @@ export const projectActions: AgentAction[] = [
 	{
 		id: 'view_project_profit',
 		module: 'project',
-		description: '查看项目利润与财务概览',
-		keywords: ['项目利润', '利润分析', 'project profit', 'project margin', '盈亏'],
+		description: 'View project profit and financial summary',
+		keywords: ['project profit', 'margin', 'P&L', 'project financials'],
 		entry: '/projects',
 		api: 'GET /api/projects/[id]/profit',
 		layer: 4,
@@ -76,7 +76,7 @@ export const projectActions: AgentAction[] = [
 				name: 'project_id',
 				type: 'string',
 				required: true,
-				description: '项目ID',
+				description: 'Project ID',
 				extract_from_context: true
 			}
 		]
@@ -84,8 +84,8 @@ export const projectActions: AgentAction[] = [
 	{
 		id: 'add_project_member',
 		module: 'project',
-		description: '给项目添加成员',
-		keywords: ['添加成员', '项目成员', 'add member', 'assign employee', '分配员工'],
+		description: 'Add a member to a project',
+		keywords: ['add member', 'project team', 'assign employee', 'staff assignment'],
 		entry: '/projects/[id]/employees',
 		layer: 2,
 		required_roles: ['owner', 'project_manager'],
@@ -94,10 +94,10 @@ export const projectActions: AgentAction[] = [
 				name: 'project_id',
 				type: 'string',
 				required: true,
-				description: '项目ID',
+				description: 'Project ID',
 				extract_from_context: true
 			},
-			{ name: 'employee_name', type: 'string', required: false, description: '员工姓名' }
+			{ name: 'employee_name', type: 'string', required: false, description: 'Employee name' }
 		]
 	}
 ];

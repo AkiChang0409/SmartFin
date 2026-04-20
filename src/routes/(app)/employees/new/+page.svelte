@@ -40,7 +40,7 @@
 	});
 </script>
 
-<PageShell eyebrow="Employee Management" title="Create Employee" description="Create a new employee profile and continue to salary records.">
+<PageShell eyebrow="HR" title="Create Employee" description="Create a new employee profile and continue to salary records.">
 	<form class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" method="POST">
 		{#if form?.message}
 			<p class="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{form.message}</p>

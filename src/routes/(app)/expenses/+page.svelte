@@ -1,16 +1,21 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import PageShell from '$lib/components/PageShell.svelte';
-	import {
-		EXPENSE_CATEGORY_OPTIONS,
-		CATEGORY_LABELS,
-		EXPENSE_TYPE_LABELS,
-		type ExpenseType
-	} from '$lib/constants/expense-upload';
+	import { EXPENSE_CATEGORY_OPTIONS, CATEGORY_LABELS, type ExpenseType } from '$lib/constants/expense-upload';
 
 	let { data } = $props();
 
 	const money = (value: number, currency = 'SGD') =>
 		new Intl.NumberFormat('en-SG', { style: 'currency', currency }).format(value ?? 0);
+
+	const formatDate = (date: string | null) => {
+		if (!date) return '—';
+		return new Date(date).toLocaleDateString('en-SG', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
+	};
 
 	let showManualEntry = $state(false);
 	let filterType = $state<'all' | ExpenseType>('all');
@@ -22,13 +27,42 @@
 		});
 	});
 
-	const typeLabel = (t: string | null) => {
-		return t === 'sales_cost' ? 'Sales Cost' : 'OpEx';
-	};
+	const typeAbbr = (t: string | null) => (t === 'sales_cost' ? 'SC' : 'OpEx');
 
 	const categoryLabel = (c: string) => {
 		return (CATEGORY_LABELS as Record<string, string>)[c] ?? c;
 	};
+
+	const gstCell = (gst: number | null | undefined, currency: string) => {
+		if (gst == null || gst === 0) return '—';
+		return money(gst, currency);
+	};
+
+	const statusLabel = (expense: (typeof data.expenses)[number]) => {
+		const parts: string[] = [];
+		if (expense.reimbursement) parts.push('Reimb.');
+		if (expense.businessTrip) parts.push('Trip');
+		return parts.length ? parts.join(' · ') : 'Booked';
+	};
+
+	const expenseDetailHref = (exp: (typeof data.expenses)[number]) =>
+		exp.projectId
+			? `/projects/${exp.projectId}/documents/expenses/${exp.id}`
+			: `/expenses/${exp.id}`;
+
+	const rowClass =
+		'cursor-pointer transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sf-green)] focus-visible:ring-offset-2';
+
+	function rowNavigate(href: string) {
+		void goto(href);
+	}
+
+	function rowKeyDown(e: KeyboardEvent, href: string) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			void goto(href);
+		}
+	}
 </script>
 
 <PageShell
@@ -69,7 +103,7 @@
 				class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
 				href="/expenses/upload"
 			>
-				Upload Document
+				Upload expense file
 			</a>
 			<a
 				class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -97,30 +131,40 @@
 					<th class="px-4 py-3 font-medium">Category</th>
 					<th class="px-4 py-3 font-medium">Name/Vendor</th>
 					<th class="px-4 py-3 font-medium text-right">Amount</th>
-					<th class="px-4 py-3 font-medium">Tags</th>
+					<th class="px-4 py-3 font-medium">Project Name</th>
+					<th class="px-4 py-3 font-medium text-right">GST</th>
+					<th class="px-4 py-3 font-medium">Status</th>
 					<th class="px-4 py-3 font-medium">Notes</th>
+					<th class="px-4 py-3 font-medium text-right">File</th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-100">
 				{#if filteredExpenses.length === 0}
 					<tr>
-						<td class="px-4 py-8 text-center text-slate-500" colspan="7">
+						<td class="px-4 py-8 text-center text-slate-500" colspan="10">
 							No expenses found. Upload a document or create a manual entry.
 						</td>
 					</tr>
 				{:else}
 					{#each filteredExpenses as expense}
-						<tr class="hover:bg-slate-50">
+						<tr
+							class={rowClass}
+							role="link"
+							tabindex="0"
+							onclick={() => rowNavigate(expenseDetailHref(expense))}
+							onkeydown={(e) => rowKeyDown(e, expenseDetailHref(expense))}
+						>
 							<td class="px-4 py-3">
 								<span
 									class="rounded px-2 py-0.5 text-xs font-medium {expense.expenseType === 'sales_cost'
 										? 'bg-sky-100 text-sky-700'
 										: 'bg-purple-100 text-purple-700'}"
+									title={expense.expenseType === 'sales_cost' ? 'Sales Cost' : 'Operating Expenses'}
 								>
-									{typeLabel(expense.expenseType)}
+									{typeAbbr(expense.expenseType)}
 								</span>
 							</td>
-							<td class="px-4 py-3 text-slate-600">{expense.date}</td>
+							<td class="px-4 py-3 text-slate-600">{formatDate(expense.date)}</td>
 							<td class="px-4 py-3 text-slate-600">{categoryLabel(expense.category)}</td>
 							<td class="px-4 py-3 font-medium text-slate-800">
 								{expense.vendorOrSupplier || expense.staffName || '-'}
@@ -131,21 +175,32 @@
 									<span class="block text-xs text-slate-500">{money(expense.sgdEquivalent)}</span>
 								{/if}
 							</td>
-							<td class="px-4 py-3">
-								<div class="flex flex-wrap gap-1">
-									{#if expense.reimbursement}
-										<span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Reimb</span>
-									{/if}
-									{#if expense.businessTrip}
-										<span class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Trip</span>
-									{/if}
-									{#if expense.projectId}
-										<span class="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Project</span>
-									{/if}
-								</div>
+							<td class="max-w-[180px] truncate px-4 py-3 text-slate-600" title={expense.projectName ?? ''}>
+								{expense.projectName ?? '—'}
 							</td>
-							<td class="px-4 py-3 max-w-[200px] truncate text-slate-500 text-xs">
-								{expense.notes || '-'}
+							<td class="px-4 py-3 text-right text-slate-600">
+								{gstCell(expense.gstAmount, expense.currency)}
+							</td>
+							<td class="px-4 py-3">
+								<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700">
+									{statusLabel(expense)}
+								</span>
+							</td>
+							<td class="max-w-[200px] truncate px-4 py-3 text-xs text-slate-500" title={expense.notes ?? ''}>
+								{expense.notes || '—'}
+							</td>
+							<td class="px-4 py-3 text-right">
+								{#if expense.hasAttachment}
+									<a
+										class="text-sm font-medium text-[var(--sf-green)] hover:underline"
+										href={expenseDetailHref(expense)}
+										onclick={(e) => e.stopPropagation()}
+									>
+										View
+									</a>
+								{:else}
+									<span class="text-slate-400">—</span>
+								{/if}
 							</td>
 						</tr>
 					{/each}
@@ -167,7 +222,7 @@
 		<div class="relative w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
 			<div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
 				<h3 class="text-base font-semibold text-slate-900">Manual Expense Entry</h3>
-				<p class="text-sm text-slate-500">录入即确认，无需文件附件。</p>
+				<p class="text-sm text-slate-500">Saving confirms the expense; no file attachment required.</p>
 			</div>
 			<form method="POST" action="?/create" class="space-y-4 p-5">
 				<div class="grid grid-cols-2 gap-4">
@@ -281,7 +336,7 @@
 						id="destination"
 						name="destination"
 						class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-						placeholder="出差目的地"
+						placeholder="Trip destination"
 					/>
 				</div>
 				<div>
@@ -291,7 +346,7 @@
 						name="notes"
 						rows="2"
 						class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-						placeholder="备注说明"
+						placeholder="Notes"
 					></textarea>
 				</div>
 				<div class="flex justify-end gap-2 border-t border-slate-200 pt-4">

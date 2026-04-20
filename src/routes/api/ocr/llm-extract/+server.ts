@@ -291,7 +291,7 @@ Document type: ${docType}
 ${invoiceRole ? `\n${invoiceRole}\n` : ''}
 For contract return keys:
 contractNo, contractDate, contractAmount, contractCurrency, contractPartyA, contractPartyB, contractStartDate, contractEndDate, contractPaymentTerms, fieldConfidence, confidence (optional)
-- For Chinese contracts: 甲方 = contractPartyA, 乙方 = contractPartyB, 合同金额 = contractAmount
+- For Chinese-labeled contracts: first party / Party A → contractPartyA; second party / Party B → contractPartyB; stated contract total → contractAmount
 
 For purchase_order return keys:
 poNumber, poDate, poCurrency, supplierName, contractAmount, fieldConfidence, confidence (optional)
@@ -302,7 +302,7 @@ quotationRef, quotationDate, quotationAmount, quotationCurrency, sourceType, cus
 For invoice_in / invoice_out return keys:
 invoiceNo, invoiceDate, invoiceAmount, invoiceCurrency, invoiceDueDate, invoiceGstAmount, invoiceGstRegNo, invoiceSubtotal, poNumber, supplierName, customerName, fieldConfidence, confidence (optional)
 - invoiceGstRegNo: GST registration number if present (indicates valid tax invoice for input tax claim)
-- For Chinese documents (发票): 税额 = invoiceGstAmount, 纳税人识别号 = invoiceGstRegNo
+- For Chinese-labeled invoices: VAT or tax amount line → invoiceGstAmount; taxpayer / GST registration number → invoiceGstRegNo
 - Extract line_items if available as invoiceLineItems: [{description, quantity, unitPrice, amount}]
 
 For expense return keys:

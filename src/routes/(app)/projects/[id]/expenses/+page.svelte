@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import {
 		EXPENSE_CATEGORY_OPTIONS,
@@ -12,6 +13,20 @@
 	const money = (value: number, currency = 'SGD') =>
 		new Intl.NumberFormat('en-SG', { style: 'currency', currency }).format(value ?? 0);
 
+	const formatDate = (date: string | null) => {
+		if (!date) return '—';
+		return new Date(date).toLocaleDateString('en-SG', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
+	};
+
+	const gstCell = (gst: number | null | undefined, currency: string) => {
+		if (gst == null || gst === 0) return '—';
+		return money(gst, currency);
+	};
+
 	let showManualEntry = $state(false);
 	let showNewTrip = $state(false);
 	let filterType = $state<'all' | ExpenseType>('all');
@@ -23,7 +38,10 @@
 		});
 	});
 
-	const typeLabel = (t: string | null) => (t === 'sales_cost' ? 'Sales Cost' : 'OpEx');
+	const typeLabel = (t: string | null) => (t === 'sales_cost' ? 'SC' : 'OpEx');
+
+	const expenseDocumentHref = (expenseId: string) =>
+		`/projects/${page.params.id}/documents/expenses/${expenseId}`;
 	const categoryLabel = (c: string) => (CATEGORY_LABELS as Record<string, string>)[c] ?? c;
 
 	const defaultAllowanceRate = (dest: string) => {
@@ -69,9 +87,9 @@
 		<div class="flex items-center gap-2">
 			<a
 				class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-				href="/expenses/upload"
+				href={`/expenses/upload?projectId=${encodeURIComponent(page.params.id)}`}
 			>
-				Upload Document
+				Upload expense file
 			</a>
 			<button
 				type="button"
@@ -123,14 +141,17 @@
 					<th class="px-4 py-3 font-medium">Category</th>
 					<th class="px-4 py-3 font-medium">Name/Vendor</th>
 					<th class="px-4 py-3 font-medium text-right">Amount</th>
-					<th class="px-4 py-3 font-medium">Tags</th>
+					<th class="px-4 py-3 font-medium">Project Name</th>
+					<th class="px-4 py-3 font-medium text-right">GST</th>
+					<th class="px-4 py-3 font-medium">Status</th>
 					<th class="px-4 py-3 font-medium">Notes</th>
+					<th class="px-4 py-3 font-medium text-right">File</th>
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-100">
 				{#if filteredExpenses.length === 0}
 					<tr>
-						<td class="px-4 py-8 text-center text-slate-500" colspan="7">No expenses found.</td>
+						<td class="px-4 py-8 text-center text-slate-500" colspan="10">No expenses found.</td>
 					</tr>
 				{:else}
 					{#each filteredExpenses as expense}
@@ -144,19 +165,22 @@
 									{typeLabel(expense.expenseType)}
 								</span>
 							</td>
-							<td class="px-4 py-3 text-slate-600">{expense.date}</td>
+							<td class="px-4 py-3 text-slate-600">{formatDate(expense.date)}</td>
 							<td class="px-4 py-3 text-slate-600">{categoryLabel(expense.category)}</td>
 							<td class="px-4 py-3 font-medium text-slate-800">
-								{expense.vendorOrSupplier || expense.staffName || '-'}
+								{expense.vendorOrSupplier || expense.staffName || '—'}
 							</td>
 							<td class="px-4 py-3 text-right font-medium text-slate-800">
 								{money(expense.amount, expense.currency)}
 								{#if expense.currency !== 'SGD' && expense.sgdEquivalent}
-									<span class="block text-xs text-slate-500">{money(expense.sgdEquivalent)}</span>
+									<span class="block text-xs text-slate-500">{money(expense.sgdEquivalent)} SGD eq.</span>
 								{/if}
 							</td>
+							<td class="px-4 py-3 text-slate-700">{expense.projectName}</td>
+							<td class="px-4 py-3 text-right text-slate-600">{gstCell(expense.gstAmount, expense.currency)}</td>
 							<td class="px-4 py-3">
-								<div class="flex flex-wrap gap-1">
+								<div class="text-slate-800">{expense.statusLabel}</div>
+								<div class="mt-1 flex flex-wrap gap-1">
 									{#if expense.reimbursement}
 										<span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Reimb</span>
 									{/if}
@@ -165,8 +189,20 @@
 									{/if}
 								</div>
 							</td>
-							<td class="px-4 py-3 max-w-[200px] truncate text-slate-500 text-xs">
-								{expense.notes || '-'}
+							<td class="px-4 py-3 max-w-[220px] truncate text-slate-500 text-xs" title={expense.notes ?? ''}>
+								{expense.notes || '—'}
+							</td>
+							<td class="px-4 py-3 text-right">
+								{#if expense.hasAttachment}
+									<a
+										class="text-sm font-medium text-[var(--sf-green)] hover:underline"
+										href={expenseDocumentHref(expense.id)}
+									>
+										View
+									</a>
+								{:else}
+									<span class="text-slate-400">—</span>
+								{/if}
 							</td>
 						</tr>
 					{/each}
@@ -183,7 +219,7 @@
 		<div class="relative w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
 			<div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
 				<h3 class="text-base font-semibold text-slate-900">Manual Expense Entry</h3>
-				<p class="text-sm text-slate-500">录入即确认，关联当前项目。</p>
+				<p class="text-sm text-slate-500">Saving confirms the expense and links it to this project.</p>
 			</div>
 			<form method="POST" action="?/create" use:enhance class="space-y-4 p-5">
 				<div class="grid grid-cols-2 gap-4">
@@ -271,7 +307,7 @@
 		<div class="relative w-full max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
 			<div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
 				<h3 class="text-base font-semibold text-slate-900">New Business Trip</h3>
-				<p class="text-sm text-slate-500">创建出差记录，自动生成 allowance 费用。</p>
+				<p class="text-sm text-slate-500">Creates a trip record and an allowance expense automatically.</p>
 			</div>
 			<form method="POST" action="?/createTrip" use:enhance class="space-y-4 p-5">
 				<div>

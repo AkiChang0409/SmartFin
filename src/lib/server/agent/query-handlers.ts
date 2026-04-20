@@ -72,7 +72,7 @@ async function handleProjectProfitQuery(
 		const resolved = await resolveProjectId(project, params);
 
 		if (!resolved) {
-			return { success: false, error: '需要提供项目名称或 ID 才能查询利润' };
+			return { success: false, error: 'A project name or ID is required to look up profit.' };
 		}
 
 		const ar = createArApi(moduleCtx);
@@ -180,7 +180,7 @@ async function handleInvoiceListQuery(
 
 		return {
 			success: false,
-			error: '暂不支持查看全部发票，请指定项目'
+			error: 'Listing all invoices is not supported; specify a project.'
 		};
 	} catch (e) {
 		return { success: false, error: (e as Error).message };
@@ -203,7 +203,7 @@ export async function executeQuery(
 ): Promise<QueryDataResult> {
 	const handler = queryHandlers[actionId];
 	if (!handler) {
-		return { success: false, error: `查询处理器 ${actionId} 暂未实现` };
+		return { success: false, error: `Query handler "${actionId}" is not implemented.` };
 	}
 	return handler(ctx, params);
 }

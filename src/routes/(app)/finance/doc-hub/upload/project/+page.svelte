@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { invalidate } from '$app/navigation';
 	import PageShell from '$lib/components/PageShell.svelte';
 	import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
@@ -19,6 +20,12 @@
 	let status = $state(docType === 'contract' ? 'active' : docType === 'quotation' ? 'draft' : 'pending');
 
 	let selectedProject = $state<ProjectInfo | null>(null);
+
+	/** Server resolves ?projectId=… and links the project when the page loads */
+	$effect(() => {
+		const incoming = data.preselectedProject;
+		if (incoming) selectedProject = incoming;
+	});
 	let showProjectPicker = $state(false);
 	let projectSearchQ = $state('');
 	let projectSearchStatus = $state('');
@@ -281,21 +288,23 @@
 			};
 			if (!detectRes.ok || !detectJson.ok) {
 				const detail = detectJson.details?.message ? ` (${detectJson.details.message})` : '';
-				throw new Error(`${detectJson.error || '提取失败'}${detail}`);
+				throw new Error(`${detectJson.error || 'Extraction failed'}${detail}`);
 			}
 			const data = detectJson.data ?? {};
 			rawText = String(data.rawText || '');
 
 			if (data.isImageFile) {
-				message = '图片型文件，等待后续 OCR 功能实现。请手动填写字段。';
+				message = 'Image file: OCR is not available yet. Please fill the fields manually.';
 			} else {
 				applyExtracted(data);
-				const warn = data.message ? `\n注意：${data.message}` : '';
-				const filled = data.extracted ? '已自动预填字段，请核对后再保存。' : '已提取文本，LLM 解析未返回结果，请手动填写字段。';
+				const warn = data.message ? `\nNote: ${data.message}` : '';
+				const filled = data.extracted
+					? 'Fields were prefilled automatically — review before saving.'
+					: 'Text was extracted but the LLM returned no structured fields — fill the form manually.';
 				message = filled + warn;
 			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : '检测失败';
+			error = e instanceof Error ? e.message : 'Detection failed';
 		} finally {
 			extracting = false;
 		}
@@ -303,7 +312,7 @@
 
 	async function upload() {
 		if (!selectedFile) {
-			error = '请先选择文件。';
+			error = 'Please choose a file first.';
 			return;
 		}
 		uploading = true;
@@ -326,14 +335,14 @@
 				error?: string;
 				data?: { key: string; uploadUrl: string };
 			};
-			if (!presignRes.ok || !presignJson.ok || !presignJson.data) throw new Error(presignJson.error || '无法创建上传目标');
+			if (!presignRes.ok || !presignJson.ok || !presignJson.data) throw new Error(presignJson.error || 'Could not create upload target');
 
 			const putRes = await fetch(presignJson.data.uploadUrl, {
 				method: 'PUT',
 				headers: { 'content-type': selectedFile.type || 'application/octet-stream' },
 				body: selectedFile
 			});
-			if (!putRes.ok) throw new Error('文件上传到存储失败');
+			if (!putRes.ok) throw new Error('File upload to storage failed');
 
 			const saveRes = await fetch('/api/doc-hub/upload', {
 				method: 'POST',
@@ -354,27 +363,29 @@
 				error?: string;
 				data?: { documentId?: string; entityId?: string };
 			};
-			if (!saveRes.ok || !saveJson.ok) throw new Error(saveJson.error || '保存失败');
+			if (!saveRes.ok || !saveJson.ok) throw new Error(saveJson.error || 'Save failed');
 
 			documentId = saveJson.data?.documentId ?? null;
 			entityId = saveJson.data?.entityId ?? null;
-			message = '已归档保存（不参与实际收支计算）。';
+			message = 'Saved to archive (does not affect live P&L).';
+			const pid = selectedProject?.id;
+			if (pid) void invalidate(`app:project-activity:${pid}`);
 		} catch (e) {
-			error = e instanceof Error ? e.message : '上传失败';
+			error = e instanceof Error ? e.message : 'Upload failed';
 		} finally {
 			uploading = false;
 		}
 	}
 </script>
 
-<PageShell eyebrow="Finance / Documents" title={pageTitle} description="选文件后右侧可预览；可对文字型 PDF / .docx 使用「提取文本」预填。确认后点 Upload Files 将写入 R2、documents 与对应业务表。">
+<PageShell eyebrow="Finance / Documents" title={pageTitle} description="After you pick a file, preview it on the right. For text-based PDFs and .docx, use Extract text to prefill. Upload Files writes to R2, documents, and the matching business record.">
 	{#snippet actions()}
 		<div class="flex flex-wrap items-center gap-2">
 			{#if selectedProject}
 				<span class="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800">
 					{selectedProject.name}
 					{#if selectedProject.customerName}<span class="text-emerald-600">({selectedProject.customerName})</span>{/if}
-					<button type="button" class="ml-1 text-emerald-500 hover:text-emerald-800" onclick={clearProject} title="取消关联">✕</button>
+					<button type="button" class="ml-1 text-emerald-500 hover:text-emerald-800" onclick={clearProject} title="Unlink project">✕</button>
 				</span>
 			{/if}
 			<button type="button" class="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50" onclick={() => { showProjectPicker = true; void searchProjects(); }}>
@@ -385,9 +396,9 @@
 
 	<div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:gap-8">
 		<section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-			<h2 class="text-sm font-semibold text-slate-900">文件归档录入</h2>
+			<h2 class="text-sm font-semibold text-slate-900">Archive document intake</h2>
 			<div class="mt-4 space-y-4">
-				<div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">本模块用于制作文件和信息录入归档，不参与实际收支计算。</div>
+				<div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">This flow is for filing documents and metadata only; it does not post to live revenue or expenses.</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label><span class="mb-1 block text-xs font-medium text-slate-700">Document Type</span><select class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" value={docType} onchange={(e) => onDocTypeChange((e.currentTarget as HTMLSelectElement).value as DocType)}><option value="contract">Contract</option><option value="quotation">Quotation</option><option value="purchase_order">Purchase Order</option></select></label>
 					<label><span class="mb-1 block text-xs font-medium text-slate-700">Status</span><input class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={status} /></label>
@@ -401,7 +412,7 @@
 
 				{#if docType === 'contract'}
 					<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
-						<p class="text-xs font-semibold text-blue-800">Contract 字段</p>
+						<p class="text-xs font-semibold text-blue-800">Contract fields</p>
 						<div class="grid gap-3 md:grid-cols-2">
 							<label><span class="mb-1 block text-xs font-medium text-slate-700">contract_number</span><input class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={contractNumber} /></label>
 							<label><span class="mb-1 block text-xs font-medium text-slate-700">type</span><select class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={contractType}><option value="customer_contract">customer_contract</option><option value="supplier_contract">supplier_contract</option></select></label>
@@ -413,7 +424,7 @@
 					</div>
 				{:else if docType === 'quotation'}
 					<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
-						<p class="text-xs font-semibold text-blue-800">Quotation 字段</p>
+						<p class="text-xs font-semibold text-blue-800">Quotation fields</p>
 						<div class="grid gap-3 md:grid-cols-2">
 							<label><span class="mb-1 block text-xs font-medium text-slate-700">quotation_number</span><input class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={quotationNumber} /></label>
 							<label><span class="mb-1 block text-xs font-medium text-slate-700">date</span><input type="date" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={quotationDate} /></label>
@@ -423,7 +434,7 @@
 					</div>
 				{:else}
 					<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
-						<p class="text-xs font-semibold text-blue-800">Purchase Order 字段</p>
+						<p class="text-xs font-semibold text-blue-800">Purchase order fields</p>
 						<div class="grid gap-3 md:grid-cols-2">
 							<label><span class="mb-1 block text-xs font-medium text-slate-700">po_number</span><input class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={poNumber} /></label>
 							<label><span class="mb-1 block text-xs font-medium text-slate-700">supplier_name</span><input class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={supplierName} /></label>
@@ -437,7 +448,7 @@
 				<label class="block"><span class="mb-1 block text-xs font-medium text-slate-700">Notes</span><input class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" bind:value={notes} /></label>
 				<div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs font-semibold text-slate-700">Payload Preview</p><pre class="mt-2 overflow-x-auto text-[11px] leading-relaxed text-slate-700">{JSON.stringify(buildExtractedPayload(), null, 2)}</pre></div>
 				<div class="flex items-center gap-2">
-					<button type="button" class="rounded-md border border-[var(--sf-green)] bg-[var(--sf-green-soft)] px-3 py-2 text-xs font-medium text-[var(--sf-green)] hover:bg-[#dcefd8] disabled:opacity-50" disabled={extracting || !selectedFile} onclick={() => void runDetect()}>{extracting ? '提取中…' : '提取文本'}</button>
+					<button type="button" class="rounded-md border border-[var(--sf-green)] bg-[var(--sf-green-soft)] px-3 py-2 text-xs font-medium text-[var(--sf-green)] hover:bg-[#dcefd8] disabled:opacity-50" disabled={extracting || !selectedFile} onclick={() => void runDetect()}>{extracting ? 'Extracting…' : 'Extract text'}</button>
 					<button type="button" class="rounded-md bg-[var(--sf-green)] px-4 py-2 text-sm font-medium text-white hover:bg-[#2f5e2c] disabled:opacity-50" disabled={uploading || !selectedFile} onclick={() => void upload()}>{uploading ? 'Saving…' : 'Upload Files'}</button>
 				</div>
 				{#if message}<p class="text-sm text-emerald-700">{message}</p>{/if}
@@ -446,14 +457,14 @@
 		</section>
 
 		<section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-4">
-			<h2 class="text-sm font-semibold text-slate-900">文件预览</h2>
+			<h2 class="text-sm font-semibold text-slate-900">File preview</h2>
 			{#if selectedFile && previewUrl}
 				<div class="mt-3 flex flex-wrap items-center gap-2">
-					<span class="text-[11px] font-medium text-slate-500">缩放</span>
+					<span class="text-[11px] font-medium text-slate-500">Zoom</span>
 					<button type="button" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40" disabled={previewZoomPct <= 50} onclick={() => setPreviewZoom(previewZoomPct - 10)}>−</button>
 					<button type="button" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs tabular-nums text-slate-700 hover:bg-slate-50" onclick={() => { previewZoomPct = 100; }}>{previewZoomPct}%</button>
 					<button type="button" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-40" disabled={previewZoomPct >= 200} onclick={() => setPreviewZoom(previewZoomPct + 10)}>+</button>
-					<a href={previewUrl} target="_blank" rel="noreferrer" class="ml-auto text-xs font-medium text-[var(--sf-green)] hover:underline">新标签打开</a>
+					<a href={previewUrl} target="_blank" rel="noreferrer" class="ml-auto text-xs font-medium text-[var(--sf-green)] hover:underline">Open in new tab</a>
 				</div>
 				<div class="mt-2 max-h-[min(72vh,820px)] w-full overflow-auto rounded-lg border border-slate-200 bg-slate-100/80">
 					<div class="origin-top-left" style="transform: scale({previewScale}); width: {previewScale > 0 ? (100 / previewScale).toFixed(4) : 100}%;"><!-- zoom -->
@@ -462,20 +473,20 @@
 						{:else if selectedFile.type.startsWith('image/')}
 							<img alt="Preview" class="block max-h-[min(65vh,720px)] w-full object-contain bg-white" src={previewUrl} />
 						{:else}
-							<p class="p-4 text-xs text-slate-600">无法内嵌预览此类型：<span class="font-medium">{selectedFile.name}</span></p>
+							<p class="p-4 text-xs text-slate-600">Inline preview is not available for this type: <span class="font-medium">{selectedFile.name}</span></p>
 						{/if}
 					</div>
 				</div>
 			{:else}
-				<p class="mt-3 text-xs text-slate-500">请选择文件后将在此显示预览。</p>
+				<p class="mt-3 text-xs text-slate-500">Choose a file to see a preview here.</p>
 			{/if}
-			<h2 class="mt-6 text-sm font-semibold text-slate-900">保存结果</h2>
+			<h2 class="mt-6 text-sm font-semibold text-slate-900">Save result</h2>
 			<div class="mt-2 space-y-1 text-xs text-slate-600">
 				<p><span class="font-medium text-slate-800">Document ID:</span> {documentId ?? '—'}</p>
 				<p><span class="font-medium text-slate-800">Entity ID:</span> {entityId ?? '—'}</p>
 			</div>
-			<h2 class="mt-4 text-sm font-semibold text-slate-900">提取的文本</h2>
-			<pre class="mt-2 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-700">{rawText || '尚未提取'}</pre>
+			<h2 class="mt-4 text-sm font-semibold text-slate-900">Extracted text</h2>
+			<pre class="mt-2 max-h-48 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-700">{rawText || 'Not extracted yet'}</pre>
 		</section>
 	</div>
 </PageShell>

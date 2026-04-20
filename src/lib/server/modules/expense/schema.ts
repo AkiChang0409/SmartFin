@@ -57,7 +57,7 @@ export const businessTrips = sqliteTable('business_trips', {
 // Expenses — redesigned per smartfin-expense-revenue-design.md
 //
 // Key principles:
-//   - "录入即发生": no draft/confirmed/void status flow
+//   - Record-on-save: no draft/confirmed/void status flow
 //   - expense_type: opex | sales_cost (replaces cogs/opex dual columns)
 //   - reimbursement & business_trip are boolean tags, not FK relations
 //   - Scene-specific fields (tracking_number, po_number, etc.) go in metadata JSON

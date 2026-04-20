@@ -6,7 +6,7 @@
 	const base = $derived(`/projects/${data.project.id}`);
 
 	const money = (value: number | null | undefined) =>
-		new Intl.NumberFormat('en-SG', { style: 'currency', currency: data.contract.currency ?? 'SGD' }).format(
+		new Intl.NumberFormat('en-SG', { style: 'currency', currency: data.quotation.currency ?? 'SGD' }).format(
 			value ?? 0
 		);
 
@@ -38,43 +38,43 @@
 		<button
 			type="button"
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			onclick={() => goto(base)}
+			onclick={() => goto(`${base}/documents`)}
 		>
-			← Back to project overview
+			← Back to documents
 		</button>
 		<a
 			class="text-xs font-medium text-[var(--sf-green)] hover:underline"
-			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=contract`}
+			href={`/finance/doc-hub/upload/project?projectId=${encodeURIComponent(data.project.id)}&docType=quotation`}
 		>
-			Upload another contract…
+			Upload another quotation…
 		</a>
 	</div>
 
 	<section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 		<div class="border-b border-slate-200 px-5 py-4">
-			<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contract</p>
+			<p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Quotation</p>
 			<h2 class="mt-1 text-lg font-medium text-slate-900">
-				{data.docMeta.upload?.fileName ?? 'Contract record'}
+				{data.docMeta.upload?.fileName ?? 'Quotation record'}
 			</h2>
-			<p class="mt-0.5 font-mono text-xs text-slate-400">{data.contract.id}</p>
+			<p class="mt-0.5 font-mono text-xs text-slate-400">{data.quotation.id}</p>
 		</div>
 
 		<div class="grid gap-px bg-slate-200 sm:grid-cols-2">
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Amount</p>
-				<p class="mt-1 text-sm text-slate-900">{money(data.contract.amount)}</p>
+				<p class="mt-1 text-sm text-slate-900">{money(data.quotation.amount)}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Currency</p>
-				<p class="mt-1 text-sm text-slate-900">{data.contract.currency ?? 'SGD'}</p>
+				<p class="mt-1 text-sm text-slate-900">{data.quotation.currency ?? 'SGD'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
-				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Contract date</p>
-				<p class="mt-1 text-sm text-slate-900">{data.contract.effectiveDate ?? '—'}</p>
+				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Quotation date</p>
+				<p class="mt-1 text-sm text-slate-900">{data.quotation.date ?? '—'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Source</p>
-				<p class="mt-1 text-sm text-slate-900">{data.docMeta.sourceType ?? '—'}</p>
+				<p class="mt-1 text-sm text-slate-900">{data.docMeta.sourceType ?? data.quotation.quotationNumber ?? '—'}</p>
 			</div>
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Parse status</p>
@@ -83,7 +83,7 @@
 			<div class="bg-white px-5 py-3">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Storage key</p>
 				<p class="mt-1 break-all font-mono text-xs text-slate-600">
-					{data.contract.fileUrl?.startsWith('manual://') ? 'Manual (no file)' : data.contract.fileUrl}
+					{data.quotation.fileUrl?.startsWith('manual://') ? 'Manual (no file)' : data.quotation.fileUrl}
 				</p>
 			</div>
 			<div class="bg-white px-5 py-3 sm:col-span-2">
@@ -102,7 +102,7 @@
 			<div class="bg-white px-5 py-3 sm:col-span-2">
 				<p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Created / updated</p>
 				<p class="mt-1 text-sm text-slate-800">
-					{fmtWhen(data.contract.createdAt)} · {fmtWhen(data.contract.updatedAt)}
+					{fmtWhen(data.quotation.createdAt)} · {fmtWhen(data.quotation.updatedAt)}
 				</p>
 			</div>
 		</div>
@@ -142,14 +142,14 @@
 			{:else if previewMode === 'pdf'}
 				<iframe
 					class="h-[min(75vh,900px)] w-full rounded-lg border border-slate-200 bg-slate-100"
-					title="Contract PDF preview"
+					title="Quotation PDF preview"
 					src={data.fileViewUrl}
 				></iframe>
 			{:else if previewMode === 'image'}
 				<div class="flex justify-center rounded-lg border border-slate-200 bg-slate-50 p-4">
 					<img
 						class="max-h-[min(75vh,900px)] max-w-full object-contain"
-						alt="Contract attachment preview"
+						alt="Quotation attachment preview"
 						src={data.fileViewUrl}
 					/>
 				</div>
@@ -181,7 +181,7 @@
 						name="amount"
 						type="number"
 						step="0.01"
-						value={data.contract.amount ?? 0}
+						value={data.quotation.amount ?? 0}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700">
@@ -189,7 +189,15 @@
 					<input
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="currency"
-						value={data.contract.currency ?? 'SGD'}
+						value={data.quotation.currency ?? 'SGD'}
+					/>
+				</label>
+				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
+					Quotation Number
+					<input
+						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
+						name="quotationNumber"
+						value={data.quotation.quotationNumber ?? ''}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">
@@ -198,7 +206,7 @@
 						class="h-9 w-full rounded-md border border-slate-300 px-2.5 text-sm"
 						name="date"
 						type="date"
-						value={data.contract.effectiveDate ?? ''}
+						value={data.quotation.date ?? ''}
 					/>
 				</label>
 				<label class="block space-y-1 text-xs font-medium text-slate-700 sm:col-span-2">

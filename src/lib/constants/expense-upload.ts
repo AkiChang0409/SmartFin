@@ -106,7 +106,7 @@ export const CATEGORY_METADATA_FIELDS: Record<string, FieldDef[]> = {
 	],
 	gift: [
 		{ key: 'receipt_number', label: 'Receipt No.', type: 'text', source: 'llm' },
-		{ key: 'recipient', label: 'Recipient (送礼对象)', type: 'text', source: 'user' }
+		{ key: 'recipient', label: 'Recipient (gift recipient)', type: 'text', source: 'user' }
 	],
 	allowance: [],
 	ai_subscription: [
@@ -121,7 +121,7 @@ export const CATEGORY_METADATA_FIELDS: Record<string, FieldDef[]> = {
 	],
 	purchase: [
 		{ key: 'po_number', label: 'PO No.', type: 'text', source: 'llm' },
-		{ key: 'description', label: 'Description (品名描述)', type: 'text', source: 'llm' }
+		{ key: 'description', label: 'Description (line item)', type: 'text', source: 'llm' }
 	],
 	invoice: [
 		{ key: 'invoice_number', label: 'Invoice No.', type: 'text', source: 'llm' },
@@ -204,7 +204,8 @@ export function normalizeExpenseCurrency(input: string | null | undefined): Expe
 	if (/^[¥￥]$/.test(raw.trim())) {
 		return 'CNY';
 	}
-	if (/¥|￥|CN¥|CNY|RMB|人民幣|人民币|\bRENMINBI\b/i.test(raw)) {
+	// Match CNY markers including Simplified/Traditional "renminbi" spellings (\u4EBA\u6C11\u5E01 / \u4EBA\u6C11\u5E63)
+	if (/¥|￥|CN¥|CNY|RMB|\u4EBA\u6C11\u5E01|\u4EBA\u6C11\u5E63|\bRENMINBI\b/i.test(raw)) {
 		return 'CNY';
 	}
 	if (/^RMB$|^CN¥$/i.test(compact)) {
@@ -227,7 +228,7 @@ export function inferExpenseCurrencyFromText(text: string): ExpenseUploadCurrenc
 		/[¥￥]/.test(sample) ||
 		/\bCNY\b/i.test(sample) ||
 		/\bRMB\b/i.test(sample) ||
-		/人民币|人民幣/.test(sample);
+		/\u4EBA\u6C11\u5E01|\u4EBA\u6C11\u5E63/.test(sample);
 	const usd = /\bUSD\b/i.test(sample) || /\bUS\$\b/.test(sample) || /U\.S\.\s*\$/i.test(sample);
 	const sgd = /\bSGD\b/i.test(sample) || /S\$\s*[\d,.]/.test(sample);
 	const eur = /\bEUR\b/i.test(sample) || /€/.test(sample);

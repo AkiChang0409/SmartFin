@@ -4,13 +4,14 @@
 	import { authClient } from '$lib/auth-client';
 	import AgentChat from '$lib/components/AgentChat.svelte';
 
-	type Primary = 'finance' | 'project' | 'business-partner' | 'settings';
+	type Primary = 'finance' | 'project' | 'hr' | 'business-partner' | 'settings';
 
 	type SideLink = {
 		href: string;
 		label: string;
 		moduleId: string | null;
 		icon?: string;
+		badge?: number;
 	};
 
 	type SideGroup = {
@@ -26,11 +27,12 @@
 	}> = [
 		{ id: 'finance', href: '/dashboard', label: 'Finance', moduleId: null },
 		{ id: 'project', href: '/projects', label: 'Project', moduleId: 'project' },
+		{ id: 'hr', href: '/employees', label: 'HR', moduleId: 'employee' },
 		{ id: 'business-partner', href: '/customers', label: 'Business Partner', moduleId: 'business-partner' },
 		{ id: 'settings', href: '/settings', label: 'Setting', moduleId: 'core' }
 	];
 
-	// Finance 板块侧边栏 - 公司级财务管理
+	// Finance section sidebar — company-level finance
 	const financeGroups: SideGroup[] = [
 		{
 			title: 'Overview',
@@ -54,19 +56,16 @@
 		},
 		{
 			title: 'Documents',
-			items: [
-				{ href: '/finance/doc-hub', label: 'Doc Hub', moduleId: 'ar', icon: '▤' }
-			]
+			items: [{ href: '/finance/doc-hub', label: 'Doc Hub', moduleId: 'ar', icon: '▤' }]
 		}
 	];
 
-	// Project 列表页侧边栏 - 项目导航
-	const projectListGroups: SideGroup[] = [
+	const hrGroups: SideGroup[] = [
 		{
-			title: 'Projects',
+			title: 'HR',
 			items: [
-				{ href: '/projects', label: 'All Projects', moduleId: 'project', icon: '▦' },
-				{ href: '/projects/new', label: 'New Project', moduleId: 'project', icon: '+' }
+				{ href: '/employees', label: 'All Employees', moduleId: 'employee', icon: '◐' },
+				{ href: '/employees/new', label: 'New Employee', moduleId: 'employee', icon: '+' }
 			]
 		}
 	];
@@ -76,7 +75,7 @@
 			title: 'Partners',
 			items: [
 				{ href: '/customers', label: 'Customers', moduleId: 'business-partner', icon: '◎' },
-				{ href: '/finance/supplier-invoices', label: 'Suppliers', moduleId: 'ar', icon: '◉' }
+				{ href: '/suppliers', label: 'Suppliers', moduleId: 'business-partner', icon: '◉' }
 			]
 		}
 	];
@@ -93,6 +92,26 @@
 	let { children, data } = $props();
 	const enabledModules = $derived(new Set((data.enabledModules as string[] | undefined) ?? []));
 
+	const projectListGroups = $derived.by((): SideGroup[] => {
+		const c = data.projectListCounts;
+		return [
+			{
+				title: 'Projects',
+				items: [
+					{ href: '/projects', label: 'All Projects', moduleId: 'project', icon: '▦', badge: c?.all },
+					{
+						href: '/projects?status=active',
+						label: 'Active',
+						moduleId: 'project',
+						icon: '◷',
+						badge: c?.active
+					},
+					{ href: '/projects/new', label: 'New Project', moduleId: 'project', icon: '+' }
+				]
+			}
+		];
+	});
+
 	const visiblePrimaryTabs = $derived(
 		primaryTabs.filter(
 			(item) => item.moduleId === null || item.moduleId === 'core' || enabledModules.has(item.moduleId)
@@ -101,23 +120,26 @@
 
 	const path = $derived(page.url.pathname);
 
-	// 项目详情页有独立侧栏，主布局隐藏侧边栏
+	// Project detail pages use their own sidebar; shell sidebar is hidden
 	const isProjectDetailPage = $derived(/^\/projects\/(?!new$)[^/]+/.test(path));
 
-	// 判断当前所属的主板块
+	// Determine which primary section the route belongs to
 	const primaryFromPath = $derived.by((): Primary => {
 		if (path.startsWith('/settings')) return 'settings';
 		if (path.startsWith('/customers')) return 'business-partner';
-		if (path.startsWith('/finance/supplier-invoices')) return 'business-partner';
-		// Project 板块：项目列表和项目详情
+		if (path.startsWith('/suppliers')) return 'business-partner';
+		// Project: list and detail routes
 		if (path === '/projects' || path.startsWith('/projects/')) return 'project';
-		// Finance 板块：dashboard, tax, expenses, /finance/*（供应商发票在 Business Partner）
+		// HR: employee master data (same employee module as in-project Team & Cost)
+		if (path.startsWith('/employees')) return 'hr';
+		// Finance: dashboard, tax, expenses, /finance/* (supplier invoices live under Business Partner)
 		return 'finance';
 	});
 
-	// 根据板块决定显示哪个侧边栏
+	// Pick sidebar groups for the current section
 	const shellSidebarGroups = $derived.by((): SideGroup[] => {
 		if (primaryFromPath === 'project') return projectListGroups;
+		if (primaryFromPath === 'hr') return hrGroups;
 		if (primaryFromPath === 'business-partner') return businessPartnerGroups;
 		if (primaryFromPath === 'settings') return settingsGroups;
 		return financeGroups;
@@ -148,30 +170,33 @@
 		if (itemPath === '/expenses') {
 			return path === '/expenses' || (path.startsWith('/expenses/') && !path.startsWith('/expenses/reimbursements'));
 		}
-		// Doc Hub（财务文档中心，不含供应商发票）
 		if (itemPath === '/finance/doc-hub') {
-			if (path.startsWith('/finance/supplier-invoices')) return false;
-			const hub =
-				path.startsWith('/finance/doc-hub') ||
-				path.startsWith('/finance/contracts') ||
-				path.startsWith('/finance/quotations') ||
-				path.startsWith('/finance/purchase-orders') ||
-				path.startsWith('/finance/customer-invoices');
-			return hub;
+			return path.startsWith('/finance/doc-hub');
 		}
 		// Projects
 		if (itemPath === '/projects/new') {
 			return path === '/projects/new';
 		}
+		// Active shortcut filter: /projects?status=active
+		if (item.href.includes('status=active') && new URL(item.href, page.url.origin).pathname === '/projects') {
+			return path === '/projects' && page.url.searchParams.get('status') === 'active';
+		}
 		if (itemPath === '/projects') {
-			return path === '/projects';
+			return path === '/projects' && page.url.searchParams.get('status') !== 'active';
+		}
+		// HR / Employees
+		if (itemPath === '/employees/new') {
+			return path === '/employees/new';
+		}
+		if (itemPath === '/employees') {
+			return path === '/employees';
 		}
 		// Business Partners
 		if (itemPath === '/customers') {
 			return path.startsWith('/customers');
 		}
-		if (itemPath === '/finance/supplier-invoices') {
-			return path.startsWith('/finance/supplier-invoices');
+		if (itemPath === '/suppliers') {
+			return path.startsWith('/suppliers');
 		}
 		// Settings
 		if (itemPath === '/settings') {
@@ -201,10 +226,10 @@
 </script>
 
 <div class="theme-shell flex min-h-screen flex-col">
-	<!-- 顶部导航栏 -->
+	<!-- Top app bar -->
 	<header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
 		<div class="flex h-14 items-center justify-between px-4 lg:px-6">
-			<!-- Logo 和主导航 -->
+			<!-- Logo and primary nav -->
 			<div class="flex items-center gap-6">
 				<a class="flex items-center gap-2 text-lg font-semibold text-[var(--sf-green)]" href="/dashboard">
 					<span class="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--sf-green)] text-white text-sm">SF</span>
@@ -218,7 +243,7 @@
 					{/each}
 				</nav>
 			</div>
-			<!-- 用户信息 -->
+			<!-- User menu -->
 			<div class="flex items-center gap-3">
 				{#if data.user}
 					<div class="hidden items-center gap-2 text-xs sm:flex">
@@ -235,7 +260,7 @@
 				{/if}
 			</div>
 		</div>
-		<!-- 移动端主导航 -->
+		<!-- Mobile primary nav -->
 		<nav class="flex items-center gap-1 overflow-x-auto border-t border-slate-100 px-4 py-2 md:hidden" aria-label="Primary navigation mobile">
 			{#each visiblePrimaryTabs as tab}
 				<a 
@@ -253,7 +278,7 @@
 	</header>
 
 	<div class="flex min-h-0 flex-1">
-		<!-- 侧边栏 - 仅在非项目详情页显示 -->
+		<!-- Shell sidebar (hidden on project detail routes) -->
 		{#if !isProjectDetailPage}
 			<aside
 				class="hidden w-56 shrink-0 border-r border-slate-200 bg-slate-50/50 lg:block"
@@ -270,11 +295,20 @@
 							<nav class="flex flex-col gap-1">
 								{#each group.items as item}
 									{#if linkAllowed(item)}
-										<a class={subLinkClass(linkActive(item))} href={item.href}>
-											{#if item.icon}
-												<span class="w-4 text-center opacity-60">{item.icon}</span>
+										<a class={`${subLinkClass(linkActive(item))} justify-between gap-2`} href={item.href}>
+											<span class="flex min-w-0 items-center gap-2.5">
+												{#if item.icon}
+													<span class="w-4 shrink-0 text-center opacity-60">{item.icon}</span>
+												{/if}
+												{item.label}
+											</span>
+											{#if item.badge !== undefined}
+												<span
+													class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
+												>
+													{item.badge}
+												</span>
 											{/if}
-											{item.label}
 										</a>
 									{/if}
 								{/each}
@@ -284,14 +318,14 @@
 				</div>
 			</aside>
 
-			<!-- 移动端侧边栏折叠为横向滚动 -->
+			<!-- Mobile: sidebar as horizontal chips -->
 			<div class="border-b border-slate-200 bg-slate-50/80 px-4 py-2 lg:hidden">
 				<div class="flex gap-2 overflow-x-auto pb-1" role="navigation" aria-label="Secondary navigation mobile">
 					{#each shellSidebarGroups as group}
 						{#each group.items as item}
 							{#if linkAllowed(item)}
 								<a
-									class={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+									class={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
 										linkActive(item)
 											? 'border-[var(--sf-green)] bg-[var(--sf-green-soft)] text-[var(--sf-green)]'
 											: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -299,6 +333,9 @@
 									href={item.href}
 								>
 									{item.label}
+									{#if item.badge !== undefined}
+										<span class="rounded-full bg-white/80 px-1.5 py-0 text-[10px] opacity-90">{item.badge}</span>
+									{/if}
 								</a>
 							{/if}
 						{/each}
@@ -307,15 +344,15 @@
 			</div>
 		{/if}
 
-		<!-- 主内容区 -->
+		<!-- Main content -->
 		<main class="min-w-0 flex-1 bg-white">
 			{#if isProjectDetailPage}
-				<!-- 项目详情页：全宽布局，由项目布局自己处理侧边栏 -->
+				<!-- Project detail: full width; project layout owns sidebars -->
 				<div class="h-full">
 					{@render children()}
 				</div>
 			{:else}
-				<!-- 其他页面：居中布局 -->
+				<!-- Default: centered max-width layout -->
 				<div class="mx-auto w-full max-w-6xl px-6 py-6">
 					{@render children()}
 				</div>

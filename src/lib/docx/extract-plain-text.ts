@@ -2,13 +2,13 @@ import { strFromU8, unzipSync } from 'fflate';
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-/** ZIP 本地文件头 */
+/** ZIP local file header signature */
 export function looksLikeZip(data: ArrayBuffer): boolean {
 	const u8 = new Uint8Array(data);
 	return u8.length >= 4 && u8[0] === 0x50 && u8[1] === 0x4b && (u8[2] === 0x03 || u8[2] === 0x05 || u8[2] === 0x07);
 }
 
-/** Word 97–2003 复合文档 */
+/** Word 97–2003 compound document */
 export function looksLikeLegacyWordDoc(data: ArrayBuffer): boolean {
 	const u8 = new Uint8Array(data);
 	return u8.length >= 8 && u8[0] === 0xd0 && u8[1] === 0xcf && u8[2] === 0x11 && u8[3] === 0xe0;
@@ -37,7 +37,7 @@ function hasWordDocumentXml(data: ArrayBuffer): boolean {
 	}
 }
 
-/** 是否应按 .docx 解析（MIME/扩展名，或 ZIP 内含 word/document.xml） */
+/** Whether to parse as .docx (MIME/extension, or ZIP contains word/document.xml) */
 export function shouldParseAsDocx(fileType: string, fileName: string, data: ArrayBuffer): boolean {
 	if (looksLikeLegacyWordDoc(data) && !looksLikeZip(data)) return false;
 	if (isLikelyDocxMimeOrName(fileType, fileName)) return true;
@@ -64,7 +64,7 @@ function decodeXmlTextChunk(s: string): string {
 		});
 }
 
-/** 从 Office Open XML word/document.xml 抽取段落文本 */
+/** Extract paragraph text from Office Open XML word/document.xml */
 export function documentXmlToPlainText(xml: string): string {
 	const paragraphs: string[] = [];
 	const pRegex = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
@@ -97,11 +97,11 @@ export function extractDocxPlainText(data: ArrayBuffer): string {
 	try {
 		files = unzipSync(u8);
 	} catch {
-		throw new Error('不是有效的 .docx（ZIP）文件。');
+		throw new Error('Not a valid .docx (ZIP) file.');
 	}
 	const docXml = files['word/document.xml'];
 	if (!docXml) {
-		throw new Error('无效的 .docx：缺少 word/document.xml。');
+		throw new Error('Invalid .docx: missing word/document.xml.');
 	}
 	const xml = strFromU8(docXml, false);
 	return documentXmlToPlainText(xml);

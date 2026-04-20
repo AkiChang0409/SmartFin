@@ -185,7 +185,7 @@ export const actions: Actions = {
 			})
 			.where(and(eq(schema.employees.id, params.id), isNull(schema.employees.deletedAt)));
 
-		return { ok: true };
+		return { ok: true, profileUpdated: true as const };
 	},
 	addCompanyComponent: async ({ params, request, platform }) => {
 		if (!platform) return fail(500, { message: 'Cloudflare platform bindings are required' });

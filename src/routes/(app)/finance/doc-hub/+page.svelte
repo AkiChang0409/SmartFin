@@ -5,27 +5,27 @@
 		{
 			title: 'Contracts',
 			description: 'Manage contract archive and contract-related records.',
-			href: '/finance/contracts'
+			href: '/finance/doc-hub/contracts'
 		},
 		{
 			title: 'Quotations',
 			description: 'Manage quotation records and follow-up revisions.',
-			href: '/finance/quotations'
+			href: '/finance/doc-hub/quotations'
 		},
 		{
 			title: 'Purchase Orders',
 			description: 'Manage purchase order records and supplier workflow.',
-			href: '/finance/purchase-orders'
+			href: '/finance/doc-hub/purchase-orders'
 		},
 		{
 			title: 'Customer Invoices',
 			description: 'Manage outgoing invoices and customer billing workflow.',
-			href: '/finance/customer-invoices'
+			href: '/finance/doc-hub/customer-invoices'
 		},
 		{
 			title: 'Supplier Invoices',
 			description: 'Manage incoming invoices and OCR-related processing states.',
-			href: '/finance/supplier-invoices'
+			href: '/finance/doc-hub/supplier-invoices'
 		}
 	];
 </script>
@@ -33,7 +33,7 @@
 <PageShell
 	eyebrow="Finance"
 	title="Document Hub"
-	description="合同、报价、采购单、发票与归档上传的统一入口。"
+	description="Single entry point for contracts, quotations, POs, invoices, and document archive uploads."
 >
 	<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 		{#each modules as module}

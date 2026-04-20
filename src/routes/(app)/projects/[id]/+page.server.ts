@@ -4,11 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 import { writeAuditLog } from '$lib/server/audit';
 import { getDb, schema } from '$lib/server/modules/legacy-db';
-import {
-	projectExpenseOpexSumExpr,
-	projectExpenseSalesCostSumExpr,
-	projectExpenseTotalSumExpr
-} from '$lib/server/project-expense-sums';
+import { projectExpenseOpexSumExpr, projectExpenseSalesCostSumExpr } from '$lib/server/project-expense-sums';
 import {
 	staffCostPayoutJoinConditions,
 	staffCostSumExpr
@@ -92,6 +88,7 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 				category: schema.expenses.category,
 				date: schema.expenses.date,
 				amount: schema.expenses.amount,
+				sgdEquivalent: schema.expenses.sgdEquivalent,
 				currency: schema.expenses.currency,
 				expenseType: schema.expenses.expenseType
 			})
@@ -105,7 +102,8 @@ export const load: PageServerLoad = async ({ params, platform, parent }) => {
 		label: row.category,
 		date: row.date,
 		status: row.expenseType === 'sales_cost' ? 'Sales Cost' : 'OpEx',
-		amount: row.amount
+		// Align with project expense aggregates and list pages: treat 0 sgd_equivalent as unset
+		amount: Number(row.sgdEquivalent || row.amount || 0)
 	}));
 
 	const breakdown = {

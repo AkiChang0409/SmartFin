@@ -10,7 +10,7 @@ type AttachmentRow = {
 };
 
 type RankPayload = {
-	/** 用于提示模型语境；可与邮件意图并行调用，缺省为「业务」 */
+	/** Context label for the model; optional, defaults to generic business mail */
 	emailType?: string;
 	attachments?: AttachmentRow[];
 };
@@ -28,17 +28,17 @@ function clamp01(n: number): number {
 }
 
 function buildRankSystemPrompt(emailTypeLabel: string): string {
-	return `你是企业邮件附件排序助手。只根据文件名、大小、MIME 判断「最可能是目标业务单据附件」的顺序。不要猜测文件内容。
+	return `You rank email attachments by how likely they are to be the primary business document. Use only filename, size, and MIME — do not invent file contents.
 
-邮件业务类型标签: ${emailTypeLabel}
+Email intent label: ${emailTypeLabel}
 
-请返回 JSON 对象（仅此一个 JSON，不要 markdown），格式：
-{ "ranked": [ { "filename": "x.pdf", "confidence": 0.9, "reason": "文件名含 invoice" } ] }
+Return a single JSON object (JSON only, no markdown):
+{ "ranked": [ { "filename": "x.pdf", "confidence": 0.9, "reason": "filename mentions invoice" } ] }
 
-规则：
-- ranked 数组按优先级从高到低排列；只包含用户列表里出现过的 filename，不要编造文件名。
-- confidence 为 0 到 1 的小数。
-- reason 简短中文或英文均可。`;
+Rules:
+- ranked is highest priority first; filenames must come from the user list only.
+- confidence is a decimal from 0 to 1.
+- reason: short English phrase.`;
 }
 
 function buildRankUserMessage(rows: AttachmentRow[]): string {
@@ -57,11 +57,11 @@ function buildRankUserMessage(rows: AttachmentRow[]): string {
 function scoreRow(r: AttachmentRow): { confidence: number; reason: string } {
 	const n = `${r.filename} ${r.mimeType}`.toLowerCase();
 	const hits: string[] = [];
-	if (/invoice|发票|bill|tax/.test(n)) hits.push('invoice/tax');
+	if (/invoice|bill|tax/.test(n)) hits.push('invoice/tax');
 	if (/\.pdf$/i.test(r.filename)) hits.push('pdf');
-	if (/po|purchase|采购/.test(n)) hits.push('po');
-	if (/quote|quotation|报价/.test(n)) hits.push('quote');
-	if (/contract|合同/.test(n)) hits.push('contract');
+	if (/po|purchase/.test(n)) hits.push('po');
+	if (/quote|quotation/.test(n)) hits.push('quote');
+	if (/contract/.test(n)) hits.push('contract');
 	let c = 0.35;
 	if (hits.length) c += Math.min(0.45, hits.length * 0.12);
 	if (/\.(pdf|xlsx?|docx?)$/i.test(r.filename)) c += 0.08;
@@ -113,7 +113,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	if (!platform) return fail('Cloudflare platform bindings are required', 500);
 
 	const payload = (await request.json()) as RankPayload;
-	const emailTypeLabel = (payload.emailType?.trim() || '业务相关').slice(0, 80);
+	const emailTypeLabel = (payload.emailType?.trim() || 'business-related').slice(0, 80);
 	const rows = Array.isArray(payload.attachments)
 		? payload.attachments
 				.filter(

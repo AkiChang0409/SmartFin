@@ -18,8 +18,8 @@ export const reportingActions: AgentAction[] = [
 	{
 		id: 'view_reports',
 		module: 'reporting',
-		description: '查看报表页面',
-		keywords: ['报表', '报告', 'reports', 'analytics'],
+		description: 'Open the reports page',
+		keywords: ['reports', 'analytics', 'reporting'],
 		entry: '/reports',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
@@ -27,8 +27,8 @@ export const reportingActions: AgentAction[] = [
 	{
 		id: 'export_projects_profit_report',
 		module: 'reporting',
-		description: '导出项目利润报表',
-		keywords: ['导出利润报表', 'profit report', 'export report', 'projects profit'],
+		description: 'Export the projects profit report',
+		keywords: ['profit report', 'export report', 'projects profit', 'margin export'],
 		entry: '/reports',
 		api: 'GET /api/reports/projects-profit/export',
 		layer: 4,

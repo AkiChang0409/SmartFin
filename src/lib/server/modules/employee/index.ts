@@ -5,7 +5,7 @@ import type { AgentAction } from '$lib/server/agent/types';
 export const employeeModule: ModuleDefinition = {
 	manifest: {
 		id: 'employee',
-		name: 'Employee',
+		name: 'HR',
 		layer: 'base',
 		dependencies: ['core', 'person', 'project']
 	},
@@ -18,8 +18,8 @@ export const employeeActions: AgentAction[] = [
 	{
 		id: 'view_employees',
 		module: 'employee',
-		description: '查看员工档案列表',
-		keywords: ['员工', '员工列表', 'employees', 'staff list'],
+		description: 'View the employee directory',
+		keywords: ['employees', 'staff list', 'HR roster'],
 		entry: '/employees',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
@@ -27,18 +27,18 @@ export const employeeActions: AgentAction[] = [
 	{
 		id: 'create_employee',
 		module: 'employee',
-		description: '新建员工档案',
-		keywords: ['新增员工', '创建员工', 'new employee', 'create staff'],
+		description: 'Create an employee record',
+		keywords: ['new employee', 'create staff', 'hire', 'add employee'],
 		entry: '/employees/new',
 		layer: 2,
 		required_roles: ['owner', 'finance'],
 		params: [
-			{ name: 'name', type: 'string', required: true, description: '员工姓名' },
-			{ name: 'type', type: 'string', required: false, description: '员工类型: full_time/part_time/freelancer/advisor' },
-			{ name: 'start_date', type: 'date', required: false, description: '入职日期 (YYYY-MM-DD格式，或"今天")' },
-			{ name: 'end_date', type: 'date', required: false, description: '离职日期 (YYYY-MM-DD格式)' },
-			{ name: 'contact', type: 'string', required: false, description: '联系方式/邮箱' },
-			{ name: 'tax_id', type: 'string', required: false, description: '税号' }
+			{ name: 'name', type: 'string', required: true, description: 'Employee name' },
+			{ name: 'type', type: 'string', required: false, description: 'Employment type: full_time / part_time / freelancer / advisor' },
+			{ name: 'start_date', type: 'date', required: false, description: 'Start date (YYYY-MM-DD, or "today")' },
+			{ name: 'end_date', type: 'date', required: false, description: 'End date (YYYY-MM-DD)' },
+			{ name: 'contact', type: 'string', required: false, description: 'Contact / email' },
+			{ name: 'tax_id', type: 'string', required: false, description: 'Tax ID' }
 		]
 	}
 ];
