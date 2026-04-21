@@ -36,6 +36,7 @@ export {
 	businessPartners,
 	partnerSupplierProfiles,
 	partnerCustomerProfiles,
+	partnerContacts,
 	customers
 } from '../modules/business-partner/schema';
 

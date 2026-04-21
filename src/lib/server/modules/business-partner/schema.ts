@@ -15,9 +15,24 @@ export const businessPartners = sqliteTable('business_partners', {
 	country: text('country'),
 	address: text('address'),
 	contact: text('contact'),
+	itemDescription: text('item_description'),
+	dateCreate: text('date_create'),
+	projectRelated: text('project_related'),
 	currency: text('currency').default('SGD'),
 	gstRegNo: text('gst_reg_no'),
 	metadata: text('metadata'),
+	...timeFields
+});
+
+export const partnerContacts = sqliteTable('partner_contacts', {
+	id: text('id').primaryKey(),
+	partnerId: text('partner_id')
+		.notNull()
+		.references(() => businessPartners.id),
+	name: text('name').notNull(),
+	phoneEmail: text('phone_email'),
+	wechat: text('wechat'),
+	position: text('position'),
 	...timeFields
 });
 

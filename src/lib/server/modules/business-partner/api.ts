@@ -10,10 +10,13 @@ export function createBusinessPartnerApi(ctx: ModuleContext) {
 		getById: svc.getById.bind(svc),
 		listByType: svc.listByType.bind(svc),
 		listSuppliers: svc.listSuppliers.bind(svc),
+		listPartnerContacts: svc.listPartnerContacts.bind(svc),
+		getSupplierDetail: svc.getSupplierDetail.bind(svc),
 		search: svc.search.bind(svc),
 		create: svc.create.bind(svc),
 		update: svc.update.bind(svc),
 		createSupplier: svc.createSupplier.bind(svc),
+		updateSupplierWithContacts: svc.updateSupplierWithContacts.bind(svc),
 		// Legacy
 		getCustomerById: svc.getCustomerById.bind(svc),
 		listCustomers: svc.listCustomers.bind(svc),
