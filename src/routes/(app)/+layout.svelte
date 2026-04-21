@@ -2,7 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { authClient } from '$lib/auth-client';
-	import AgentChat from '$lib/components/AgentChat.svelte';
+	// AgentChat is retired in favour of WorkflowPanel; kept in the tree for
+	// reference until its router/intent logic is fully migrated in Phase 1B.
+	// import AgentChat from '$lib/components/AgentChat.svelte';
+	import WorkflowPanel from '$lib/components/workflow-panel/WorkflowPanel.svelte';
+	import PanelTrigger from '$lib/components/workflow-panel/PanelTrigger.svelte';
 
 	type Primary = 'finance' | 'project' | 'hr' | 'business-partner' | 'settings';
 
@@ -373,5 +377,7 @@
 			{/if}
 		</main>
 	</div>
-	<AgentChat />
+	<!-- <AgentChat /> -->
+	<PanelTrigger />
+	<WorkflowPanel />
 </div>

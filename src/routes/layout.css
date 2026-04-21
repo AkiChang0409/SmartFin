@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Inter — UI font for panel (main app falls back to system). */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+
 :root {
 	color-scheme: light;
 	--sf-gold: #eabc3c;
@@ -49,3 +54,87 @@ html {
 		color: #2f2512;
 	}
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * AI Workflow Panel — scoped "SmartFin at night" token layer.
+ * Brand green + gold are core, brightened/saturated for dark mode.
+ * Gold is treated as a light source (halo, glow), not a flat accent.
+ * All panel components must sit under .sf-panel.
+ * ───────────────────────────────────────────────────────────────── */
+.sf-panel {
+	/* Surfaces — deep forest base */
+	--panel-bg: #0d1a0b;
+	--panel-surface: #152a12;
+	--panel-surface-raised: #1c3818;
+	--panel-surface-deep: #0a1408;
+
+	/* Borders & dividers — warm gold tint, not neutral gray */
+	--panel-border: rgba(234, 188, 60, 0.12);
+	--panel-border-strong: rgba(234, 188, 60, 0.28);
+	--panel-divider: rgba(234, 188, 60, 0.07);
+
+	/* Text — warm ivory / candlelit paper */
+	--panel-fg: #f4eed8;
+	--panel-fg-muted: #b9b496;
+	--panel-fg-faint: #7c7a63;
+
+	/* Gold — brand amber as a light source */
+	--panel-gold: #eabc3c;
+	--panel-gold-bright: #f5d674;
+	--panel-gold-deep: #c7991f;
+	--panel-gold-soft: rgba(234, 188, 60, 0.16);
+	--panel-gold-glow: rgba(234, 188, 60, 0.42);
+
+	/* Green — brand forest, brightened for dark */
+	--panel-green: #5fb55e;
+	--panel-green-bright: #7fd47e;
+	--panel-green-deep: var(--sf-green);
+	--panel-green-soft: rgba(95, 181, 94, 0.16);
+	--panel-green-glow: rgba(95, 181, 94, 0.42);
+
+	/* Status */
+	--panel-danger: #e17676;
+
+	/* Motion */
+	--panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--panel-ease-snap: cubic-bezier(0.2, 0.9, 0.1, 1);
+	--panel-dur-fast: 180ms;
+	--panel-dur-base: 320ms;
+	--panel-dur-portal: 460ms;
+
+	/* Typography */
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+		'PingFang SC', 'Source Han Sans CN', 'Microsoft YaHei', sans-serif;
+	font-feature-settings: 'cv11', 'ss01';
+	color: var(--panel-fg);
+	background:
+		radial-gradient(circle at 100% 0%, rgba(234, 188, 60, 0.12) 0%, transparent 46%),
+		radial-gradient(circle at 0% 100%, rgba(95, 181, 94, 0.10) 0%, transparent 52%),
+		var(--panel-bg);
+}
+
+.sf-panel .num {
+	font-feature-settings: 'tnum' 1, 'cv11' 1;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar tuned for dark panel */
+.sf-panel ::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+.sf-panel ::-webkit-scrollbar-track {
+	background: transparent;
+}
+.sf-panel ::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 999px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+.sf-panel ::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.14);
+	background-clip: padding-box;
+	border: 2px solid transparent;
+}
+
