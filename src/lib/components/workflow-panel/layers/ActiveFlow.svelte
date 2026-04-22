@@ -1,19 +1,29 @@
 <script lang="ts">
-	import { ArrowLeft, UploadCloud } from 'lucide-svelte';
+	import { UploadCloud } from 'lucide-svelte';
 	import { panel } from '$lib/workflow/panel.svelte';
 	import { getWorkflow } from '$lib/workflow/registry';
 
 	const workflow = $derived(
 		panel.activeWorkflow ? getWorkflow(panel.activeWorkflow.workflowId) : undefined
 	);
+	const stepIndex = $derived(panel.activeWorkflow?.stepIndex ?? 0);
+	const currentStep = $derived(workflow?.steps?.[stepIndex]);
+	const isLast = $derived(
+		!!workflow && stepIndex >= (workflow.steps.length - 1)
+	);
+
+	// Phase 1A stub: clicking the stage advances the demo so the TaskLine
+	// bubbles move. Real step logic (OCR, matching, approval) lands in 1B.
+	function onStageClick() {
+		if (isLast) {
+			panel.endWorkflow();
+			return;
+		}
+		panel.advanceStep();
+	}
 </script>
 
 <section class="flow">
-	<button type="button" class="flow-back" onclick={() => panel.endWorkflow()}>
-		<ArrowLeft size={14} strokeWidth={2} />
-		<span>Back to today</span>
-	</button>
-
 	{#if workflow}
 		<div class="flow-intro">
 			<div class="flow-eyebrow">
@@ -25,19 +35,28 @@
 		</div>
 
 		<!-- Phase 1B placeholder stage: this becomes the drag-drop + OCR +
-		     conversational confirm surface. For 1A we just hint at the shape. -->
-		<div class="stage">
-			<div class="stage-glow" aria-hidden="true"></div>
-			<div class="stage-icon">
+		     conversational confirm surface. For 1A tapping it just advances
+		     the TaskLine so the bubble metaphor reads end-to-end. -->
+		<button type="button" class="stage" onclick={onStageClick}>
+			<span class="stage-glow" aria-hidden="true"></span>
+			<span class="stage-icon">
 				<UploadCloud size={28} strokeWidth={1.6} />
-			</div>
-			<div class="stage-heading">Drop a file here</div>
-			<div class="stage-sub">
-				PDF, photo, or email attachment — I'll read it, match the PO,
-				and show you a draft in seconds.
-			</div>
-			<div class="stage-footnote">Phase 1B — this is where the real flow lands.</div>
-		</div>
+			</span>
+			<span class="stage-heading">
+				{currentStep?.label ?? 'Drop a file here'}
+			</span>
+			<span class="stage-sub">
+				{#if currentStep?.hint}
+					{currentStep.hint}
+				{:else}
+					PDF, photo, or email attachment — I'll read it, match the PO,
+					and show you a draft in seconds.
+				{/if}
+			</span>
+			<span class="stage-footnote">
+				{isLast ? 'Tap to finish and return to today' : 'Tap to advance (Phase 1A stub)'}
+			</span>
+		</button>
 	{/if}
 </section>
 
@@ -46,27 +65,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 22px;
-	}
-
-	.flow-back {
-		align-self: flex-start;
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 6px 12px 6px 10px;
-		background: transparent;
-		border: 1px solid var(--panel-border);
-		border-radius: 999px;
-		font-family: inherit;
-		font-size: 12px;
-		color: var(--panel-fg-muted);
-		cursor: pointer;
-		transition: all var(--panel-dur-fast) var(--panel-ease);
-	}
-	.flow-back:hover {
-		background: rgba(234, 188, 60, 0.06);
-		color: var(--panel-gold-bright);
-		border-color: var(--panel-border-strong);
 	}
 
 	.flow-eyebrow {
@@ -105,6 +103,9 @@
 
 	.stage {
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
 		margin-top: 8px;
 		padding: 40px 28px 36px;
 		text-align: center;
@@ -112,6 +113,22 @@
 		border: 1px dashed rgba(234, 188, 60, 0.28);
 		border-radius: 18px;
 		overflow: hidden;
+		color: inherit;
+		font-family: inherit;
+		cursor: pointer;
+		width: 100%;
+		transition:
+			transform var(--panel-dur-fast) var(--panel-ease),
+			border-color var(--panel-dur-fast) var(--panel-ease),
+			background var(--panel-dur-fast) var(--panel-ease);
+	}
+	.stage:hover {
+		transform: translateY(-1px);
+		border-color: var(--panel-gold);
+		background: var(--panel-surface-raised);
+	}
+	.stage:active {
+		transform: translateY(0);
 	}
 	.stage-glow {
 		position: absolute;

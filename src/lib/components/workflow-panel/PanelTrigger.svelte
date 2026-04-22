@@ -23,25 +23,28 @@
 	}
 </script>
 
-{#if !panel.isOpen}
-	<div class="orb-wrap" aria-hidden={panel.isOpen}>
-		<button
-			type="button"
-			class="orb"
-			onclick={onClick}
-			aria-label={`Open task mode (${isMac ? '⌘' : 'Ctrl'}+K)`}
-		>
-			<span class="orb-ring orb-ring-1"></span>
-			<span class="orb-ring orb-ring-2"></span>
-			<span class="orb-core">
-				<Sparkles size={22} strokeWidth={2} />
-			</span>
-		</button>
-		<span class="orb-hint">
-			<kbd>{isMac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd>
+<div
+	class="orb-wrap"
+	class:is-consumed={panel.isOpen}
+	aria-hidden={panel.isOpen}
+>
+	<button
+		type="button"
+		class="orb"
+		onclick={onClick}
+		disabled={panel.isOpen}
+		aria-label={`Open task mode (${isMac ? '⌘' : 'Ctrl'}+K)`}
+	>
+		<span class="orb-ring orb-ring-1"></span>
+		<span class="orb-ring orb-ring-2"></span>
+		<span class="orb-core">
+			<Sparkles size={22} strokeWidth={2} />
 		</span>
-	</div>
-{/if}
+	</button>
+	<span class="orb-hint">
+		<kbd>{isMac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd>
+	</span>
+</div>
 
 <style>
 	.orb-wrap {
@@ -53,6 +56,16 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 10px;
+		transition:
+			opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+			transform 460ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+	/* When the panel takes over, the orb visually "becomes" the portal:
+	   it briefly swells, then fades under the expanding clip-path. */
+	.orb-wrap.is-consumed {
+		opacity: 0;
+		transform: scale(1.18);
+		pointer-events: none;
 	}
 
 	.orb {
@@ -89,6 +102,9 @@
 	}
 	.orb:active {
 		transform: translateY(0) scale(0.97);
+	}
+	.orb:disabled {
+		cursor: default;
 	}
 
 	.orb-core {

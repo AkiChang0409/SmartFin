@@ -58,8 +58,8 @@ function createPanel() {
 	function open() {
 		if (openState === 'open' || openState === 'opening') return;
 		openState = 'opening';
-		// Allow one frame for mount, then flip to open for CSS transition completeness.
-		queueMicrotask(() => {
+		// Wait for next paint so the closed clip-path is committed before expanding.
+		window.requestAnimationFrame(() => {
 			openState = 'open';
 			persist();
 		});
@@ -105,6 +105,16 @@ function createPanel() {
 		activeWorkflow = null;
 	}
 
+	function setStep(next: number) {
+		if (!activeWorkflow) return;
+		activeWorkflow = { ...activeWorkflow, stepIndex: Math.max(0, next) };
+	}
+
+	function advanceStep() {
+		if (!activeWorkflow) return;
+		activeWorkflow = { ...activeWorkflow, stepIndex: activeWorkflow.stepIndex + 1 };
+	}
+
 	return {
 		get openState() {
 			return openState;
@@ -127,7 +137,9 @@ function createPanel() {
 		setMode,
 		toggleMode,
 		startWorkflow,
-		endWorkflow
+		endWorkflow,
+		setStep,
+		advanceStep
 	};
 }
 
