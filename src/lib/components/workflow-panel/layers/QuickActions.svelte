@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Receipt, Wallet, Percent, LineChart, Sparkles, CornerDownLeft } from 'lucide-svelte';
+	import { Receipt, Wallet, FileText, LineChart, Sparkles, CornerDownLeft } from 'lucide-svelte';
 	import { panel } from '$lib/workflow/panel.svelte';
 	import { mockQuickActions } from '$lib/workflow/mock/today-brief';
 	import type { QuickAction } from '$lib/workflow/types';
@@ -13,8 +13,8 @@
 				return Receipt;
 			case 'wallet':
 				return Wallet;
-			case 'percent':
-				return Percent;
+			case 'file-text':
+				return FileText;
 			case 'line-chart':
 				return LineChart;
 			default:
@@ -24,7 +24,7 @@
 
 	function onActionClick(action: QuickAction) {
 		if (action.workflowId) {
-			panel.startWorkflow(action.workflowId);
+			panel.startWorkflow(action.workflowId, action.workflowHint);
 		}
 	}
 

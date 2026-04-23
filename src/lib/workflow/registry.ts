@@ -1,8 +1,13 @@
 import type { WorkflowDefinition, WorkflowId } from './types';
 
 /**
- * Workflow registry. Phase 1A holds a single stub entry for
- * supplier-invoice-entry; Phase 1B will flesh out its step graph.
+ * Workflow registry. Phase 1B holds a single workflow — document-intake —
+ * which covers all five paths (revenue / expense invoice / expense receipt /
+ * contract / PO or quotation archive) behind one bubble flow.
+ *
+ * The five paths share the same shape: drop → read → confirm bucket →
+ * confirm fields → save. Classification decides which fields render in
+ * step 4 and which save endpoint step 5 calls.
  */
 
 const registry = new Map<WorkflowId, WorkflowDefinition>();
@@ -20,16 +25,18 @@ export function listWorkflows(): WorkflowDefinition[] {
 }
 
 registerWorkflow({
-	id: 'supplier-invoice-entry',
-	title: 'Record a supplier invoice',
-	shortTitle: 'Supplier invoice',
-	description: 'Drop a PDF or photo. We extract, match the PO, you confirm.',
-	entryLabel: 'Record invoice',
-	icon: 'receipt',
+	id: 'document-intake',
+	title: 'Record a document',
+	shortTitle: 'Intake',
+	description: 'Drop anything — invoice, receipt, contract. I read it, classify, and file it correctly.',
+	entryLabel: 'Record',
+	icon: 'upload-cloud',
 	steps: [
 		{ id: 'upload', label: 'Drop file', hint: 'PDF, photo, or email' },
-		{ id: 'detect', label: 'I read it', hint: 'OCR + extract' },
-		{ id: 'confirm', label: 'Confirm match', hint: 'PO + amount + GST' },
-		{ id: 'submit', label: 'Submit for approval', hint: 'Queue to approver' }
+		{ id: 'read', label: 'I read it', hint: 'OCR + classify' },
+		{ id: 'bucket', label: 'Where?', hint: 'Revenue / Expense / Archive' },
+		{ id: 'kind', label: 'What kind?', hint: 'Invoice, receipt, transport…' },
+		{ id: 'project', label: 'Which project?', hint: 'Or company overhead' },
+		{ id: 'review', label: 'Review & save', hint: 'Check, fix, commit' }
 	]
 });

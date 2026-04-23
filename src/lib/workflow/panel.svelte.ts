@@ -1,4 +1,4 @@
-import type { PanelMode, PanelOpenState, WorkflowId, WorkflowInstance } from './types';
+import type { IntakeHint, PanelMode, PanelOpenState, WorkflowId, WorkflowInstance } from './types';
 
 /**
  * Global panel state. Single source of truth for:
@@ -18,17 +18,19 @@ interface PersistedState {
 }
 
 function loadPersisted(): PersistedState {
-	if (typeof window === 'undefined') return { open: false, mode: 'half' };
+	// Default to 'full' — the intake workflow needs the split layout
+	// (fields left, preview right). Users can still toggle to half.
+	if (typeof window === 'undefined') return { open: false, mode: 'full' };
 	try {
 		const raw = sessionStorage.getItem(STORAGE_KEY);
-		if (!raw) return { open: false, mode: 'half' };
+		if (!raw) return { open: false, mode: 'full' };
 		const parsed = JSON.parse(raw) as Partial<PersistedState>;
 		return {
 			open: parsed.open === true,
-			mode: parsed.mode === 'full' ? 'full' : 'half'
+			mode: parsed.mode === 'half' ? 'half' : 'full'
 		};
 	} catch {
-		return { open: false, mode: 'half' };
+		return { open: false, mode: 'full' };
 	}
 }
 
@@ -90,13 +92,17 @@ function createPanel() {
 		persist();
 	}
 
-	function startWorkflow(workflowId: WorkflowId) {
+	function startWorkflow(workflowId: WorkflowId, hint?: IntakeHint) {
+		// Hint biases the classifier on step 2. Stored in state so the
+		// active-flow components can read it without prop drilling.
+		const initialState: Record<string, unknown> = {};
+		if (hint?.docType) initialState.hintDocType = hint.docType;
 		activeWorkflow = {
 			workflowId,
 			startedAt: Date.now(),
 			status: 'active',
 			stepIndex: 0,
-			state: {}
+			state: initialState
 		};
 		open();
 	}
@@ -113,6 +119,17 @@ function createPanel() {
 	function advanceStep() {
 		if (!activeWorkflow) return;
 		activeWorkflow = { ...activeWorkflow, stepIndex: activeWorkflow.stepIndex + 1 };
+	}
+
+	/** Merge a patch into the active workflow's state. Used by step components
+	 *  to thread extracted data (file key, classify result, edited fields)
+	 *  forward without exposing the whole store. */
+	function patchState(patch: Record<string, unknown>) {
+		if (!activeWorkflow) return;
+		activeWorkflow = {
+			...activeWorkflow,
+			state: { ...(activeWorkflow.state as Record<string, unknown>), ...patch }
+		};
 	}
 
 	return {
@@ -139,7 +156,8 @@ function createPanel() {
 		startWorkflow,
 		endWorkflow,
 		setStep,
-		advanceStep
+		advanceStep,
+		patchState
 	};
 }
 

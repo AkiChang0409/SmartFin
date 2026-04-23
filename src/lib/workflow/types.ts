@@ -34,11 +34,19 @@ export interface WorkflowInstance<TState = unknown> {
 export type PanelMode = 'half' | 'full';
 export type PanelOpenState = 'closed' | 'opening' | 'open' | 'closing';
 
+/**
+ * Hint passed from an entry point (brief item / quick action) to bias the
+ * classifier on step 2. The classifier can still override; treat it as a prior,
+ * not a decision.
+ */
+export type IntakeHint = { docType?: string };
+
 export interface BriefItem {
 	id: string;
 	title: string;
 	detail: string;
 	workflowId?: WorkflowId;
+	workflowHint?: IntakeHint;
 	urgency: 'normal' | 'due-soon' | 'overdue';
 	count?: number;
 }
@@ -48,4 +56,5 @@ export interface QuickAction {
 	label: string;
 	icon: string;
 	workflowId?: WorkflowId;
+	workflowHint?: IntakeHint;
 }

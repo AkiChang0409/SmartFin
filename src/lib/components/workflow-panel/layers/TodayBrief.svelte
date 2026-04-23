@@ -6,7 +6,7 @@
 
 	function onItemClick(item: BriefItem) {
 		if (item.workflowId) {
-			panel.startWorkflow(item.workflowId);
+			panel.startWorkflow(item.workflowId, item.workflowHint);
 		}
 	}
 </script>

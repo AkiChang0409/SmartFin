@@ -1,9 +1,11 @@
 import type { BriefItem, QuickAction } from '../types';
 
 /**
- * Phase 1A mock data. Uses realistic SMB vendor names so the demo
- * doesn't look like Lorem ipsum. Will be replaced by real data
- * sources (Feishu sync, scheduled jobs, event queue) in later phases.
+ * Phase 1A/B mock data. All entry points route into the single `document-intake`
+ * workflow — the hint biases the step-2 classifier so Quick Action "Record
+ * invoice" pre-selects the supplier-invoice path without locking the user in.
+ *
+ * Vendor names deliberately realistic per vision doc §5 (no "Test Vendor 1").
  */
 
 export const mockBriefItems: BriefItem[] = [
@@ -11,7 +13,8 @@ export const mockBriefItems: BriefItem[] = [
 		id: 'brief-1',
 		title: '3 supplier invoices waiting on you',
 		detail: 'From Axiom Tech, Cloudfactor SG, Neon Robotics — OCR draft ready.',
-		workflowId: 'supplier-invoice-entry',
+		workflowId: 'document-intake',
+		workflowHint: { docType: 'invoice_in' },
 		urgency: 'due-soon',
 		count: 3
 	},
@@ -25,6 +28,8 @@ export const mockBriefItems: BriefItem[] = [
 		id: 'brief-3',
 		title: '2 expense claims need approval',
 		detail: 'Joyce and Wei Ming submitted travel receipts this morning.',
+		workflowId: 'document-intake',
+		workflowHint: { docType: 'expense' },
 		urgency: 'normal',
 		count: 2
 	}
@@ -38,9 +43,22 @@ export const mockQuickActions: QuickAction[] = [
 		id: 'qa-invoice',
 		label: 'Record invoice',
 		icon: 'receipt',
-		workflowId: 'supplier-invoice-entry'
+		workflowId: 'document-intake',
+		workflowHint: { docType: 'invoice_in' }
 	},
-	{ id: 'qa-expense', label: 'Log expense', icon: 'wallet' },
-	{ id: 'qa-gst', label: 'GST progress', icon: 'percent' },
+	{
+		id: 'qa-expense',
+		label: 'Log expense',
+		icon: 'wallet',
+		workflowId: 'document-intake',
+		workflowHint: { docType: 'expense' }
+	},
+	{
+		id: 'qa-contract',
+		label: 'File contract',
+		icon: 'file-text',
+		workflowId: 'document-intake',
+		workflowHint: { docType: 'contract' }
+	},
 	{ id: 'qa-report', label: 'This month', icon: 'line-chart' }
 ];
