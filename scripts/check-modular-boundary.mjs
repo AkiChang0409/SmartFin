@@ -126,6 +126,8 @@ const FINANCE_TARGET_BRIDGE_FILES = new Set([
 const PHASE4_TARGET_BRIDGE_FILES = new Set([
 	'src/modules/project/contracts.ts',
 	'src/modules/project/adapters.ts',
+	'src/modules/project/contracts/source.ts',
+	'src/modules/project/adapters/legacy.ts',
 	'src/modules/hr/contracts.ts',
 	'src/modules/hr/adapters.ts',
 	'src/modules/hr/compat.ts',

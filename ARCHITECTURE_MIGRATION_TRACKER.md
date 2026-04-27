@@ -318,5 +318,11 @@ Current follow-up status:
 - Finance agent action catalogs now live in
   `src/modules/finance/capabilities/agent-actions.ts` instead of importing the
   legacy module root entrypoints.
-- The next internal-topology alignment target should move to Project, then HR,
+- Project has now started the same internal-topology alignment track:
+  target-layer subdirectories for `app`, `contracts`, `workflows`,
+  `capabilities`, `services`, `rules`, `policies`, `schemas`, `repositories`,
+  `adapters`, `events`, and `config` are now landed under
+  `src/modules/project`, while legacy business implementation remains behind
+  `contracts/source.ts` and `adapters/legacy.ts`.
+- The next internal-topology alignment target after Project should move to HR,
   then Document Intake.

@@ -225,6 +225,9 @@ Current status:
   `taxes`, `insights`) now execute from Finance-owned services/repositories.
 - Finance root compatibility files have been retired; the module root now keeps
   `index.ts` plus documentation only.
-- The next module-internal alignment target should move to
-  `src/modules/project`, then `src/modules/hr`, then
-  `src/modules/document-intake`.
+- `src/modules/project` has now entered the same internal-alignment track:
+  third-layer directories, manifest assembly, service assembly, action
+  catalog, and handler registration now live under target-layer subdirectories
+  while business implementation still remains in the legacy slice.
+- The next module-internal alignment target after Project should move to
+  `src/modules/hr`, then `src/modules/document-intake`.
