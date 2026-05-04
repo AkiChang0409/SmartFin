@@ -1,3 +1,4 @@
+import { and, eq, isNull } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
 import { getDb, schema } from '$lib/server/modules/legacy-db';
@@ -55,6 +56,8 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		metadata?: Record<string, unknown>;
 		allowance?: boolean;
 		idempotencyKey?: string;
+		/** 当从「待处理 financial 文档」提交时，复用既有 documents 行而不重新插入 */
+		documentId?: string;
 	};
 
 	// Normalize projectId from UI:
@@ -107,7 +110,48 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 
 	// File upload mode
-	if (!body.key || !body.fileName || !body.fileType) {
+	const reuseDocumentId = body.documentId?.trim();
+	const db = getDb(platform.env);
+
+	type ReusedDocRow = {
+		id: string;
+		fileKey: string;
+		fileName: string;
+		fileType: string;
+		projectId: string | null;
+		entityType: string | null;
+		entityId: string | null;
+	};
+
+	let reusedDocRow: ReusedDocRow | null = null;
+	if (reuseDocumentId) {
+		const [row] = await db
+			.select({
+				id: schema.documents.id,
+				fileKey: schema.documents.fileKey,
+				fileName: schema.documents.fileName,
+				fileType: schema.documents.fileType,
+				projectId: schema.documents.projectId,
+				entityType: schema.documents.entityType,
+				entityId: schema.documents.entityId
+			})
+			.from(schema.documents)
+			.where(and(eq(schema.documents.id, reuseDocumentId), isNull(schema.documents.deletedAt)))
+			.limit(1);
+		if (!row) return fail('documentId not found', 404);
+		if (row.entityType === 'expense' && row.entityId) {
+			return fail('Document is already linked to an expense', 409, {
+				code: 'DOCUMENT_ALREADY_LINKED',
+				existingEntityId: row.entityId
+			});
+		}
+		reusedDocRow = row;
+	}
+
+	const effectiveKey = reusedDocRow?.fileKey ?? body.key;
+	const effectiveFileName = reusedDocRow?.fileName ?? body.fileName;
+	const effectiveFileType = body.fileType ?? '';
+	if (!effectiveKey || !effectiveFileName || (!reusedDocRow && !effectiveFileType)) {
 		return fail('Missing required fields: key, fileName, fileType');
 	}
 	if (!body.idempotencyKey || !String(body.idempotencyKey).trim()) {
@@ -118,7 +162,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return fail(`Invalid docType. Must be one of: ${EXPENSE_DOC_TYPES.join(', ')}`);
 	}
 
-	const exists = await objectExists(platform.env, body.key);
+	const exists = await objectExists(platform.env, effectiveKey);
 	if (!exists) {
 		return fail('Uploaded object was not found in R2', 404);
 	}
@@ -134,16 +178,16 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return fail('amount is required for file upload (number)');
 	}
 
-	const db = getDb(platform.env);
 	const now = new Date().toISOString();
-	const documentId = crypto.randomUUID();
+	const documentId = reusedDocRow?.id ?? crypto.randomUUID();
 	const expenseId = crypto.randomUUID();
 	const projectScope = normalizeProjectScope(normalizedProjectId);
 	const idempotencyKey = String(body.idempotencyKey).trim();
 
-	const fileTypeCategory = body.fileType.includes('pdf')
+	const mimeForCategory = effectiveFileType || reusedDocRow?.fileType || '';
+	const fileTypeCategory = mimeForCategory.includes('pdf')
 		? 'pdf'
-		: body.fileType.includes('image')
+		: mimeForCategory.includes('image')
 			? 'image'
 			: 'other';
 
@@ -196,7 +240,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 		return fail('A request with the same idempotency key is still processing', 409);
 	}
 
-	const fileHash = await getObjectSha256(platform.env, body.key);
+	const fileHash = await getObjectSha256(platform.env, effectiveKey);
 	if (!fileHash) {
 		await failIdempotentRequest(db, idempotencyKey, 'Uploaded file missing in storage when hashing');
 		return fail('Uploaded object was not found in R2 during dedupe check', 404);
@@ -227,25 +271,43 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 	}
 
 	try {
-		await db.insert(schema.documents).values({
-			id: documentId,
-			projectId: normalizedProjectId,
-			uploadedBy: locals.user?.id || 'system',
-			fileKey: body.key,
-			fileName: body.fileName,
-			fileType: fileTypeCategory,
-			purpose: 'financial',
-			docType: (docType as 'invoice' | 'receipt' | 'po') || 'other',
-			ocrStatus: 'done',
-			ocrResult: JSON.stringify(ocrResultPayload),
-			createdAt: now,
-			updatedAt: now
-		});
+		if (reusedDocRow) {
+			await db
+				.update(schema.documents)
+				.set({
+					projectId: normalizedProjectId,
+					docType: (docType as 'invoice' | 'receipt' | 'po') || 'other',
+					purpose: 'financial',
+					ocrStatus: 'done',
+					ocrResult: JSON.stringify(ocrResultPayload),
+					entityType: 'expense',
+					entityId: expenseId,
+					updatedAt: now
+				})
+				.where(eq(schema.documents.id, documentId));
+		} else {
+			await db.insert(schema.documents).values({
+				id: documentId,
+				projectId: normalizedProjectId,
+				uploadedBy: locals.user?.id || 'system',
+				fileKey: effectiveKey,
+				fileName: effectiveFileName,
+				fileType: fileTypeCategory,
+				purpose: 'financial',
+				docType: (docType as 'invoice' | 'receipt' | 'po') || 'other',
+				ocrStatus: 'done',
+				ocrResult: JSON.stringify(ocrResultPayload),
+				entityType: 'expense',
+				entityId: expenseId,
+				createdAt: now,
+				updatedAt: now
+			});
+		}
 	} catch (e) {
 		await releaseFileHashClaim(db, { domain: 'expense', projectScope, fileHash });
 		await failIdempotentRequest(db, idempotencyKey, e instanceof Error ? e.message : String(e));
 		const message = e instanceof Error ? e.message : String(e);
-		return fail('Failed to insert documents record', 500, {
+		return fail('Failed to upsert documents record', 500, {
 			message,
 			projectId: normalizedProjectId,
 			docType,
@@ -270,7 +332,7 @@ export const POST: RequestHandler = async ({ request, platform, locals }) => {
 			reimbursement: body.reimbursement ?? false,
 			businessTrip: body.businessTrip ?? false,
 			destination: body.destination?.trim() || null,
-			documentRef: body.key,
+			documentRef: effectiveKey,
 			metadata: body.metadata ? JSON.stringify(body.metadata) : null,
 			notes: body.notes?.trim() || null,
 			createdAt: now,

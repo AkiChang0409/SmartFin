@@ -4,6 +4,11 @@
 # Required for better-auth (generate a new random string, e.g. openssl rand -hex 32)
 BETTER_AUTH_SECRET=
 
+# Optional: mobile / API JWT (HS256). If unset, tokens use `BETTER_AUTH_SECRET`.
+# SMARTFIN_JWT_SECRET=
+# SMARTFIN_JWT_AUTH=1
+# SMARTFIN_JWT_EXPIRES_SEC=604800
+
 # Optional locally: `wrangler.jsonc` may set BETTER_AUTH_URL to production.
 # The app overrides base URL from the request origin on localhost automatically if unset here.
 

@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"dev:vite": "vite dev",
-		"dev:cf": "npm run build && wrangler dev .svelte-kit/cloudflare/_worker.js --port 5173",
+		"dev:cf": "npm run build && wrangler dev .svelte-kit/cloudflare/_worker.js --port 5173 --ip 0.0.0.0",	
 		"dev:cf:local": "npm run build && wrangler dev .svelte-kit/cloudflare/_worker.js --local --port 5173",
 		"build": "vite build",
 		"preview": "wrangler dev .svelte-kit/cloudflare/_worker.js --port 4173",

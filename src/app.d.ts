@@ -26,6 +26,12 @@ declare global {
 		OCR_PROMPT_VERSION?: string;
 		BETTER_AUTH_SECRET?: string;
 		BETTER_AUTH_URL?: string;
+		/** Optional: separate HS256 key for mobile JWT; defaults to `BETTER_AUTH_SECRET`. */
+		SMARTFIN_JWT_SECRET?: string;
+		/** `false` / `0` / `off` — disable `Authorization: Bearer` resolution (cookie session only). */
+		SMARTFIN_JWT_AUTH?: string;
+		/** Access token lifetime in seconds (default 604800 = 7d, max 1y). */
+		SMARTFIN_JWT_EXPIRES_SEC?: string;
 		/** Resend API (transactional email: verify, reset password). Optional in dev (logs only). */
 		RESEND_API_KEY?: string;
 		EMAIL_FROM?: string;

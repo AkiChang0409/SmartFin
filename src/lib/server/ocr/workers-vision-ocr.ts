@@ -1,6 +1,14 @@
+import { CATEGORY_LABELS, CATEGORY_METADATA_FIELDS, type ExpenseCategory, type ExpenseDocType, type ExpenseType } from '$lib/constants/expense-upload';
+
 export type WorkersVisionOcrResult =
 	| { ok: true; text: string; model: string }
 	| { ok: false; error: string };
+
+export type WorkersVisionOcrGuidance = {
+	expenseType?: ExpenseType;
+	category?: ExpenseCategory;
+	docType?: ExpenseDocType | null;
+};
 
 function readEnv(platformEnv: Env, key: string): string {
 	const processEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
@@ -62,20 +70,58 @@ function extractVisionText(raw: unknown): string {
 	return '';
 }
 
-const SYSTEM_PROMPT = `You are an OCR engine for business and finance documents (invoices, contracts, POs, quotations).
-Transcribe ALL visible text in natural reading order.
-Rules:
-- Output plain text only. No markdown, no preamble, no "Here is the text".
-- Preserve line breaks where they separate distinct lines or table rows.
-- Include numbers, dates, amounts, tax IDs, addresses, and table cells as they appear.
-- If the image is unreadable or not a document, output a single line: [UNREADABLE]`;
+const SYSTEM_PROMPT = `You are a strict OCR transcription engine for finance documents.
+Task: transcribe printed text from the document image only.
+
+Hard rules:
+- Output plain text only (no markdown, no JSON, no explanations).
+- Keep line breaks for distinct rows/lines.
+- Include numbers, dates, currency symbols/codes, IDs, addresses, and table cells.
+- DO NOT describe the scene, paper, hand, camera, background, lighting, or perspective.
+- DO NOT summarize or infer. Only copy visible text.
+- If unreadable, output exactly: [UNREADABLE]`;
 
 const USER_PROMPT =
-	'Transcribe every legible word, digit, and symbol from this document image. Use the same language(s) as printed on the page.';
+	'OCR only: copy every legible character from this document image. Do not add any visual description.';
+
+const RETRY_USER_PROMPT =
+	'Your previous answer looked like scene description. Retry with OCR-only transcript: output only text that appears on the document, line by line, no commentary.';
+
+function looksLikeCaption(text: string): boolean {
+	const t = text.toLowerCase();
+	const phrases = [
+		'partially visible',
+		'displayed on',
+		'resting on',
+		'suggesting',
+		'appears to be',
+		'in the lower right corner',
+		'a hand is',
+		'the image shows'
+	];
+	if (phrases.some((p) => t.includes(p))) return true;
+	const docTokens = (t.match(/\b(invoice|total|date|gst|tax|po|receipt|amount|due)\b/g) ?? []).length;
+	return t.length > 100 && docTokens <= 1 && !/\d{2,}/.test(t);
+}
+
+function buildGuidancePrompt(guidance?: WorkersVisionOcrGuidance): string {
+	if (!guidance?.category) return '';
+	const defs = CATEGORY_METADATA_FIELDS[guidance.category] ?? [];
+	const metaLabels = defs.map((d) => d.label).filter(Boolean);
+	const baseFields = ['Amount / Total', 'Currency', 'Date', 'Vendor / Supplier', 'GST / Tax'];
+	const focus = [...baseFields, ...metaLabels].slice(0, 14);
+	if (focus.length === 0) return '';
+	return `\nFocus fields for this upload context:
+- expenseType: ${guidance.expenseType ?? 'unknown'}
+- category: ${guidance.category} (${CATEGORY_LABELS[guidance.category] ?? guidance.category})
+- docType: ${guidance.docType ?? 'none'}
+- Pay extra attention to lines containing: ${focus.join(', ')}
+Still return full verbatim transcription (not extracted JSON).`;
+}
 
 export async function runWorkersVisionOcr(
 	env: Env,
-	input: { imageBytes: Uint8Array; mimeType: string }
+	input: { imageBytes: Uint8Array; mimeType: string; guidance?: WorkersVisionOcrGuidance }
 ): Promise<WorkersVisionOcrResult> {
 	if (!env.AI) {
 		return { ok: false, error: 'Workers AI is not available (missing AI binding).' };
@@ -91,28 +137,28 @@ export async function runWorkersVisionOcr(
 	const mime = normalizeMime(input.mimeType);
 	const dataUri = `data:${mime};base64,${uint8ToBase64(input.imageBytes)}`;
 
-	const messages = [
+	const makeMessages = (userPrompt: string) => [
 		{ role: 'system' as const, content: SYSTEM_PROMPT },
 		{
 			role: 'user' as const,
 			content: [
-				{ type: 'text' as const, text: USER_PROMPT },
+				{ type: 'text' as const, text: `${userPrompt}${buildGuidancePrompt(input.guidance)}` },
 				{ type: 'image_url' as const, image_url: { url: dataUri } }
 			]
 		}
 	];
 
-	const runVision = async () =>
+	const runVision = async (userPrompt: string) =>
 		env.AI!.run(model as Parameters<NonNullable<Env['AI']>['run']>[0], {
-			messages,
+			messages: makeMessages(userPrompt),
 			max_tokens: 2048,
-			temperature: 0.2
+			temperature: 0
 		} as Parameters<NonNullable<Env['AI']>['run']>[1]);
 
 	try {
 		let raw: unknown;
 		try {
-			raw = await runVision();
+			raw = await runVision(USER_PROMPT);
 		} catch {
 			// Llama 3.2 Vision requires a one-time Meta license acknowledgement
 			try {
@@ -120,10 +166,17 @@ export async function runWorkersVisionOcr(
 					prompt: 'agree'
 				} as Parameters<NonNullable<Env['AI']>['run']>[1]);
 			} catch { /* already agreed or unrelated */ }
-			raw = await runVision();
+			raw = await runVision(USER_PROMPT);
 		}
 
-		const text = extractVisionText(raw).trim();
+		let text = extractVisionText(raw).trim();
+		if (text && text !== '[UNREADABLE]' && looksLikeCaption(text)) {
+			const retryRaw = await runVision(RETRY_USER_PROMPT);
+			const retryText = extractVisionText(retryRaw).trim();
+			if (retryText && retryText !== '[UNREADABLE]' && !looksLikeCaption(retryText)) {
+				text = retryText;
+			}
+		}
 		if (!text || text === '[UNREADABLE]') {
 			return { ok: false, error: 'Vision model returned no usable text.' };
 		}

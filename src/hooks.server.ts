@@ -4,6 +4,7 @@ import { redirect } from '@sveltejs/kit';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 import { getAuth } from '$lib/server/auth/better-auth';
+import { resolveUserFromJwtBearer } from '$lib/server/auth/jwt-session';
 import { resolveWorkerAuthEnv } from '$lib/server/auth/resolve-worker-env';
 import type { AuthRole } from '$lib/server/auth/config';
 import { isRouteAllowed } from '$lib/server/auth/permissions';
@@ -43,8 +44,9 @@ function needsApiAuth(pathname: string) {
 	return pathname.startsWith('/api/');
 }
 
-function isPublicAuthApi(pathname: string) {
-	return pathname.startsWith('/api/auth');
+/** Public API prefixes (no session / bearer required at the hook layer). */
+function isPublicApiPath(pathname: string) {
+	return pathname.startsWith('/api/auth') || pathname === '/api/mobile/auth/login';
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -75,6 +77,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.user = null;
 	}
 
+	if (!event.locals.user) {
+		const jwtUser = await resolveUserFromJwtBearer(event.request, env);
+		if (jwtUser) {
+			event.locals.user = jwtUser;
+		}
+	}
+
 	if (
 		(event.url.pathname === '/login' || event.url.pathname === '/register') &&
 		event.locals.user
@@ -86,7 +95,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const wantApiAuth = needsApiAuth(path);
 	const wantAppAuth = needsAppAuth(path);
 
-	if (wantAppAuth || (wantApiAuth && !isPublicAuthApi(path))) {
+	if (wantAppAuth || (wantApiAuth && !isPublicApiPath(path))) {
 		if (!event.locals.user) {
 			if (wantApiAuth) {
 				return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 401 });
