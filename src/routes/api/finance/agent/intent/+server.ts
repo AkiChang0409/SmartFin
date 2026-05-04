@@ -59,6 +59,7 @@ export const POST: RequestHandler = async (event) => {
 		reason: result.reason,
 		requiredInputs: result.requiredInputs,
 		suggestedWorkflow: result.suggestedWorkflow,
+		suggestedCategoryId: result.suggestedCategoryId,
 		riskLevel: result.riskLevel
 	});
 };

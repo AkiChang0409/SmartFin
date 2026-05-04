@@ -9,6 +9,7 @@
 import { financeAgentAllowedCapabilities } from '../../modules/finance/agent';
 import {
 	detectDuplicateCapability,
+	extractDocumentFieldsCapability,
 	extractInvoiceFieldsCapability,
 	matchPurchaseOrderCapability,
 	matchSupplierCapability,
@@ -23,6 +24,7 @@ const FINANCE_AGENT_ID = 'finance-agent';
 
 const FINANCE_CAPABILITIES: ReadonlyArray<FinanceCapability<unknown, unknown>> = [
 	extractInvoiceFieldsCapability as FinanceCapability<unknown, unknown>,
+	extractDocumentFieldsCapability as FinanceCapability<unknown, unknown>,
 	matchSupplierCapability as FinanceCapability<unknown, unknown>,
 	matchPurchaseOrderCapability as FinanceCapability<unknown, unknown>,
 	detectDuplicateCapability as FinanceCapability<unknown, unknown>,

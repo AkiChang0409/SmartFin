@@ -83,6 +83,11 @@ export interface FinanceIntentResult {
 	reason: string;
 	requiredInputs: string[];
 	suggestedWorkflow: string | null;
+	/** Canonical category id from
+	 *  `financial-document-intake/categories.ts`, when the suggested workflow
+	 *  is `financial-document-intake`. The panel forwards this as a preset
+	 *  hint when starting the workflow. */
+	suggestedCategoryId?: string;
 	riskLevel: FinanceRiskLevel;
 }
 

@@ -5,8 +5,8 @@
 	// AgentChat is retired in favour of WorkflowPanel; kept in the tree for
 	// reference until its router/intent logic is fully migrated in Phase 1B.
 	// import AgentChat from '$lib/components/AgentChat.svelte';
-	import WorkflowPanel from '$lib/components/workflow-panel/WorkflowPanel.svelte';
-	import PanelTrigger from '$lib/components/workflow-panel/PanelTrigger.svelte';
+	import WorkflowPanel from '$app-layer/ai-panel/components/workflow-panel/WorkflowPanel.svelte';
+	import PanelTrigger from '$app-layer/ai-panel/components/workflow-panel/PanelTrigger.svelte';
 
 	type Primary = 'finance' | 'project' | 'hr' | 'business-partner' | 'settings';
 
@@ -36,26 +36,25 @@
 		{ id: 'settings', href: '/settings', label: 'Setting', moduleId: 'core' }
 	];
 
-	// Finance section sidebar — company-level finance
+
+	// Finance section sidebar - company-level finance
 	const financeGroups: SideGroup[] = [
 		{
 			title: 'Overview',
-			items: [
-				{ href: '/dashboard', label: 'Dashboard', moduleId: null, icon: '◫' }
-			]
+			items: [{ href: '/dashboard', label: 'Dashboard', moduleId: null, icon: 'D' }]
 		},
 		{
 			title: 'Tax',
 			items: [
-				{ href: '/tax', label: 'GST Return', moduleId: 'tax', icon: '⊞' },
-				{ href: '/tax/corporate', label: 'Corporate Tax', moduleId: 'tax', icon: '⊡' }
+				{ href: '/tax', label: 'GST Return', moduleId: 'tax', icon: '%' },
+				{ href: '/tax/corporate', label: 'Corporate Tax', moduleId: 'tax', icon: '%' }
 			]
 		},
 		{
 			title: 'Company Expenses',
 			items: [
-				{ href: '/expenses', label: 'All Expenses', moduleId: 'expense', icon: '⊟' },
-				{ href: '/expenses/reimbursements', label: 'Reimbursement Queue', moduleId: 'expense', icon: '⊠' }
+				{ href: '/expenses', label: 'All Expenses', moduleId: 'expense', icon: '$' },
+				{ href: '/expenses/reimbursements', label: 'Reimbursement Queue', moduleId: 'expense', icon: '$' }
 			]
 		},
 		{
@@ -65,13 +64,13 @@
 					href: '/finance/revenue/customer-invoice-upload',
 					label: 'Customer invoice upload',
 					moduleId: 'ar',
-					icon: '◧'
+					icon: 'I'
 				}
 			]
 		},
 		{
 			title: 'Documents',
-			items: [{ href: '/finance/doc-hub', label: 'Doc Hub', moduleId: 'ar', icon: '▤' }]
+			items: [{ href: '/finance/doc-hub', label: 'Doc Hub', moduleId: 'ar', icon: 'F' }]
 		}
 	];
 
@@ -79,7 +78,7 @@
 		{
 			title: 'HR',
 			items: [
-				{ href: '/employees', label: 'All Employees', moduleId: 'employee', icon: '◐' },
+				{ href: '/employees', label: 'All Employees', moduleId: 'employee', icon: 'H' },
 				{ href: '/employees/new', label: 'New Employee', moduleId: 'employee', icon: '+' }
 			]
 		}
@@ -89,8 +88,8 @@
 		{
 			title: 'Partners',
 			items: [
-				{ href: '/customers', label: 'Customers', moduleId: 'business-partner', icon: '◎' },
-				{ href: '/suppliers', label: 'Suppliers', moduleId: 'business-partner', icon: '◉' }
+				{ href: '/customers', label: 'Customers', moduleId: 'business-partner', icon: 'B' },
+				{ href: '/suppliers', label: 'Suppliers', moduleId: 'business-partner', icon: 'B' }
 			]
 		}
 	];
@@ -98,9 +97,7 @@
 	const settingsGroups: SideGroup[] = [
 		{
 			title: 'Configuration',
-			items: [
-				{ href: '/settings', label: 'Workspace Settings', moduleId: 'core', icon: '⚙' }
-			]
+			items: [{ href: '/settings', label: 'Workspace Settings', moduleId: 'core', icon: '*' }]
 		}
 	];
 
@@ -113,12 +110,12 @@
 			{
 				title: 'Projects',
 				items: [
-					{ href: '/projects', label: 'All Projects', moduleId: 'project', icon: '▦', badge: c?.all },
+					{ href: '/projects', label: 'All Projects', moduleId: 'project', icon: 'P', badge: c?.all },
 					{
 						href: '/projects?status=active',
 						label: 'Active',
 						moduleId: 'project',
-						icon: '◷',
+						icon: 'A',
 						badge: c?.active
 					},
 					{ href: '/projects/new', label: 'New Project', moduleId: 'project', icon: '+' }

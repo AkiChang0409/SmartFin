@@ -20,6 +20,12 @@ export const financeAgentAllowedCapabilities: FinanceCapabilityPolicyEntry[] = [
 		requiredUserPermissions: ['finance:edit']
 	},
 	{
+		id: 'finance.extract-document-fields',
+		riskLevel: 'R2',
+		requiresConfirmation: false,
+		requiredUserPermissions: ['finance:edit']
+	},
+	{
 		id: 'finance.match-supplier',
 		riskLevel: 'R1',
 		requiresConfirmation: false,

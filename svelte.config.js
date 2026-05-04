@@ -13,7 +13,14 @@ const config = {
 			return isExternalLibrary ? undefined : true;
 		}
 	},
-	kit: { adapter: adapter() }
+	kit: {
+		adapter: adapter(),
+		alias: {
+			'$app-layer': 'src/app',
+			$modules: 'src/modules',
+			$platform: 'src/platform'
+		}
+	}
 };
 
 export default config;

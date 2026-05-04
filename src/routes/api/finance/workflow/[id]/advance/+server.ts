@@ -8,9 +8,23 @@ import {
 	runFieldExtractionStep,
 	runMatchingStep,
 	type DocumentIntakeOutput,
-	type ExtractedInvoiceFields,
-	type VendorInvoiceIntakeStepId
+	type ExtractedInvoiceFields
 } from '../../../../../../modules/finance/workflows/vendor-invoice-intake';
+import {
+	findFinancialDocumentIntakeStep,
+	runBucketSelectionStep,
+	runCategorySelectionStep,
+	runFieldExtractionStep as runDocFieldExtractionStep,
+	runMatchingStep as runDocMatchingStep,
+	runProjectSelectionStep,
+	findCategoryById,
+	type Bucket
+} from '../../../../../../modules/finance/workflows/financial-document-intake';
+import {
+	findAllowanceRecordingStep,
+	runManualEntryStep,
+	type AllowanceManualEntry
+} from '../../../../../../modules/finance/workflows/allowance-recording';
 import { createDocumentIntakeService } from '../../../../../../modules/document-intake';
 import { appendAgentAuditEntry } from '../../../../../../platform/audit/audit-log';
 import { checkToolPolicy } from '../../../../../../platform/ai/tool-policy';
@@ -21,11 +35,60 @@ import {
 } from '../../../../../../platform/workflow/workflow-runtime';
 
 interface AdvanceBody {
-	targetStep: VendorInvoiceIntakeStepId;
+	targetStep: string;
 	payload?: {
 		documentId?: string;
 		fileName?: string;
+		bucket?: Bucket;
+		categoryId?: string;
+		projectId?: string | null;
+		/** allowance-recording manual entry. */
+		allowanceEntry?: AllowanceManualEntry;
 	};
+}
+
+interface ResolvedStepDef {
+	id: string;
+	allowedCapabilities: readonly string[];
+	requiresUserConfirmation: boolean;
+	nextSteps: readonly string[];
+}
+
+function lookupStep(workflowId: string, stepId: string): ResolvedStepDef | undefined {
+	if (workflowId === 'vendor-invoice-intake') {
+		const def = findVendorInvoiceIntakeStep(stepId as never);
+		return def
+			? {
+					id: def.id,
+					allowedCapabilities: def.allowedCapabilities,
+					requiresUserConfirmation: def.requiresUserConfirmation,
+					nextSteps: def.nextSteps as readonly string[]
+				}
+			: undefined;
+	}
+	if (workflowId === 'financial-document-intake') {
+		const def = findFinancialDocumentIntakeStep(stepId as never);
+		return def
+			? {
+					id: def.id,
+					allowedCapabilities: def.allowedCapabilities,
+					requiresUserConfirmation: def.requiresUserConfirmation,
+					nextSteps: def.nextSteps as readonly string[]
+				}
+			: undefined;
+	}
+	if (workflowId === 'allowance-recording') {
+		const def = findAllowanceRecordingStep(stepId as never);
+		return def
+			? {
+					id: def.id,
+					allowedCapabilities: def.allowedCapabilities,
+					requiresUserConfirmation: def.requiresUserConfirmation,
+					nextSteps: def.nextSteps as readonly string[]
+				}
+			: undefined;
+	}
+	return undefined;
 }
 
 interface PolicyGateOk {
@@ -127,9 +190,7 @@ export const POST: RequestHandler = async (event) => {
 	if (!state) return fail('Workflow not found', 404);
 	if (state.status !== 'active') return fail(`Workflow is ${state.status}`, 409);
 
-	const currentStepDef = findVendorInvoiceIntakeStep(
-		state.step as VendorInvoiceIntakeStepId
-	);
+	const currentStepDef = lookupStep(state.workflowId, state.step);
 	if (!currentStepDef) return fail(`Unknown current step: ${state.step}`, 500);
 	if (!currentStepDef.nextSteps.includes(body.targetStep)) {
 		return fail(
@@ -137,7 +198,7 @@ export const POST: RequestHandler = async (event) => {
 			400
 		);
 	}
-	const targetStepDef = findVendorInvoiceIntakeStep(body.targetStep);
+	const targetStepDef = lookupStep(state.workflowId, body.targetStep);
 	if (!targetStepDef) return fail(`Unknown target step: ${body.targetStep}`, 400);
 
 	const gate = await gateAllCapabilities(
@@ -246,6 +307,100 @@ export const POST: RequestHandler = async (event) => {
 
 		case 'user_confirmation': {
 			const next = await patchState(env.KV, state.id, { step: body.targetStep });
+			return ok({ currentStep: next.step, state: next });
+		}
+
+		// ---- financial-document-intake-only branches ----
+		case 'bucket_selection': {
+			const bucket = body.payload?.bucket;
+			if (!bucket) return fail('payload.bucket is required for bucket_selection', 400);
+			const result = await runBucketSelectionStep({ bucket });
+			const next = await patchState(env.KV, state.id, {
+				step: body.targetStep,
+				dataPatch: { bucketSelection: result }
+			});
+			return ok({ currentStep: next.step, state: next });
+		}
+
+		case 'category_selection': {
+			const categoryId =
+				body.payload?.categoryId ??
+				(state.data.selectedCategoryId as string | undefined);
+			if (!categoryId) return fail('payload.categoryId is required for category_selection', 400);
+			const result = await runCategorySelectionStep({ categoryId });
+			const next = await patchState(env.KV, state.id, {
+				step: body.targetStep,
+				dataPatch: { categorySelection: { categoryId, category: result.category } }
+			});
+			return ok({ currentStep: next.step, state: next });
+		}
+
+		case 'field_extraction': {
+			const document = state.data.document as DocumentIntakeOutput | undefined;
+			if (!document) return fail('Workflow has no document context', 400);
+			const categorySel = state.data.categorySelection as
+				| { categoryId: string }
+				| undefined;
+			const categoryId = categorySel?.categoryId ?? findCategoryById('expense.sales_cost.invoice')?.id;
+
+			let artifactText: string | undefined;
+			let artifactConfidence: number | undefined;
+			if (!document.documentId.startsWith('mock-')) {
+				try {
+					const docService = createDocumentIntakeService({ db, env, user });
+					const artifact = await docService.getDocumentArtifact({
+						tenantId: state.tenantId,
+						documentId: document.documentId
+					});
+					if (artifact?.textExtraction?.status === 'success') {
+						artifactText = artifact.textExtraction.text;
+						artifactConfidence = artifact.textExtraction.confidence;
+					}
+				} catch {
+					// Treat as missing text; the capability will fall back.
+				}
+			}
+
+			const result = await runDocFieldExtractionStep(
+				{
+					...document,
+					categoryId,
+					text: artifactText,
+					artifactConfidence
+				},
+				ctx
+			);
+			await auditCapabilitySuccess(db, state, user, 'finance.extract-document-fields', {
+				confidence: result.confidence,
+				categoryId,
+				usedRealText: Boolean(artifactText)
+			});
+			const next = await patchState(env.KV, state.id, {
+				step: body.targetStep,
+				dataPatch: { extraction: result }
+			});
+			return ok({ currentStep: next.step, state: next });
+		}
+
+		case 'project_selection': {
+			const projectId = body.payload?.projectId ?? null;
+			const result = await runProjectSelectionStep({ projectId });
+			const next = await patchState(env.KV, state.id, {
+				step: body.targetStep,
+				dataPatch: { projectSelection: result }
+			});
+			return ok({ currentStep: next.step, state: next });
+		}
+
+		// ---- allowance-recording-only branch ----
+		case 'manual_entry': {
+			const entry = body.payload?.allowanceEntry;
+			if (!entry) return fail('payload.allowanceEntry is required for manual_entry', 400);
+			const result = await runManualEntryStep(entry);
+			const next = await patchState(env.KV, state.id, {
+				step: body.targetStep,
+				dataPatch: { allowanceEntry: result.entry, allowanceTotal: result.totalAmount }
+			});
 			return ok({ currentStep: next.step, state: next });
 		}
 

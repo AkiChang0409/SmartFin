@@ -88,12 +88,14 @@ const INTENT_REQUIRED_INPUTS: Record<FinanceIntent, string[]> = {
 };
 
 function build(intent: FinanceIntent, confidence: number, reason: string): FinanceIntentResult {
+	const binding = resolveWorkflowForIntent(intent);
 	return {
 		intent,
 		confidence,
 		reason,
 		requiredInputs: INTENT_REQUIRED_INPUTS[intent],
-		suggestedWorkflow: resolveWorkflowForIntent(intent),
+		suggestedWorkflow: binding?.workflowId ?? null,
+		suggestedCategoryId: binding?.categoryId,
 		riskLevel: INTENT_RISK[intent]
 	};
 }

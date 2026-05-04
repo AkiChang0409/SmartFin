@@ -1,11 +1,11 @@
 import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$lib/server/http';
-import { runReclassifyPipeline } from '$lib/server/document-intake/pipeline';
-import type { Bucket } from '$lib/components/workflow-panel/layers/intake/field-specs';
+import { runReclassifyPipeline } from '$modules/document-intake/workflows/intake-pipeline/pipeline';
+import type { Bucket } from '$modules/document-intake/schemas/intake-field-specs';
 
 /**
- * Thin HTTP entrypoint â€” used by ReviewStep's "Re-check" button. Skips
+ * Thin HTTP entrypoint â€?used by ReviewStep's "Re-check" button. Skips
  * the upstream classifier since the user has already committed to a
  * bucket + kind; just re-runs extract + match + narration under that
  * forced assumption.

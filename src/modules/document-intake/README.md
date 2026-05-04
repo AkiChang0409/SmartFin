@@ -10,7 +10,7 @@ Target ownership:
 
 Current legacy implementation slices:
 - `src/lib/server/modules/document-intake`
-- `src/lib/server/document-intake`
+- `src/modules/document-intake/workflows/intake-pipeline`
 
 Phase 4 bridge status:
 - Public API assembly now lives under `src/modules/document-intake`.
@@ -18,7 +18,7 @@ Phase 4 bridge status:
 - The former compatibility entrypoints under
   `src/lib/server/modules/document-intake/{api,index,handlers}.ts` have been
   retired after their caller count reached zero.
-- OCR and extractor implementations remain in their legacy locations until a
+- OCR provider helpers remain in their legacy locations until a
   later internal-ownership phase.
 - Legacy coupling inside this target module is intentionally isolated to
   `contracts.ts` and `adapters.ts`.
