@@ -175,7 +175,7 @@ VALUES
 	);
 
 -- AR contracts and quotations
-INSERT INTO contracts (id, project_id, file_url, amount, currency, date, metadata, created_at, updated_at, deleted_at)
+INSERT INTO contracts (id, project_id, file_url, amount, currency, effective_date, metadata, created_at, updated_at, deleted_at)
 VALUES
 	('ctr-demo-001', 'proj-demo-001', 'mock://contracts/ctr-demo-001.pdf', 180000, 'SGD', '2026-01-05', '{"version":"v1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 	('ctr-demo-002', 'proj-demo-002', 'mock://contracts/ctr-demo-002.pdf', 90000, 'SGD', '2026-01-20', '{"version":"v1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
@@ -185,15 +185,15 @@ VALUES
 	('ctr-demo-006', 'proj-demo-008', 'mock://contracts/ctr-demo-006.pdf', 68000, 'SGD', '2026-02-03', '{"version":"v1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 	('ctr-demo-007', 'proj-demo-009', 'mock://contracts/ctr-demo-007.pdf', 112000, 'SGD', '2026-04-05', '{"version":"v1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
-INSERT INTO quotations (id, project_id, source_type, file_url, amount, currency, date, metadata, created_at, updated_at, deleted_at)
+INSERT INTO quotations (id, project_id, file_url, amount, currency, date, metadata, created_at, updated_at, deleted_at)
 VALUES
-	('quo-demo-001', 'proj-demo-001', 'customer', 'mock://quotations/quo-demo-001.pdf', 72000, 'SGD', '2026-02-03', '{"round":"R1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('quo-demo-002', 'proj-demo-002', 'internal', 'mock://quotations/quo-demo-002.pdf', 35000, 'SGD', '2026-02-12', '{"round":"R1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('quo-demo-003', 'proj-demo-005', 'customer', 'mock://quotations/quo-demo-003.pdf', 48000, 'SGD', '2025-08-01', '{"round":"R2"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('quo-demo-004', 'proj-demo-006', 'internal', 'mock://quotations/quo-demo-004.pdf', 26000, 'SGD', '2025-10-11', '{"round":"R1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('quo-demo-005', 'proj-demo-007', 'customer', 'mock://quotations/quo-demo-005.pdf', 53000, 'SGD', '2025-12-04', '{"round":"R2"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('quo-demo-006', 'proj-demo-008', 'internal', 'mock://quotations/quo-demo-006.pdf', 22000, 'SGD', '2026-02-20', '{"round":"R1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
-	('quo-demo-007', 'proj-demo-009', 'customer', 'mock://quotations/quo-demo-007.pdf', 39000, 'SGD', '2026-04-12', '{"round":"R1"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
+	('quo-demo-001', 'proj-demo-001', 'mock://quotations/quo-demo-001.pdf', 72000, 'SGD', '2026-02-03', '{"round":"R1","source_type":"customer"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('quo-demo-002', 'proj-demo-002', 'mock://quotations/quo-demo-002.pdf', 35000, 'SGD', '2026-02-12', '{"round":"R1","source_type":"internal"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('quo-demo-003', 'proj-demo-005', 'mock://quotations/quo-demo-003.pdf', 48000, 'SGD', '2025-08-01', '{"round":"R2","source_type":"customer"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('quo-demo-004', 'proj-demo-006', 'mock://quotations/quo-demo-004.pdf', 26000, 'SGD', '2025-10-11', '{"round":"R1","source_type":"internal"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('quo-demo-005', 'proj-demo-007', 'mock://quotations/quo-demo-005.pdf', 53000, 'SGD', '2025-12-04', '{"round":"R2","source_type":"customer"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('quo-demo-006', 'proj-demo-008', 'mock://quotations/quo-demo-006.pdf', 22000, 'SGD', '2026-02-20', '{"round":"R1","source_type":"internal"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('quo-demo-007', 'proj-demo-009', 'mock://quotations/quo-demo-007.pdf', 39000, 'SGD', '2026-04-12', '{"round":"R1","source_type":"customer"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Purchase orders and supplier invoices (kept as mock non-OCR flow)
 INSERT INTO purchase_orders (id, project_id, po_number, file_url, supplier_name, amount, currency, date, created_at, updated_at, deleted_at)
@@ -558,120 +558,15 @@ VALUES
 	('cat-demo-002', 'Travel', 'true', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
 	('cat-demo-003', 'Compliance', 'true', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
-INSERT INTO expenses (id, project_id, category, subcategory, amount, currency, date, staff_name, file_url, ocr_data, metadata, created_at, updated_at, deleted_at)
+INSERT INTO expenses (id, project_id, expense_type, category, amount, currency, date, staff_name, document_ref, metadata, created_at, updated_at, deleted_at)
 VALUES
-	(
-		'exp-demo-001',
-		'proj-demo-001',
-		'Logistics',
-		'Port handling',
-		3200,
-		'SGD',
-		'2026-03-08',
-		'Alice Tan',
-		'mock://expenses/exp-demo-001.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	),
-	(
-		'exp-demo-002',
-		'proj-demo-002',
-		'Compliance',
-		'Import permit',
-		1200,
-		'SGD',
-		'2026-03-12',
-		'Rahim Iskandar',
-		'mock://expenses/exp-demo-002.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	),
-	(
-		'exp-demo-003',
-		'proj-demo-005',
-		'Travel',
-		'Supplier visit',
-		1800,
-		'SGD',
-		'2025-08-18',
-		'Alice Tan',
-		'mock://expenses/exp-demo-003.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	),
-	(
-		'exp-demo-004',
-		'proj-demo-006',
-		'Compliance',
-		'Cold-room permit',
-		950,
-		'SGD',
-		'2025-10-26',
-		'Rahim Iskandar',
-		'mock://expenses/exp-demo-004.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	),
-	(
-		'exp-demo-005',
-		'proj-demo-007',
-		'Logistics',
-		'Warehouse handling',
-		2100,
-		'SGD',
-		'2025-12-19',
-		'Wang Lei',
-		'mock://expenses/exp-demo-005.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	),
-	(
-		'exp-demo-006',
-		'proj-demo-008',
-		'Travel',
-		'Route survey',
-		780,
-		'SGD',
-		'2026-02-27',
-		'Rahim Iskandar',
-		'mock://expenses/exp-demo-006.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	),
-	(
-		'exp-demo-007',
-		'proj-demo-009',
-		'Logistics',
-		'Port operation prep',
-		2300,
-		'SGD',
-		'2026-04-26',
-		'Alice Tan',
-		'mock://expenses/exp-demo-007.pdf',
-		'{"source":"manual"}',
-		'{"channel":"mock-seed"}',
-		CURRENT_TIMESTAMP,
-		CURRENT_TIMESTAMP,
-		NULL
-	);
+	('exp-demo-001', 'proj-demo-001', 'opex', 'Logistics', 3200, 'SGD', '2026-03-08', 'Alice Tan', 'mock://expenses/exp-demo-001.pdf', '{"channel":"mock-seed","subcategory":"Port handling"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('exp-demo-002', 'proj-demo-002', 'opex', 'Compliance', 1200, 'SGD', '2026-03-12', 'Rahim Iskandar', 'mock://expenses/exp-demo-002.pdf', '{"channel":"mock-seed","subcategory":"Import permit"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('exp-demo-003', 'proj-demo-005', 'opex', 'Travel', 1800, 'SGD', '2025-08-18', 'Alice Tan', 'mock://expenses/exp-demo-003.pdf', '{"channel":"mock-seed","subcategory":"Supplier visit"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('exp-demo-004', 'proj-demo-006', 'opex', 'Compliance', 950, 'SGD', '2025-10-26', 'Rahim Iskandar', 'mock://expenses/exp-demo-004.pdf', '{"channel":"mock-seed","subcategory":"Cold-room permit"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('exp-demo-005', 'proj-demo-007', 'opex', 'Logistics', 2100, 'SGD', '2025-12-19', 'Wang Lei', 'mock://expenses/exp-demo-005.pdf', '{"channel":"mock-seed","subcategory":"Warehouse handling"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('exp-demo-006', 'proj-demo-008', 'opex', 'Travel', 780, 'SGD', '2026-02-27', 'Rahim Iskandar', 'mock://expenses/exp-demo-006.pdf', '{"channel":"mock-seed","subcategory":"Route survey"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL),
+	('exp-demo-007', 'proj-demo-009', 'opex', 'Logistics', 2300, 'SGD', '2026-04-26', 'Alice Tan', 'mock://expenses/exp-demo-007.pdf', '{"channel":"mock-seed","subcategory":"Port operation prep"}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL);
 
 -- Tax settings and sample GST return
 INSERT INTO company_settings (key, value, created_at, updated_at, deleted_at)
