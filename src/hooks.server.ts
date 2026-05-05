@@ -8,12 +8,12 @@ import { resolveWorkerAuthEnv } from '$platform/auth/resolve-worker-env';
 import type { AuthRole } from '$platform/auth/config';
 import { isRouteAllowed } from '$platform/auth/permissions';
 import { getDb } from './infrastructure/db';
-import { getEnabledModuleIds, isPathEnabled } from './platform/config';
+import { getEnabledModuleIds, isPathEnabled } from '$app-layer/bootstrap/module-access';
 
 // Register all modules at app startup (side-effect import)
-import './platform/registry/register-all';
+import '$app-layer/bootstrap/register-modules';
 // Register AI capabilities into the platform capability registry (side-effect import)
-import './platform/ai/register-all';
+import '$app-layer/bootstrap/register-ai-capabilities';
 
 function isPublicAppPath(pathname: string) {
 	return (

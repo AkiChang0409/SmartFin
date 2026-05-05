@@ -1,5 +1,3 @@
-import type { VendorInvoiceIntakeStepId } from '../../modules/finance/workflows/vendor-invoice-intake/definition';
-
 export type WorkflowStatus = 'active' | 'completed' | 'aborted';
 
 export interface WorkflowStateRecord<TStep extends string = string> {
@@ -15,8 +13,6 @@ export interface WorkflowStateRecord<TStep extends string = string> {
 	updatedAt: number;
 	confirmationRef?: string;
 }
-
-export type VendorInvoiceIntakeState = WorkflowStateRecord<VendorInvoiceIntakeStepId>;
 
 export interface StartWorkflowInput {
 	workflowId: string;

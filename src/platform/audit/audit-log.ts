@@ -1,6 +1,6 @@
 import type { DBClient } from '../../infrastructure/db';
 import { auditLogs } from '../../infrastructure/db/schema';
-import type { FinanceRiskLevel } from '../../modules/finance/agent/types';
+import type { PlatformRiskLevel } from '../ai/capability-registry';
 
 export type AgentAuditStatus = 'ok' | 'denied' | 'failed';
 
@@ -14,7 +14,7 @@ export interface AgentAuditEntry {
 	workflowStep?: string;
 	intent?: string;
 	toolId?: string;
-	riskLevel: FinanceRiskLevel;
+	riskLevel: PlatformRiskLevel;
 	inputRefs?: unknown;
 	outputRefs?: unknown;
 	modelId?: string;

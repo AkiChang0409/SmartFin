@@ -13,6 +13,7 @@ import { projectWorkflows, projectWorkflowIds } from './workflows';
 
 export const projectModule: ModuleDefinition = {
 	manifest: toLegacyModuleManifest(projectManifestV2),
+	manifestV2: projectManifestV2,
 	registerHandlers: projectEvents.registerProjectHandlers
 };
 

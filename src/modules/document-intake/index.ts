@@ -1,18 +1,17 @@
 import type { ModuleDefinition } from '$platform/modules/types';
+import { toLegacyModuleManifest } from '$platform/registry/contracts';
+import { documentIntakeManifestV2 } from './config';
 import { registerDocumentIntakeHandlers } from './handlers';
 
 export const documentIntakeModule: ModuleDefinition = {
-	manifest: {
-		id: 'document-intake',
-		name: 'Document Intake',
-		layer: 'feature',
-		dependencies: ['core', 'ar', 'expense']
-	},
+	manifest: toLegacyModuleManifest(documentIntakeManifestV2),
+	manifestV2: documentIntakeManifestV2,
 	registerHandlers: registerDocumentIntakeHandlers
 };
 
 export { createDocumentIntakeApi, type DocumentIntakeApi } from './api';
 export type { DocumentIntakeSource } from './contracts';
+export { documentIntakeManifestV2 };
 
 // --- Document Artifact public surface (Phase 2 onwards) ---
 export {

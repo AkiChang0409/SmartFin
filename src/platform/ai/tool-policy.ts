@@ -1,6 +1,5 @@
-import type { AuthRole } from '../auth/config';
-import type { FinanceRiskLevel } from '../../modules/finance/agent/types';
-import { lookupCapability } from './capability-registry';
+﻿import type { AuthRole } from '../auth/config';
+import { lookupCapability, type PlatformRiskLevel } from './capability-registry';
 
 export type PolicyBlockReason =
 	| 'tool_not_registered'
@@ -14,7 +13,7 @@ export type PolicyBlockReason =
 export interface PolicyDecision {
 	allowed: boolean;
 	reason?: string;
-	riskLevel: FinanceRiskLevel;
+	riskLevel: PlatformRiskLevel;
 	requiresConfirmation: boolean;
 	requiresAudit: boolean;
 	requiredUserPermissions: string[];
@@ -44,7 +43,7 @@ function roleHasPermission(role: AuthRole | null | undefined, permission: string
 	return roles.includes(role);
 }
 
-const ACCEPTABLE_RISK: ReadonlySet<FinanceRiskLevel> = new Set<FinanceRiskLevel>([
+const ACCEPTABLE_RISK: ReadonlySet<PlatformRiskLevel> = new Set<PlatformRiskLevel>([
 	'R0',
 	'R1',
 	'R2',
@@ -53,7 +52,7 @@ const ACCEPTABLE_RISK: ReadonlySet<FinanceRiskLevel> = new Set<FinanceRiskLevel>
 ]);
 
 /**
- * Doc 03 §8 �?9-point tool policy check. Order matters: stop on first failure
+ * Doc 03 搂8 鈥?9-point tool policy check. Order matters: stop on first failure
  * but accumulate human-readable reasons in `blockedBy` so the audit log can
  * see exactly which gate fired.
  */

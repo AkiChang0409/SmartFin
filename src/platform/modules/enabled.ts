@@ -1,2 +1,2 @@
-export { moduleForPath, getEnabledModuleIds, isPathEnabled } from '../config';
+export { isPathEnabled, moduleForPath, resolveEnabledModuleIds } from '../config';
 

@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { createModuleContext } from '$platform/modules';
 import { createProjectApi } from '../../modules/project';
-import { getEnabledModuleIds } from '../../platform/config';
+import { getEnabledModuleIds } from '$app-layer/bootstrap/module-access';
 
 function shouldLoadProjectSidebarCounts(pathname: string): boolean {
 	if (!pathname.startsWith('/projects')) return false;

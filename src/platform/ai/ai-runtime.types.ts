@@ -6,7 +6,7 @@
  * implementations land in Stage 4 (or later, when the model router ships).
  */
 
-import type { FinanceRiskLevel } from '../../modules/finance/agent/types';
+import type { PlatformRiskLevel } from './capability-registry';
 
 export interface AIMessage {
 	role: 'system' | 'developer' | 'user' | 'assistant' | 'tool';
@@ -40,7 +40,7 @@ export interface AIRuntimeMetadata {
 	promptVersion: string;
 	schemaVersion?: string;
 
-	riskLevel?: FinanceRiskLevel;
+	riskLevel?: PlatformRiskLevel;
 
 	inputRefs?: string[];
 }

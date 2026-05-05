@@ -4,11 +4,18 @@ import { financeCapabilities, financeCapabilityIds } from './capabilities';
 import { financeManifestV2 } from './config';
 import * as financeContracts from './contracts/index';
 import * as financeEvents from './events';
+import type { ModuleDefinition } from '$platform/modules/types';
+import { toLegacyModuleManifest } from '$platform/registry/contracts';
 import * as financePolicies from './policies';
 import * as financeRepositories from './repositories';
 import * as financeRules from './rules';
 import * as financeServices from './services';
 import { financeWorkflows, financeWorkflowIds } from './workflows';
+
+export const financeModule: ModuleDefinition = {
+	manifest: toLegacyModuleManifest(financeManifestV2),
+	manifestV2: financeManifestV2
+};
 
 export { createFinanceApi, type FinanceApi } from './services/api';
 export {

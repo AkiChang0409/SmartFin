@@ -1,14 +1,23 @@
-import type {
-	FinanceCapability,
-	FinanceCapabilityContext
-} from '../../modules/finance/capabilities/types';
-import type { FinanceRiskLevel } from '../../modules/finance/agent/types';
+export type PlatformRiskLevel = 'R0' | 'R1' | 'R2' | 'R3' | 'R4' | 'R5';
+
+export interface PlatformCapabilityContext {
+	tenantId?: string;
+	userId?: string;
+	useMock?: boolean;
+}
+
+export interface PlatformCapability<TInput, TOutput> {
+	id: string;
+	description: string;
+	riskLevel: PlatformRiskLevel;
+	execute(input: TInput, ctx: PlatformCapabilityContext): Promise<TOutput>;
+}
 
 export interface ToolManifest {
 	id: string;
 	ownerModule: string;
 	description: string;
-	riskLevel: FinanceRiskLevel;
+	riskLevel: PlatformRiskLevel;
 	allowedAgents: string[];
 	requiredUserPermissions: string[];
 	requiresConfirmation: boolean;
@@ -18,14 +27,14 @@ export interface ToolManifest {
 
 interface RegistryEntry {
 	manifest: ToolManifest;
-	capability: FinanceCapability<unknown, unknown>;
+	capability: PlatformCapability<unknown, unknown>;
 }
 
 const entries = new Map<string, RegistryEntry>();
 
 export function registerCapability<TInput, TOutput>(
 	manifest: ToolManifest,
-	capability: FinanceCapability<TInput, TOutput>
+	capability: PlatformCapability<TInput, TOutput>
 ): void {
 	if (manifest.id !== capability.id) {
 		throw new Error(
@@ -34,7 +43,7 @@ export function registerCapability<TInput, TOutput>(
 	}
 	entries.set(manifest.id, {
 		manifest,
-		capability: capability as FinanceCapability<unknown, unknown>
+		capability: capability as PlatformCapability<unknown, unknown>
 	});
 }
 
@@ -49,7 +58,7 @@ export function listCapabilities(): ToolManifest[] {
 export function executeCapability(
 	id: string,
 	input: unknown,
-	ctx: FinanceCapabilityContext
+	ctx: PlatformCapabilityContext
 ): Promise<unknown> {
 	const entry = entries.get(id);
 	if (!entry) {

@@ -1,5 +1,13 @@
 import type { ModuleDefinition } from '$platform/modules/types';
 
+function moduleLayer(mod: ModuleDefinition) {
+	return mod.manifestV2?.layer ?? mod.manifest.layer;
+}
+
+function moduleDependencyIds(mod: ModuleDefinition): string[] {
+	return mod.manifestV2?.dependencies.map((dependency) => dependency.moduleId) ?? mod.manifest.dependencies;
+}
+
 export class ModuleRegistry {
 	private modules = new Map<string, ModuleDefinition>();
 
@@ -15,11 +23,15 @@ export class ModuleRegistry {
 		return [...this.modules.values()];
 	}
 
+	getAllV2() {
+		return this.getAll().map((mod) => mod.manifestV2).filter((manifest) => Boolean(manifest));
+	}
+
 	getEnabled(enabledIds: string[]): ModuleDefinition[] {
 		const ids = new Set(enabledIds);
 		const result: ModuleDefinition[] = [];
 		for (const mod of this.modules.values()) {
-			if (mod.manifest.layer === 'core' || ids.has(mod.manifest.id)) {
+			if (moduleLayer(mod) === 'core' || ids.has(mod.manifest.id)) {
 				result.push(mod);
 			}
 		}
@@ -35,7 +47,7 @@ export class ModuleRegistry {
 			visited.add(id);
 			const mod = this.modules.get(id);
 			if (!mod) return;
-			for (const dep of mod.manifest.dependencies) {
+			for (const dep of moduleDependencyIds(mod)) {
 				visit(dep);
 			}
 			result.push(id);
@@ -51,7 +63,7 @@ export class ModuleRegistry {
 	} {
 		const enabled = new Set(enabledIds);
 		for (const mod of this.modules.values()) {
-			if (mod.manifest.layer === 'core') enabled.add(mod.manifest.id);
+			if (moduleLayer(mod) === 'core') enabled.add(mod.manifest.id);
 		}
 
 		const missing: { moduleId: string; missingDeps: string[] }[] = [];
@@ -59,7 +71,7 @@ export class ModuleRegistry {
 		for (const id of enabledIds) {
 			const mod = this.modules.get(id);
 			if (!mod) continue;
-			const missingDeps = mod.manifest.dependencies.filter((dep) => !enabled.has(dep));
+			const missingDeps = moduleDependencyIds(mod).filter((dep) => !enabled.has(dep));
 			if (missingDeps.length > 0) {
 				missing.push({ moduleId: id, missingDeps });
 			}
@@ -83,7 +95,7 @@ export class ModuleRegistry {
 	getInitOrder(enabledIds: string[]): string[] {
 		const enabled = new Set(enabledIds);
 		for (const mod of this.modules.values()) {
-			if (mod.manifest.layer === 'core') enabled.add(mod.manifest.id);
+			if (moduleLayer(mod) === 'core') enabled.add(mod.manifest.id);
 		}
 
 		const visited = new Set<string>();
@@ -94,7 +106,7 @@ export class ModuleRegistry {
 			visited.add(id);
 			const mod = this.modules.get(id);
 			if (!mod) return;
-			for (const dep of mod.manifest.dependencies) {
+			for (const dep of moduleDependencyIds(mod)) {
 				visit(dep);
 			}
 			result.push(id);

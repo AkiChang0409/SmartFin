@@ -1,19 +1,31 @@
-/**
+ï»¿/**
  * Text extraction abstraction (Phase 2).
  *
  * Hides three concrete OCR / parse paths behind a single function so
  * Document Intake's `processDocument` doesn't care whether the file was a
- * PDF with a text layer, a scanned image, or â€?when running offline /
- * without an AI binding â€?a mock fixture.
+ * PDF with a text layer, a scanned image, or éˆ¥?when running offline /
+ * without an AI binding éˆ¥?a mock fixture.
  *
- * Output shape conforms to `TextExtractionResult` in
- * `src/modules/document-intake/schemas/document-artifact.schema.ts`
- * (doc 04 Â§11). Callers persist this directly into the artifact.
+ * Output shape is platform-owned and structurally compatible with
+ * document-intake artifacts. Callers persist this directly into the artifact.
  */
 import { runWorkersVisionOcr } from './ocr/workers-vision-ocr';
-import type { TextExtractionResult } from '../../modules/document-intake/schemas/document-artifact.schema';
 import type { FileServiceContract } from '../files/file.types';
 import { pickMockFixtureText } from './text-extraction-fixtures';
+
+export interface PlatformTextExtractionResult {
+	method: 'pdf_text' | 'vision_model' | 'manual';
+	status: 'success' | 'partial' | 'failed';
+	text?: string;
+	confidence?: number;
+	language?: string;
+	provider?: string;
+	providerJobId?: string;
+	error?: {
+		code: string;
+		message: string;
+	};
+}
 
 export interface ExtractTextInput {
 	fileRef: {
@@ -55,7 +67,7 @@ function isImageMime(mime: string, fileName?: string): boolean {
 	return Boolean(fileName && /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(fileName));
 }
 
-function buildMockResult(input: ExtractTextInput): TextExtractionResult {
+function buildMockResult(input: ExtractTextInput): PlatformTextExtractionResult {
 	const fixture = pickMockFixtureText({
 		fileName: input.fileRef.fileName,
 		key: input.fileRef.key
@@ -70,7 +82,11 @@ function buildMockResult(input: ExtractTextInput): TextExtractionResult {
 	};
 }
 
-function buildFailure(code: string, message: string, method: TextExtractionResult['method']): TextExtractionResult {
+function buildFailure(
+	code: string,
+	message: string,
+	method: PlatformTextExtractionResult['method']
+): PlatformTextExtractionResult {
 	return {
 		method,
 		status: 'failed',
@@ -80,7 +96,7 @@ function buildFailure(code: string, message: string, method: TextExtractionResul
 
 /**
  * Run text extraction. Phase 2 supports three paths:
- *  - PDF with a text layer (heuristic byte decode â€?same approach as the
+ *  - PDF with a text layer (heuristic byte decode éˆ¥?same approach as the
  *    existing `$platform/ai/ocr/pipeline.ts:extractPdfText`).
  *  - Image (Workers AI vision via `runWorkersVisionOcr`).
  *  - Mock fixture (filename keyword lookup) when caller opts in or when the
@@ -91,7 +107,7 @@ function buildFailure(code: string, message: string, method: TextExtractionResul
  */
 export async function extractTextFromBlob(
 	input: ExtractTextInput
-): Promise<TextExtractionResult> {
+): Promise<PlatformTextExtractionResult> {
 	const { fileRef, fileService, env } = input;
 
 	if (input.useMock) {
@@ -129,7 +145,7 @@ export async function extractTextFromBlob(
 
 	if (isImageMime(fileRef.mimeType, fileRef.fileName)) {
 		if (!env.AI) {
-			// No AI binding â€?fall back to mock fixture so local dev still works.
+			// No AI binding éˆ¥?fall back to mock fixture so local dev still works.
 			return buildMockResult(input);
 		}
 		const bytes = await fileService.getBytes(fileRef.key);
