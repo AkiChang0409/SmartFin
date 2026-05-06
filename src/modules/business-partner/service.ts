@@ -1,7 +1,7 @@
 import type { ModuleContext } from '$platform/modules/types';
 import { BusinessPartnerRepository, CustomerRepository } from './repository';
 import { NotFoundError } from '$platform/modules/errors';
-import { partnerContacts, partnerSupplierProfiles } from './schema';
+import { partnerContacts, partnerSupplierProfiles } from './repositories/business-partner.schema';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------

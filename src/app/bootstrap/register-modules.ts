@@ -4,7 +4,7 @@
  * The platform registry owns only the generic registration mechanism; concrete
  * module selection belongs to the app layer.
  */
-import { businessPartnerModule } from '$modules/legacy/server-modules/business-partner';
+import { businessPartnerModule } from '$modules/business-partner';
 import { coreModule } from '$modules/legacy/server-modules/core';
 import { arModule } from '$modules/legacy/server-modules/ar';
 import { expenseModule } from '$modules/legacy/server-modules/expense';

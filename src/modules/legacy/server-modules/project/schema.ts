@@ -1,6 +1,6 @@
 import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { timeFields } from '$platform/modules/schema-helpers';
-import { customers } from '../business-partner/schema';
+import { customers } from '$modules/business-partner/repositories/business-partner.schema';
 import { employees } from '../person/schema';
 
 // ---------------------------------------------------------------------------

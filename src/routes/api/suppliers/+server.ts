@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createBusinessPartnerApi } from '$modules/legacy/server-modules/business-partner/api';
+import { createBusinessPartnerApi } from '$modules/business-partner';
 import { fail, ok } from '$platform/http';
 
 export const GET: RequestHandler = async (event) => {

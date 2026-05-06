@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createBusinessPartnerApi } from '$modules/legacy/server-modules/business-partner/api';
+import { createBusinessPartnerApi } from '$modules/business-partner';
 import { createProjectApi } from '../../../../modules/project';
 
 export const load: PageServerLoad = async (event) => {
