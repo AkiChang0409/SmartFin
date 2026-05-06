@@ -56,14 +56,14 @@ export {
 	payoutRecords
 } from '$modules/hr/repositories/employee.schema';
 
-// Expense module
+// Finance fact tables (canonical expense + revenue per v4 expense-revenue-design)
 export {
 	documents,
 	businessTrips,
 	expenses,
 	revenue,
 	expenseCategories
-} from '$modules/legacy/server-modules/expense/schema';
+} from '$modules/finance/repositories/expense.schema';
 
 // Tax module
 export { gstReturns, personIncome, timeLogs } from '$modules/legacy/server-modules/tax/schema';

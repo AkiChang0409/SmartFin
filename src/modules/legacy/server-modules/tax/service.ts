@@ -1,7 +1,7 @@
 import { and, between, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { ModuleContext } from '$platform/modules/types';
 import { schema } from '$infrastructure/db';
-import { projectExpenseTotalSumExpr, projectRevenueTotalSumExpr } from '../expense/repository';
+import { projectExpenseTotalSumExpr, projectRevenueTotalSumExpr } from '$modules/finance/repositories/legacy-expense-repository';
 import {
 	staffCostPayoutJoinConditions,
 	staffCostPeriodBetween,

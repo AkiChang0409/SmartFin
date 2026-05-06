@@ -1,10 +1,10 @@
 import { eq, isNull, and, sql, desc, type SQL } from 'drizzle-orm';
 import type { DBClient } from '$infrastructure/db';
-import { expenses, revenue, expenseCategories } from './schema';
+import { expenses, revenue, expenseCategories } from './expense.schema';
 import { BaseRepository } from '$platform/modules/base-repository';
 
 // ---------------------------------------------------------------------------
-// Expense aggregation SQL helpers â€?redesigned for opex / sales_cost
+// Expense aggregation SQL helpers ï¿½?redesigned for opex / sales_cost
 // ---------------------------------------------------------------------------
 
 /**

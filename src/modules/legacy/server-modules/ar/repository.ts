@@ -10,8 +10,8 @@ import {
 	arDocumentLinks
 } from './schema';
 import { BaseRepository } from '$platform/modules/base-repository';
-import { revenue } from '../expense/schema';
-import { projectRevenueTotalSumExpr } from '../expense/repository';
+import { revenue } from '$modules/finance/repositories/expense.schema';
+import { projectRevenueTotalSumExpr } from '$modules/finance/repositories/legacy-expense-repository';
 
 // ---------------------------------------------------------------------------
 // ContractRepository

@@ -3,7 +3,7 @@ import type { ModuleContext } from '$platform/modules/types';
 import { schema } from '$infrastructure/db';
 import { objectExists } from '$infrastructure/storage/r2';
 import type { OcrQueueMessage } from '$platform/ai/ocr/types';
-import { ExpenseService } from '../expense/service';
+import { ExpenseService } from '$modules/finance/services/legacy-expense-service';
 
 function fileTypeCategory(mime: string): 'pdf' | 'image' | 'other' {
 	const normalized = mime.toLowerCase();

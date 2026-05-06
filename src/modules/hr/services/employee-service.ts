@@ -10,11 +10,11 @@ import {
 	staffCostSumExpr
 } from '../repositories/employee-repository';
 import { invoicesIn } from '$modules/legacy/server-modules/ar/schema';
-import { expenses } from '$modules/legacy/server-modules/expense/schema';
+import { expenses } from '$modules/finance/repositories/expense.schema';
 import {
 	projectExpenseOpexSumExpr,
 	projectExpenseSalesCostSumExpr
-} from '$modules/legacy/server-modules/expense/repository';
+} from '$modules/finance/repositories/legacy-expense-repository';
 import { employees } from '../repositories/person.schema';
 import {
 	compensationComponents,

@@ -1,6 +1,10 @@
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { ModuleContext } from '$platform/modules/types';
-import { ExpenseRepository, RevenueRepository, ExpenseCategoryRepository } from './repository';
+import {
+	ExpenseRepository,
+	RevenueRepository,
+	ExpenseCategoryRepository
+} from '../repositories/legacy-expense-repository';
 import { createEvent } from '$platform/modules';
 import type { ExpenseType } from '$modules/finance/schemas/expense-upload';
 import { resolveSgdEquivalentForWrite } from '$modules/finance/services/fx/resolve-sgd-equivalent';

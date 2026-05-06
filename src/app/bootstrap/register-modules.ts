@@ -7,7 +7,6 @@
 import { businessPartnerModule } from '$modules/business-partner';
 import { coreModule } from '$platform/core';
 import { arModule } from '$modules/legacy/server-modules/ar';
-import { expenseModule } from '$modules/legacy/server-modules/expense';
 import { reportingModule } from '$modules/legacy/server-modules/reporting';
 import { taxModule } from '$modules/legacy/server-modules/tax';
 import { documentIntakeModule } from '$modules/document-intake';
@@ -25,7 +24,6 @@ registerModules([
 	financeModule,
 	arModule,
 	employeeModule,
-	expenseModule,
 	taxModule,
 	reportingModule,
 	documentIntakeModule

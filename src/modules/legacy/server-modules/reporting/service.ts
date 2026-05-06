@@ -8,7 +8,7 @@ import {
 	projectExpenseTotalSumExpr,
 	projectRevenueTotalSumExpr,
 	revenueSgdAmountExpr
-} from '../expense/repository';
+} from '$modules/finance/repositories/legacy-expense-repository';
 import { effectiveAmountSgd } from '$modules/finance/services/fx/effective-amount-sgd';
 import {
 	staffCostPayoutJoinConditions,
