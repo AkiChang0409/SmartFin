@@ -87,7 +87,7 @@
 		<div class="flex items-center gap-2">
 			<a
 				class="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-				href={`/expenses/upload?projectId=${encodeURIComponent(page.params.id)}`}
+				href={`/finance/expenses/upload?projectId=${encodeURIComponent(page.params.id)}`}
 			>
 				Upload expense file
 			</a>

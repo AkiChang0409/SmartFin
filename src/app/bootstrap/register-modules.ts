@@ -8,17 +8,18 @@ import { businessPartnerModule } from '$modules/business-partner';
 import { coreModule } from '$platform/core';
 import { documentIntakeModule } from '$modules/document-intake';
 import { financeModule } from '$modules/finance';
-import { employeeModule, personModule } from '$modules/hr';
+import { hrModule } from '$modules/hr';
 import { projectModule } from '$modules/project';
 import { registerModules } from '$platform/registry/register-all';
 
-// Register in dependency order; the registry itself remains order-tolerant.
+// Wave 3.3 final state: 5 target business modules + 1 platform-internal core
+// module (event-handler host only). The previous `person` and `employee`
+// stubs were collapsed into `hr`.
 registerModules([
 	coreModule,
-	personModule,
 	businessPartnerModule,
 	projectModule,
+	hrModule,
 	financeModule,
-	employeeModule,
 	documentIntakeModule
 ]);

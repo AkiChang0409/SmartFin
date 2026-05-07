@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$platform/http';
-import { createDocumentIntakeService } from '../../../../modules/document-intake';
+import { createDocumentIntakeService } from '$modules/document-intake';
 import { getDb } from '../../../../infrastructure/db';
 
 export const GET: RequestHandler = async (event) => {

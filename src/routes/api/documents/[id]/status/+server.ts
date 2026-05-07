@@ -4,7 +4,7 @@ import { createModuleContext } from '$platform/modules';
 import {
 	createDocumentIntakeApi,
 	createDocumentIntakeService
-} from '../../../../../modules/document-intake';
+} from '$modules/document-intake';
 import { getDb } from '../../../../../infrastructure/db';
 import { fail, ok } from '$platform/http';
 

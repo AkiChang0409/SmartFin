@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createDocumentIntakeApi } from '../../../../modules/document-intake';
+import { createDocumentIntakeApi } from '$modules/document-intake';
 import { fail, ok } from '$platform/http';
 
 type UploadPayload = {

@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$platform/http';
 import { createModuleContext } from '$platform/modules';
-import { createDocumentIntakeApi } from '../../../../modules/document-intake';
+import { createDocumentIntakeApi } from '$modules/document-intake';
 
 type Bucket = 'revenue' | 'expense' | 'document_only';
 

@@ -1,25 +1,25 @@
 import type { AgentAction } from '$platform/ai/legacy-agent/types';
-import type { ModuleDefinition } from '$platform/modules/types';
+import type { EventBus, ModuleContext, ModuleDefinition } from '$platform/modules/types';
 import { registerEmployeeHandlers, registerPersonHandlers } from './handlers';
 
-export const employeeModule: ModuleDefinition = {
+function registerHrHandlers(bus: EventBus, ctx: ModuleContext) {
+	registerPersonHandlers(bus, ctx);
+	registerEmployeeHandlers(bus, ctx);
+}
+
+/**
+ * HR is a single v4 target module owning persons, employees, allocations,
+ * compensation components, and payouts. The earlier `person` and `employee`
+ * module ids were collapsed in Wave 3.3.
+ */
+export const hrModule: ModuleDefinition = {
 	manifest: {
-		id: 'employee',
+		id: 'hr',
 		name: 'HR',
 		layer: 'base',
-		dependencies: ['core', 'person', 'project']
+		dependencies: ['core', 'project']
 	},
-	registerHandlers: registerEmployeeHandlers
-};
-
-export const personModule: ModuleDefinition = {
-	manifest: {
-		id: 'person',
-		name: 'Person',
-		layer: 'base',
-		dependencies: ['core']
-	},
-	registerHandlers: registerPersonHandlers
+	registerHandlers: registerHrHandlers
 };
 
 export { createHrApi, type HrApi } from './api';
@@ -45,7 +45,7 @@ export const employeeActions: AgentAction[] = [
 		module: 'employee',
 		description: 'View the employee directory',
 		keywords: ['employees', 'staff list', 'HR roster'],
-		entry: '/employees',
+		entry: '/hr/employees',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
@@ -54,7 +54,7 @@ export const employeeActions: AgentAction[] = [
 		module: 'employee',
 		description: 'Create an employee record',
 		keywords: ['new employee', 'create staff', 'hire', 'add employee'],
-		entry: '/employees/new',
+		entry: '/hr/employees/new',
 		layer: 2,
 		required_roles: ['owner', 'finance'],
 		params: [

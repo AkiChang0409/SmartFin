@@ -16,7 +16,7 @@
 	<header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 		<div class="min-w-0">
 			<nav class="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-				<a class="hover:text-[var(--sf-green)] hover:underline" href="/dashboard">Dashboard</a>
+				<a class="hover:text-[var(--sf-green)] hover:underline" href="/finance/dashboard">Dashboard</a>
 				<span class="text-slate-300">/</span>
 				<span class="text-slate-600">Projects</span>
 			</nav>

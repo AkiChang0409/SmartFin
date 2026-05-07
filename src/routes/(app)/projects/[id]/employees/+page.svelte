@@ -357,7 +357,7 @@
 										Remove from project
 									</button>
 								</form>
-								<a class="text-xs font-medium text-[var(--sf-green)] hover:underline" href="/employees/{m.employeeId}"
+								<a class="text-xs font-medium text-[var(--sf-green)] hover:underline" href="/hr/employees/{m.employeeId}"
 									>Employee master</a
 								>
 							</div>

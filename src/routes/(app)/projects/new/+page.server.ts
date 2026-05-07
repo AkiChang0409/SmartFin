@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 import { createModuleContext } from '$platform/modules';
 import { createBusinessPartnerApi } from '$modules/business-partner';
-import { createProjectApi } from '../../../../modules/project';
+import { createProjectApi } from '$modules/project';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.platform) {

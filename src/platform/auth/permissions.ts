@@ -12,14 +12,14 @@ export function hasAtLeastRole(current: AuthRole, required: AuthRole): boolean {
 }
 
 export function isRouteAllowed(pathname: string, role: AuthRole): boolean {
-	if (pathname.startsWith('/api/tax') || pathname.startsWith('/api/settings')) {
+	if (pathname.startsWith('/api/finance/tax') || pathname.startsWith('/api/settings')) {
 		return role === 'owner' || role === 'finance';
 	}
 	if (pathname.startsWith('/api/employees')) {
 		return role !== 'employee';
 	}
 	if (pathname.startsWith('/settings')) return role === 'owner' || role === 'finance';
-	if (pathname.startsWith('/tax')) return role === 'owner' || role === 'finance';
-	if (pathname.startsWith('/employees')) return role !== 'employee';
+	if (pathname.startsWith('/finance/tax')) return role === 'owner' || role === 'finance';
+	if (pathname.startsWith('/hr/employees')) return role !== 'employee';
 	return true;
 }

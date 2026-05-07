@@ -2,7 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createEmployeeApi } from '../../../../../modules/hr';
+import { createEmployeeApi } from '$modules/hr';
 
 export const load: PageServerLoad = async (event) => {
 	const { params, platform, parent, url } = event;

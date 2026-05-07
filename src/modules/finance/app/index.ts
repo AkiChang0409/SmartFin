@@ -1,5 +1,5 @@
 export const financeWorkspaceEntries = [
-	{ id: 'finance.workspace', route: '/dashboard', label: 'Finance Workspace' }
+	{ id: 'finance.workspace', route: '/finance/dashboard', label: 'Finance Workspace' }
 ] as const;
 
 export const financeDashboardCards = [
@@ -10,9 +10,9 @@ export const financeDashboardCards = [
 
 export const financeNavigationEntries = [
 	'/finance/doc-hub',
-	'/expenses',
-	'/tax',
-	'/dashboard'
+	'/finance/expenses',
+	'/finance/tax',
+	'/finance/dashboard'
 ] as const;
 
 /**

@@ -1,9 +1,9 @@
 import type { RequestHandler } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createProjectApi } from '../../../../modules/project';
-import { createEmployeeApi } from '../../../../modules/hr';
-import { createFinanceApi } from '../../../../modules/finance';
+import { createProjectApi } from '$modules/project';
+import { createEmployeeApi } from '$modules/hr';
+import { createFinanceApi } from '$modules/finance';
 import { NotFoundError } from '$platform/modules/errors';
 import { fail, ok } from '$platform/http';
 

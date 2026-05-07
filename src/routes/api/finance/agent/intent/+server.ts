@@ -8,7 +8,7 @@ import {
 	isForbiddenAction,
 	type ClassifyFinanceIntentInput,
 	type FinanceIntent
-} from '../../../../../modules/finance/agent';
+} from '$modules/finance/agent';
 import { appendAgentAuditEntry } from '../../../../../platform/audit/audit-log';
 import { getDb } from '../../../../../infrastructure/db';
 

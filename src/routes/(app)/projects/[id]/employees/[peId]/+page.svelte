@@ -5,7 +5,7 @@
 	let { data, form } = $props();
 
 	const base = $derived(`/projects/${data.project.id}`);
-	const empHref = $derived(data.employee ? `/employees/${data.employee.id}` : '/employees');
+	const empHref = $derived(data.employee ? `/hr/employees/${data.employee.id}` : '/hr/employees');
 	const selfPath = $derived(page.url.pathname);
 
 	const money = (value: number | null | undefined) =>

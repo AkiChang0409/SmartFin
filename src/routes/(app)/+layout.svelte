@@ -26,10 +26,10 @@
 		label: string;
 		moduleId: string | null;
 	}> = [
-		{ id: 'finance', href: '/dashboard', label: 'Finance', moduleId: null },
+		{ id: 'finance', href: '/finance/dashboard', label: 'Finance', moduleId: null },
 		{ id: 'project', href: '/projects', label: 'Project', moduleId: 'project' },
-		{ id: 'hr', href: '/employees', label: 'HR', moduleId: 'employee' },
-		{ id: 'business-partner', href: '/customers', label: 'Business Partner', moduleId: 'business-partner' },
+		{ id: 'hr', href: '/hr/employees', label: 'HR', moduleId: 'employee' },
+		{ id: 'business-partner', href: '/business-partners/customers', label: 'Business Partner', moduleId: 'business-partner' },
 		{ id: 'settings', href: '/settings', label: 'Setting', moduleId: 'core' }
 	];
 
@@ -38,20 +38,20 @@
 	const financeGroups: SideGroup[] = [
 		{
 			title: 'Overview',
-			items: [{ href: '/dashboard', label: 'Dashboard', moduleId: null, icon: 'D' }]
+			items: [{ href: '/finance/dashboard', label: 'Dashboard', moduleId: null, icon: 'D' }]
 		},
 		{
 			title: 'Tax',
 			items: [
-				{ href: '/tax', label: 'GST Return', moduleId: 'tax', icon: '%' },
-				{ href: '/tax/corporate', label: 'Corporate Tax', moduleId: 'tax', icon: '%' }
+				{ href: '/finance/tax', label: 'GST Return', moduleId: 'tax', icon: '%' },
+				{ href: '/finance/tax/corporate', label: 'Corporate Tax', moduleId: 'tax', icon: '%' }
 			]
 		},
 		{
 			title: 'Company Expenses',
 			items: [
-				{ href: '/expenses', label: 'All Expenses', moduleId: 'expense', icon: '$' },
-				{ href: '/expenses/reimbursements', label: 'Reimbursement Queue', moduleId: 'expense', icon: '$' }
+				{ href: '/finance/expenses', label: 'All Expenses', moduleId: 'expense', icon: '$' },
+				{ href: '/finance/expenses/reimbursements', label: 'Reimbursement Queue', moduleId: 'expense', icon: '$' }
 			]
 		},
 		{
@@ -75,8 +75,8 @@
 		{
 			title: 'HR',
 			items: [
-				{ href: '/employees', label: 'All Employees', moduleId: 'employee', icon: 'H' },
-				{ href: '/employees/new', label: 'New Employee', moduleId: 'employee', icon: '+' }
+				{ href: '/hr/employees', label: 'All Employees', moduleId: 'employee', icon: 'H' },
+				{ href: '/hr/employees/new', label: 'New Employee', moduleId: 'employee', icon: '+' }
 			]
 		}
 	];
@@ -85,8 +85,8 @@
 		{
 			title: 'Partners',
 			items: [
-				{ href: '/customers', label: 'Customers', moduleId: 'business-partner', icon: 'B' },
-				{ href: '/suppliers', label: 'Suppliers', moduleId: 'business-partner', icon: 'B' }
+				{ href: '/business-partners/customers', label: 'Customers', moduleId: 'business-partner', icon: 'B' },
+				{ href: '/business-partners/suppliers', label: 'Suppliers', moduleId: 'business-partner', icon: 'B' }
 			]
 		}
 	];
@@ -135,12 +135,12 @@
 	// Determine which primary section the route belongs to
 	const primaryFromPath = $derived.by((): Primary => {
 		if (path.startsWith('/settings')) return 'settings';
-		if (path.startsWith('/customers')) return 'business-partner';
-		if (path.startsWith('/suppliers')) return 'business-partner';
+		if (path.startsWith('/business-partners/customers')) return 'business-partner';
+		if (path.startsWith('/business-partners/suppliers')) return 'business-partner';
 		// Project: list and detail routes
 		if (path === '/projects' || path.startsWith('/projects/')) return 'project';
 		// HR: employee master data (same employee module as in-project Team & Cost)
-		if (path.startsWith('/employees')) return 'hr';
+		if (path.startsWith('/hr/employees')) return 'hr';
 		// Finance: dashboard, tax, expenses, /finance/* (supplier invoices live under Business Partner)
 		return 'finance';
 	});
@@ -162,22 +162,22 @@
 		const itemPath = new URL(item.href, page.url.origin).pathname;
 
 		// Dashboard
-		if (itemPath === '/dashboard') {
-			return path === '/dashboard' || path === '/';
+		if (itemPath === '/finance/dashboard') {
+			return path === '/finance/dashboard' || path === '/';
 		}
 		// Tax
-		if (itemPath === '/tax/corporate') {
-			return path.startsWith('/tax/corporate');
+		if (itemPath === '/finance/tax/corporate') {
+			return path.startsWith('/finance/tax/corporate');
 		}
-		if (itemPath === '/tax') {
-			return path.startsWith('/tax') && !path.startsWith('/tax/corporate');
+		if (itemPath === '/finance/tax') {
+			return path.startsWith('/finance/tax') && !path.startsWith('/finance/tax/corporate');
 		}
 		// Expenses
-		if (itemPath === '/expenses/reimbursements') {
-			return path.startsWith('/expenses/reimbursements');
+		if (itemPath === '/finance/expenses/reimbursements') {
+			return path.startsWith('/finance/expenses/reimbursements');
 		}
-		if (itemPath === '/expenses') {
-			return path === '/expenses' || (path.startsWith('/expenses/') && !path.startsWith('/expenses/reimbursements'));
+		if (itemPath === '/finance/expenses') {
+			return path === '/finance/expenses' || (path.startsWith('/finance/expenses/') && !path.startsWith('/finance/expenses/reimbursements'));
 		}
 		if (itemPath.startsWith('/finance/revenue/')) {
 			return path.startsWith('/finance/revenue');
@@ -197,18 +197,18 @@
 			return path === '/projects' && page.url.searchParams.get('status') !== 'active';
 		}
 		// HR / Employees
-		if (itemPath === '/employees/new') {
-			return path === '/employees/new';
+		if (itemPath === '/hr/employees/new') {
+			return path === '/hr/employees/new';
 		}
-		if (itemPath === '/employees') {
-			return path === '/employees';
+		if (itemPath === '/hr/employees') {
+			return path === '/hr/employees';
 		}
 		// Business Partners
-		if (itemPath === '/customers') {
-			return path.startsWith('/customers');
+		if (itemPath === '/business-partners/customers') {
+			return path.startsWith('/business-partners/customers');
 		}
-		if (itemPath === '/suppliers') {
-			return path.startsWith('/suppliers');
+		if (itemPath === '/business-partners/suppliers') {
+			return path.startsWith('/business-partners/suppliers');
 		}
 		// Settings
 		if (itemPath === '/settings') {
@@ -243,7 +243,7 @@
 		<div class="flex h-14 items-center justify-between px-4 lg:px-6">
 			<!-- Logo and primary nav -->
 			<div class="flex items-center gap-6">
-				<a class="flex items-center gap-2 text-lg font-semibold text-[var(--sf-green)]" href="/dashboard">
+				<a class="flex items-center gap-2 text-lg font-semibold text-[var(--sf-green)]" href="/finance/dashboard">
 					<span class="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--sf-green)] text-white text-sm">SF</span>
 					SmartFin
 				</a>

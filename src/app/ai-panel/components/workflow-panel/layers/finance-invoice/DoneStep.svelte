@@ -7,7 +7,7 @@
 	const wfState = $derived((panel.activeWorkflow?.state as Record<string, unknown>) ?? {});
 	const entityId = $derived(wfState.entityId as string | undefined);
 	const auditRef = $derived(wfState.auditRef as string | undefined);
-	const entityRoute = $derived((wfState.entityRoute as string | undefined) ?? '/expenses');
+	const entityRoute = $derived((wfState.entityRoute as string | undefined) ?? '/finance/expenses');
 	const nextTask = $derived(wfState.nextTask as SuggestedTask | null | undefined);
 	const supplierName = $derived(
 		(wfState.extraction as { fields: { counterpartyName: string } } | undefined)?.fields

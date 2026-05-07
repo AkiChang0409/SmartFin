@@ -25,7 +25,7 @@ export const financeManifestV2: ModuleManifestV2 = {
 			failurePolicy: 'degrade'
 		},
 		{
-			moduleId: 'person',
+			moduleId: 'hr',
 			strength: 'weak',
 			description: 'Finance enriches records with employee and person lookups',
 			failurePolicy: 'degrade'

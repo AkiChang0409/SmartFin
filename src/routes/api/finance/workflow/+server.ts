@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$platform/http';
-import { financeAgentManifest } from '../../../../modules/finance/agent';
-import { vendorInvoiceIntakeWorkflow } from '../../../../modules/finance/workflows/vendor-invoice-intake';
-import { financialDocumentIntakeWorkflow } from '../../../../modules/finance/workflows/financial-document-intake';
-import { allowanceRecordingWorkflow } from '../../../../modules/finance/workflows/allowance-recording';
+import { financeAgentManifest } from '$modules/finance/agent';
+import { vendorInvoiceIntakeWorkflow } from '$modules/finance/workflows/vendor-invoice-intake';
+import { financialDocumentIntakeWorkflow } from '$modules/finance/workflows/financial-document-intake';
+import { allowanceRecordingWorkflow } from '$modules/finance/workflows/allowance-recording';
 import { startWorkflow } from '../../../../platform/workflow/workflow-runtime';
 import { appendAgentAuditEntry } from '../../../../platform/audit/audit-log';
 import { getDb } from '../../../../infrastructure/db';

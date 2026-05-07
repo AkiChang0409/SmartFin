@@ -27,16 +27,16 @@ function isPublicAppPath(pathname: string) {
 function needsAppAuth(pathname: string) {
 	if (isPublicAppPath(pathname)) return false;
 	return (
-		pathname.startsWith('/dashboard') ||
-		pathname.startsWith('/expenses') ||
+		pathname.startsWith('/finance/dashboard') ||
+		pathname.startsWith('/finance/expenses') ||
 		pathname.startsWith('/ar') ||
 		pathname.startsWith('/finance') ||
 		pathname.startsWith('/projects') ||
-		pathname.startsWith('/customers') ||
-		pathname.startsWith('/suppliers') ||
-		pathname.startsWith('/employees') ||
-		pathname.startsWith('/tax') ||
-		pathname.startsWith('/reports') ||
+		pathname.startsWith('/business-partners/customers') ||
+		pathname.startsWith('/business-partners/suppliers') ||
+		pathname.startsWith('/hr/employees') ||
+		pathname.startsWith('/finance/tax') ||
+		pathname.startsWith('/finance/reports') ||
 		pathname.startsWith('/settings')
 	);
 }
@@ -81,7 +81,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		(event.url.pathname === '/login' || event.url.pathname === '/register') &&
 		event.locals.user
 	) {
-		throw redirect(303, '/dashboard');
+		throw redirect(303, '/finance/dashboard');
 	}
 
 	const path = event.url.pathname;
@@ -100,7 +100,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			if (wantApiAuth) {
 				return new Response(JSON.stringify({ ok: false, error: 'Forbidden' }), { status: 403 });
 			}
-			throw redirect(303, '/dashboard');
+			throw redirect(303, '/finance/dashboard');
 		}
 
 		if (event.platform) {

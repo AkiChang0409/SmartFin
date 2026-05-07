@@ -239,7 +239,7 @@ export const POST: RequestHandler = async (event) => {
 		return ok({
 			entityId: created.id,
 			auditRef: audit.auditId,
-			entityRoute: '/expenses',
+			entityRoute: '/finance/expenses',
 			categoryId: 'expense.opex.allowance',
 			nextTask: null
 		});
@@ -320,7 +320,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 		const created = await finance.expenses.createStandaloneExpense(expenseInput);
 		entityId = created.id;
-		entityRoute = '/expenses';
+		entityRoute = '/finance/expenses';
 		toolId = 'finance.create-expense-record';
 		finalAction = `expense.created.${category.expenseType}.${category.category}`;
 	} else if (category.persistTarget === 'revenue') {

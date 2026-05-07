@@ -3,8 +3,8 @@ import type { Actions, PageServerLoad } from './$types';
 
 import { createCoreApi } from '$platform/core';
 import { createModuleContext } from '$platform/modules';
-import { createProjectApi } from '../../../../modules/project';
-import { createFinanceApi } from '../../../../modules/finance';
+import { createProjectApi } from '$modules/project';
+import { createFinanceApi } from '$modules/finance';
 
 export const load: PageServerLoad = async (event) => {
 	const { params, platform, parent } = event;

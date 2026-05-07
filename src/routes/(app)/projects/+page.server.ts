@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createProjectApi } from '../../../modules/project';
+import { createProjectApi } from '$modules/project';
 
 const PAGE_SIZE = 10;
 

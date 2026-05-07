@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 import { fail, ok } from '$platform/http';
-import { createDocumentIntakeService } from '../../../modules/document-intake';
+import { createDocumentIntakeService } from '$modules/document-intake';
 
 /**
  * Manual upload endpoint (Phase 2). Accepts multipart/form-data with a single

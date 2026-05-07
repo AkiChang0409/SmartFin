@@ -102,7 +102,7 @@ const expenseActions: AgentAction[] = [
 		module: 'expense',
 		description: 'View expense records (Operating Expenses and Sales Cost)',
 		keywords: ['expense', 'cost', 'opex', 'sales cost', 'spend'],
-		entry: '/expenses',
+		entry: '/finance/expenses',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager', 'employee']
 	},
@@ -111,7 +111,7 @@ const expenseActions: AgentAction[] = [
 		module: 'expense',
 		description: 'Record an expense (saved immediately; no draft workflow)',
 		keywords: ['new expense', 'record expense', 'log expense', 'upload expense'],
-		entry: '/expenses/upload',
+		entry: '/finance/expenses/upload',
 		layer: 3,
 		required_roles: ['owner', 'finance', 'project_manager'],
 		params: [
@@ -133,7 +133,7 @@ const taxActions: AgentAction[] = [
 		module: 'tax',
 		description: 'Open the tax overview page',
 		keywords: ['tax', 'tax home', 'GST overview'],
-		entry: '/tax',
+		entry: '/finance/tax',
 		layer: 1,
 		required_roles: ['owner', 'finance']
 	},
@@ -142,7 +142,7 @@ const taxActions: AgentAction[] = [
 		module: 'tax',
 		description: 'Fetch GST return box data for a given quarter',
 		keywords: ['gst', 'GST quarter', 'box data', 'filing'],
-		entry: '/tax',
+		entry: '/finance/tax',
 		api: 'GET /api/tax/gst/[year]/[quarter]',
 		layer: 4,
 		required_roles: ['owner', 'finance'],
@@ -156,7 +156,7 @@ const taxActions: AgentAction[] = [
 		module: 'tax',
 		description: 'Open the corporate tax page',
 		keywords: ['corporate tax', 'company tax', 'income tax'],
-		entry: '/tax/corporate',
+		entry: '/finance/tax/corporate',
 		layer: 1,
 		required_roles: ['owner', 'finance']
 	}
@@ -168,7 +168,7 @@ const reportingActions: AgentAction[] = [
 		module: 'reporting',
 		description: 'Open the reports page',
 		keywords: ['reports', 'analytics', 'reporting'],
-		entry: '/reports',
+		entry: '/finance/reports',
 		layer: 1,
 		required_roles: ['owner', 'finance', 'project_manager']
 	},
@@ -177,7 +177,7 @@ const reportingActions: AgentAction[] = [
 		module: 'reporting',
 		description: 'Export the projects profit report',
 		keywords: ['profit report', 'export report', 'projects profit', 'margin export'],
-		entry: '/reports',
+		entry: '/finance/reports',
 		api: 'GET /api/reports/projects-profit/export',
 		layer: 4,
 		required_roles: ['owner', 'finance', 'project_manager']

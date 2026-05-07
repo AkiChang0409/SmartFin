@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 import { createModuleContext } from '$platform/modules';
-import { createProjectApi } from '../../../modules/project';
+import { createProjectApi } from '$modules/project';
 import { fail, ok } from '$platform/http';
 
 export const GET: RequestHandler = async (event) => {

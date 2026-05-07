@@ -43,7 +43,7 @@
 			}
 			return;
 		}
-		window.location.href = '/dashboard';
+		window.location.href = '/finance/dashboard';
 	}
 
 	async function resendVerification() {

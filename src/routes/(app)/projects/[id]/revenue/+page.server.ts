@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 
 import { createModuleContext } from '$platform/modules';
-import { createFinanceApi } from '../../../../../modules/finance';
+import { createFinanceApi } from '$modules/finance';
 
 export const load: PageServerLoad = async (event) => {
 	const { params, platform, parent } = event;

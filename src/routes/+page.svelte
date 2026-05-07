@@ -21,7 +21,7 @@
 			error = err.message || 'Sign-in failed.';
 			return;
 		}
-		window.location.href = '/dashboard';
+		window.location.href = '/finance/dashboard';
 	}
 </script>
 
