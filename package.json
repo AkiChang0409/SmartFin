@@ -23,7 +23,11 @@
 		"db:seed:mock:local": "wrangler d1 execute smartfin-db --local --file drizzle/seeds/local-mock-full.sql",
 		"db:test:mock:local": "npm run db:migrate:local && npm run db:seed:mock:local",
 		"deploy:document-processor": "wrangler deploy --config workers/wrangler.document-processor.jsonc",
-		"dev:document-processor": "wrangler dev --config workers/wrangler.document-processor.jsonc"
+		"dev:document-processor": "wrangler dev --config workers/wrangler.document-processor.jsonc",
+		"dev:cf:v4": "wrangler dev --env v4",
+        "deploy:v4": "npm run build && wrangler deploy --env v4",
+        "deploy:document-processor:v4": "wrangler deploy --config workers/wrangler.document-processor.jsonc --env v4",
+        "db:migrate:remote:v4": "wrangler d1 migrations apply smartfin-db-v4 --remote"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-cloudflare": "^7.2.6",
