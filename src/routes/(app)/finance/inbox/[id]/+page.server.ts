@@ -27,11 +27,17 @@ interface CategoryChoice {
  *    suggestedFields, suggestedCategoryId, classification, etc.
  *  - The full category catalog (clientside-friendly shape) so the user can
  *    change the category dropdown which triggers POST /reclassify.
+ *  - `canViewDiagnostics` flag — gates the rawText debug panel to operator
+ *    roles (owner / finance). The /api/documents/[id]/intake endpoint
+ *    enforces the same check server-side; this flag just hides the panel
+ *    UI for non-operators so they don't see a 403 spinner.
  *
  * The page is the single place where the user decides "yes, persist this
  * to expenses/revenue/archive" — clicking Confirm posts to /confirm with a
  * tamper-guarded payload hash.
  */
+const DIAGNOSTICS_ROLES = new Set(['owner', 'finance']);
+
 export const load: PageServerLoad = async (event) => {
 	const id = event.params.id;
 	if (!id) throw error(400, 'Missing document id');
@@ -61,5 +67,8 @@ export const load: PageServerLoad = async (event) => {
 		requiresProject: c.requiresProject
 	}));
 
-	return { artifact, categories };
+	const role = event.locals.user?.role;
+	const canViewDiagnostics = role ? DIAGNOSTICS_ROLES.has(role) : false;
+
+	return { artifact, categories, canViewDiagnostics };
 };

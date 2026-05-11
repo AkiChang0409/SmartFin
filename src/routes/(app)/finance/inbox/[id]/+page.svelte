@@ -138,7 +138,9 @@
 
 		<div class="lg:col-span-2">
 			<div class="space-y-4">
-				<DocumentIntakeDiagnostics {artifact} />
+				{#if data.canViewDiagnostics}
+					<DocumentIntakeDiagnostics {artifact} />
+				{/if}
 				<InboxConfirmForm {artifact} {categories} cancelHref="/finance/inbox" onConfirmed={handleConfirmed} />
 			</div>
 		</div>

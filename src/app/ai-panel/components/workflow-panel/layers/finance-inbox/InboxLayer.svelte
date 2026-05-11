@@ -24,15 +24,50 @@
 		error?: string;
 	}
 
+	interface IntakeDiagnostics {
+		id: string;
+		processingStatus: string;
+		documentType: string;
+		originalFile: {
+			fileName: string;
+			mimeType: string;
+			sizeBytes: number;
+		};
+		filePreview?: {
+			url: string;
+			kind: 'pdf' | 'image' | 'text' | 'none' | 'other';
+		};
+		textExtraction: {
+			method: string;
+			status: string;
+			confidence?: number;
+			provider?: string;
+			pageCount: number | null;
+			textLength: number;
+			rawText: string;
+			error?: { code: string; message: string };
+		} | null;
+		classification: {
+			confidence?: number;
+			reason?: string;
+			modelId?: string;
+		} | null;
+		securityFlags: string[];
+		updatedAt: string;
+	}
+
 	const panelState = (panel.activeWorkflow?.state as Record<string, unknown> | undefined) ?? {};
 	let currentTab = $state<Tab>((panelState.initialTab as Tab | undefined) ?? 'review');
 	let items = $state<DocumentArtifactView[]>([]);
 	let total = $state(0);
 	let categories = $state<CategoryChoice[]>([]);
 	let selectedArtifact = $state<DocumentArtifactView | null>(null);
+	let diagnostics = $state<IntakeDiagnostics | null>(null);
 	let isLoading = $state(false);
 	let isLoadingDetail = $state(false);
+	let isLoadingDiagnostics = $state(false);
 	let loadError = $state<string | null>(null);
+	let diagnosticsError = $state<string | null>(null);
 
 	const TAB_LABELS: Record<Tab, string> = {
 		review: 'Ready',
@@ -54,6 +89,33 @@
 	];
 
 	const READY_STATUSES: DocumentProcessingStatus[] = ['ready_for_review', 'ready_for_workflow'];
+
+	const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+		supplier_invoice: 'Supplier invoice',
+		customer_invoice: 'Customer invoice',
+		receipt: 'Receipt',
+		purchase_order: 'Purchase order',
+		contract: 'Contract',
+		quotation: 'Quotation',
+		bank_statement: 'Bank statement',
+		tax_document: 'Tax document',
+		logistics_document: 'Logistics doc',
+		unknown: 'Unknown'
+	};
+
+	const pct = (value?: number) => (value == null ? 'n/a' : `${(value * 100).toFixed(0)}%`);
+
+	function formatBytes(bytes: number) {
+		if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+		const units = ['B', 'KB', 'MB', 'GB'];
+		let size = bytes;
+		let unit = 0;
+		while (size >= 1024 && unit < units.length - 1) {
+			size /= 1024;
+			unit += 1;
+		}
+		return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+	}
 
 	function statusParamFor(tab: Tab): string {
 		switch (tab) {
@@ -112,13 +174,30 @@
 	async function openArtifact(id: string) {
 		isLoadingDetail = true;
 		loadError = null;
+		diagnostics = null;
+		diagnosticsError = null;
 		try {
 			await loadCategories();
 			selectedArtifact = await getJson<DocumentArtifactView>(`/api/documents/${encodeURIComponent(id)}`);
+			void loadDiagnostics(id);
 		} catch (err) {
 			loadError = err instanceof Error ? err.message : 'Could not load document';
 		} finally {
 			isLoadingDetail = false;
+		}
+	}
+
+	async function loadDiagnostics(id: string) {
+		isLoadingDiagnostics = true;
+		diagnosticsError = null;
+		try {
+			diagnostics = await getJson<IntakeDiagnostics>(
+				`/api/documents/${encodeURIComponent(id)}/intake`
+			);
+		} catch (err) {
+			diagnosticsError = err instanceof Error ? err.message : 'Could not load document review';
+		} finally {
+			isLoadingDiagnostics = false;
 		}
 	}
 
@@ -181,8 +260,16 @@
 
 	onMount(() => {
 		void loadInbox();
+		// Poll every 5s while the user is watching the Processing tab — but
+		// only if the page is actually visible. If the tab is backgrounded
+		// (other browser tab focused / window minimized), skip the fetch so
+		// we don't churn the worker for an audience of nobody. The interval
+		// itself stays armed so refresh resumes the moment the user comes
+		// back without waiting for the next mount.
 		const timer = window.setInterval(() => {
-			if (currentTab === 'processing' && !selectedArtifact) void loadInbox('processing');
+			if (currentTab !== 'processing' || selectedArtifact) return;
+			if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+			void loadInbox('processing');
 		}, 5000);
 		return () => window.clearInterval(timer);
 	});
@@ -209,12 +296,77 @@
 
 		{#if READY_STATUSES.includes(selectedArtifact.processingStatus)}
 			{#if categories.length > 0}
-				<InboxConfirmForm
-					artifact={selectedArtifact}
-					{categories}
-					cancelHref={null}
-					onConfirmed={handleConfirmed}
-				/>
+				<div class="review-grid">
+					<div class="review-main">
+						<InboxConfirmForm
+							artifact={selectedArtifact}
+							{categories}
+							cancelHref={null}
+							onConfirmed={handleConfirmed}
+						/>
+					</div>
+					<aside class="review-side">
+						<section class="review-card">
+							<div class="review-card-head">
+								<div>
+									<h3>Document review</h3>
+									<p>File preview and extracted source text.</p>
+								</div>
+								<button
+									type="button"
+									class="icon-button"
+									onclick={() => loadDiagnostics(selectedArtifact!.id)}
+									disabled={isLoadingDiagnostics}
+									title="Refresh document review"
+								>
+									<RefreshCw size={14} />
+								</button>
+							</div>
+
+							{#if isLoadingDiagnostics && !diagnostics}
+								<div class="review-message">Loading document review...</div>
+							{:else if diagnosticsError}
+								<div class="review-message error">{diagnosticsError}</div>
+							{:else if diagnostics}
+								<dl class="doc-facts">
+									<div>
+										<dt>Detected type</dt>
+										<dd>{DOCUMENT_TYPE_LABELS[diagnostics.documentType] ?? diagnostics.documentType}</dd>
+									</div>
+									<div>
+										<dt>Text extraction</dt>
+										<dd>{diagnostics.textExtraction?.method ?? 'n/a'} · {pct(diagnostics.textExtraction?.confidence)}</dd>
+									</div>
+									<div>
+										<dt>File</dt>
+										<dd>{formatBytes(diagnostics.originalFile.sizeBytes)}</dd>
+									</div>
+								</dl>
+
+								<div class="file-preview">
+									{#if diagnostics.filePreview?.kind === 'pdf'}
+										<iframe src={diagnostics.filePreview.url} title="Document file preview"></iframe>
+									{:else if diagnostics.filePreview?.kind === 'image'}
+										<img src={diagnostics.filePreview.url} alt="Document file preview" />
+									{:else}
+										<div class="preview-placeholder">
+											<FileText size={22} />
+											<span>{diagnostics.originalFile.mimeType || 'No inline preview'}</span>
+										</div>
+									{/if}
+								</div>
+
+								<div class="raw-text-head">
+									<h3>Raw text</h3>
+									<span>{diagnostics.textExtraction?.textLength ?? 0} chars</span>
+								</div>
+								<pre class="raw-text">{diagnostics.textExtraction?.rawText || 'No raw text available.'}</pre>
+							{:else}
+								<div class="review-message">Open a document to load review data.</div>
+							{/if}
+						</section>
+					</aside>
+				</div>
 			{/if}
 		{:else if selectedArtifact.processingStatus === 'confirmed'}
 			<div class="state-panel confirmed">
@@ -527,5 +679,139 @@
 		color: var(--panel-fg-muted);
 		font-size: 12.5px;
 		line-height: 1.5;
+	}
+	.review-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 14px;
+		align-items: start;
+	}
+	.review-main {
+		min-width: 0;
+	}
+	.review-side {
+		min-width: 0;
+	}
+	.review-card {
+		border: 1px solid #e2e8f0;
+		border-radius: 12px;
+		background: #ffffff;
+		padding: 16px;
+		color: #0f172a;
+		box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+	}
+	.review-card-head,
+	.raw-text-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+	}
+	.review-card h3,
+	.raw-text-head h3 {
+		margin: 0;
+		color: #0f172a;
+		font-size: 13px;
+		font-weight: 650;
+	}
+	.review-card p {
+		margin-top: 3px;
+		color: #64748b;
+		font-size: 11.5px;
+		line-height: 1.4;
+	}
+	.review-message {
+		margin-top: 14px;
+		border: 1px solid #e2e8f0;
+		border-radius: 8px;
+		background: #f8fafc;
+		padding: 10px;
+		color: #475569;
+		font-size: 12px;
+	}
+	.review-message.error {
+		border-color: #fecdd3;
+		background: #fff1f2;
+		color: #9f1239;
+	}
+	.doc-facts {
+		display: grid;
+		gap: 8px;
+		margin: 14px 0;
+		font-size: 12px;
+	}
+	.doc-facts div {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+	}
+	.doc-facts dt {
+		color: #64748b;
+	}
+	.doc-facts dd {
+		margin: 0;
+		color: #1e293b;
+		font-weight: 550;
+		text-align: right;
+	}
+	.file-preview {
+		overflow: hidden;
+		height: 240px;
+		border: 1px solid #e2e8f0;
+		border-radius: 10px;
+		background: #f8fafc;
+	}
+	.file-preview iframe,
+	.file-preview img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		background: #ffffff;
+	}
+	.file-preview img {
+		object-fit: contain;
+	}
+	.preview-placeholder {
+		display: flex;
+		height: 100%;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		color: #64748b;
+		font-size: 12px;
+		text-align: center;
+	}
+	.raw-text-head {
+		margin-top: 14px;
+		align-items: center;
+	}
+	.raw-text-head span {
+		color: #64748b;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+		font-size: 11px;
+	}
+	.raw-text {
+		overflow: auto;
+		max-height: 260px;
+		margin: 8px 0 0;
+		white-space: pre-wrap;
+		border: 1px solid #cbd5e1;
+		border-radius: 10px;
+		background: #0f172a;
+		padding: 12px;
+		color: #f8fafc;
+		font-size: 11.5px;
+		line-height: 1.55;
+	}
+	@media (min-width: 980px) {
+		.review-grid {
+			grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+		}
+		.review-side {
+			position: sticky;
+			top: 0;
+		}
 	}
 </style>

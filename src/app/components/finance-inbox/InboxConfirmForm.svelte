@@ -326,7 +326,7 @@
 			{/if}
 		</div>
 		<select
-			class="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)]"
+			class="mt-3 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] disabled:bg-slate-50 disabled:text-slate-500"
 			style="--sf-green: #387234;"
 			value={selectedCategoryId}
 			onchange={(e) => handleCategoryChange((e.currentTarget as HTMLSelectElement).value)}
@@ -382,14 +382,14 @@
 						<textarea
 							bind:value={draft[key] as string}
 							rows="3"
-							class="mt-1 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] {confidenceClass(key)}"
+							class="mt-1 w-full rounded-md border px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] disabled:bg-slate-50 disabled:text-slate-600 {confidenceClass(key)}"
 							style="--sf-green: #387234;"
 							disabled={isConfirming || isConfirmed}
 						></textarea>
 					{:else if meta.kind === 'select'}
 						<select
 							bind:value={draft[key] as string}
-							class="mt-1 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] {confidenceClass(key)}"
+							class="mt-1 w-full rounded-md border px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] disabled:bg-slate-50 disabled:text-slate-600 {confidenceClass(key)}"
 							style="--sf-green: #387234;"
 							disabled={isConfirming || isConfirmed}
 						>
@@ -402,7 +402,7 @@
 							type={meta.kind === 'number' ? 'number' : meta.kind === 'date' ? 'date' : 'text'}
 							step={meta.kind === 'number' ? '0.01' : undefined}
 							bind:value={draft[key] as string}
-							class="mt-1 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] {confidenceClass(key)}"
+							class="mt-1 w-full rounded-md border px-3 py-2 text-sm text-slate-950 placeholder:text-slate-400 shadow-sm focus:border-[var(--sf-green)] focus:outline-none focus:ring-1 focus:ring-[var(--sf-green)] disabled:bg-slate-50 disabled:text-slate-600 {confidenceClass(key)}"
 							style="--sf-green: #387234;"
 							disabled={isConfirming || isConfirmed}
 						/>
