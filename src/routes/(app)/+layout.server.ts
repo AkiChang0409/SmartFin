@@ -2,6 +2,7 @@ import type { LayoutServerLoad } from './$types';
 import { createModuleContext } from '$platform/modules';
 import { createProjectApi } from '$modules/project';
 import { getEnabledModuleIds } from '$app-layer/bootstrap/module-access';
+import { registry } from '$platform/registry';
 
 function shouldLoadProjectSidebarCounts(pathname: string): boolean {
 	if (!pathname.startsWith('/projects')) return false;
@@ -11,7 +12,7 @@ function shouldLoadProjectSidebarCounts(pathname: string): boolean {
 
 export const load: LayoutServerLoad = async (event) => {
 	const { locals, platform, url } = event;
-	let enabledModules: string[] = [];
+	let enabledModules: string[] = registry.getAll().map((module) => module.manifest.id);
 	let projectListCounts: { all: number; active: number } | undefined;
 
 	if (platform) {
@@ -27,4 +28,3 @@ export const load: LayoutServerLoad = async (event) => {
 		projectListCounts
 	};
 };
-

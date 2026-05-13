@@ -43,24 +43,24 @@
 		{
 			title: 'Tax',
 			items: [
-				{ href: '/finance/tax', label: 'GST Return', moduleId: 'tax', icon: '%' },
-				{ href: '/finance/tax/corporate', label: 'Corporate Tax', moduleId: 'tax', icon: '%' }
+				{ href: '/finance/tax', label: 'GST Return', moduleId: 'finance', icon: '%' },
+				{ href: '/finance/tax/corporate', label: 'Corporate Tax', moduleId: 'finance', icon: '%' }
 			]
 		},
 		{
 			title: 'Company Expenses',
 			items: [
-				{ href: '/finance/expenses', label: 'All Expenses', moduleId: 'expense', icon: '$' },
-				{ href: '/finance/expenses/reimbursements', label: 'Reimbursement Queue', moduleId: 'expense', icon: '$' }
+				{ href: '/finance/expenses', label: 'All Expenses', moduleId: 'finance', icon: '$' },
+				{ href: '/finance/expenses/reimbursements', label: 'Reimbursement Queue', moduleId: 'finance', icon: '$' }
 			]
 		},
 		{
 			title: 'Revenue',
 			items: [
 				{
-					href: '/finance/revenue/customer-invoice-upload',
-					label: 'Customer invoice upload',
-					moduleId: 'ar',
+					href: '/finance/revenue',
+					label: 'All Revenue',
+					moduleId: 'finance',
 					icon: 'I'
 				}
 			]
@@ -78,7 +78,7 @@
 		},
 		{
 			title: 'Documents',
-			items: [{ href: '/finance/doc-hub', label: 'Doc Hub', moduleId: 'ar', icon: 'F' }]
+			items: [{ href: '/finance/doc-hub', label: 'Doc Hub', moduleId: 'finance', icon: 'F' }]
 		}
 	];
 
@@ -385,5 +385,4 @@
 	<PanelTrigger />
 	<WorkflowPanel />
 </div>
-
 
