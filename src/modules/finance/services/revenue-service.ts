@@ -1,9 +1,10 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { resolveSgdEquivalentForWrite } from '$modules/finance/services/fx/resolve-sgd-equivalent';
 import { parseDocumentMetadata } from '$modules/finance/schemas/document-metadata';
 import { resolveExpenseFilePreview } from '$modules/finance/services/expense-file-preview';
 import type { ModuleContext } from '$platform/modules/types';
 import { revenue } from '../../../infrastructure/db/schema';
+import { listFinanceProjectNames } from '../adapters';
 import { RevenueRepository } from '../repositories';
 
 type FinanceRevenueCreateInput = {
@@ -19,6 +20,25 @@ type FinanceRevenueCreateInput = {
 	metadata?: string | null;
 	notes?: string | null;
 };
+
+function buildRevenueTotals<
+	TRow extends { invoiceType: string | null; amount: number | null; sgdEquivalent: number | null }
+>(rows: TRow[]) {
+	return rows.reduce(
+		(acc, row) => {
+			const amount = row.sgdEquivalent ?? row.amount ?? 0;
+			acc.total += amount;
+			if (row.invoiceType === 'zero_rate') acc.zeroRate += amount;
+			else acc.standardRated += amount;
+			return acc;
+		},
+		{ total: 0, standardRated: 0, zeroRate: 0 }
+	);
+}
+
+function hasRevenueAttachment(documentRef: string | null) {
+	return Boolean(documentRef && !documentRef.startsWith('manual://'));
+}
 
 export function createFinanceRevenueApi(ctx: ModuleContext) {
 	const revenueRepository = new RevenueRepository(ctx.db);
@@ -49,6 +69,46 @@ export function createFinanceRevenueApi(ctx: ModuleContext) {
 				revenue: revenueTotal,
 				invoiced: revenueTotal
 			}
+		};
+	};
+
+	const getRevenueListPage = async () => {
+		const revenueRows = await ctx.db
+			.select({
+				id: revenue.id,
+				projectId: revenue.projectId,
+				invoiceType: revenue.invoiceType,
+				invoiceNumber: revenue.invoiceNumber,
+				clientName: revenue.clientName,
+				date: revenue.date,
+				amount: revenue.amount,
+				currency: revenue.currency,
+				sgdEquivalent: revenue.sgdEquivalent,
+				gstAmount: revenue.gstAmount,
+				documentRef: revenue.documentRef,
+				notes: revenue.notes,
+				createdAt: revenue.createdAt
+			})
+			.from(revenue)
+			.where(isNull(revenue.deletedAt))
+			.orderBy(desc(revenue.date), desc(revenue.createdAt));
+
+		const projectIds = [
+			...new Set(
+				revenueRows
+					.map((row) => row.projectId)
+					.filter((projectId): projectId is string => Boolean(projectId))
+			)
+		];
+		const projectNameById = await listFinanceProjectNames(ctx.db, projectIds);
+
+		return {
+			revenueRecords: revenueRows.map((row) => ({
+				...row,
+				projectName: row.projectId ? projectNameById.get(row.projectId) ?? null : null,
+				hasAttachment: hasRevenueAttachment(row.documentRef)
+			})),
+			totals: buildRevenueTotals(revenueRows)
 		};
 	};
 
@@ -91,6 +151,7 @@ export function createFinanceRevenueApi(ctx: ModuleContext) {
 
 	return {
 		getProjectRevenuePage,
+		getRevenueListPage,
 		createRevenue,
 		getProjectRevenueDocumentDetail
 	};

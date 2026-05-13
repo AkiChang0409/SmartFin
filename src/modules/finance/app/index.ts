@@ -11,6 +11,7 @@ export const financeDashboardCards = [
 export const financeNavigationEntries = [
 	'/finance/doc-hub',
 	'/finance/expenses',
+	'/finance/revenue',
 	'/finance/tax',
 	'/finance/dashboard'
 ] as const;
