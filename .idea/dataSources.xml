@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="fb7cfda1fc04ea795255ed3264edc6c424e0b76f42192210dcc1ec00039ee03e.sqlite" uuid="66ff457d-054d-47d7-9419-178425275513">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:C:\Users\akiwc\Documents\Axiom\AR Financial Management System\SmartFin\.wrangler\state\v3\d1\miniflare-D1DatabaseObject\fb7cfda1fc04ea795255ed3264edc6c424e0b76f42192210dcc1ec00039ee03e.sqlite</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+  </component>
+</project>

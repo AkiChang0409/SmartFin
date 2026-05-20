@@ -1,0 +1,31 @@
+# Copy to `.dev.vars` for `wrangler dev` / `npm run dev:cf` (do not commit `.dev.vars`).
+# Wrangler injects these into `env` in the Worker.
+
+# Required for better-auth (generate a new random string, e.g. openssl rand -hex 32)
+BETTER_AUTH_SECRET=
+
+# Optional locally: `wrangler.jsonc` may set BETTER_AUTH_URL to production.
+# The app overrides base URL from the request origin on localhost automatically if unset here.
+
+# Resend (https://resend.com) — BOTH required for real email. If either is missing, no mail is sent;
+# check wrangler terminal for "[email] Open this link manually" and paste the URL in your browser.
+#
+# Without a verified sending domain, Resend only allows the *recipient* to be your account email
+# (see dashboard). 403 "You can only send testing emails to your own email address" → sign up with
+# that address for tests, OR verify a domain at resend.com/domains and set EMAIL_FROM to @that.domain.
+# RESEND_API_KEY=re_xxxxxxxx
+# EMAIL_FROM=SmartFin <onboarding@resend.dev>
+
+# --- LLM (document classify / extract, email intent, etc.) ---
+# Order: Workers AI (`AI` binding) → if null/error, HTTP LLM when `LLM_API_URL` is set → else heuristics.
+# `wrangler.jsonc` may set `LLM_PROVIDER=heuristic`; that no longer blocks external fallback — configure URL + key below.
+# LLM_API_URL=https://api.openai.com/v1/chat/completions
+# LLM_API_KEY=sk-...
+# OPENAI_MODEL=gpt-4o-mini
+# LLM_USE_EXTERNAL=false   # opt-out of HTTP LLM even if LLM_API_URL is set
+# LLM_SKIP_WORKERS=true     # skip Workers AI; use external only (when URL + key set)
+
+# --- Local image OCR (Paddle) — bypasses Workers AI vision when `wrangler dev --local` cannot use `env.AI` ---
+# Run: python scripts/paddle_ocr_dev_server.py   (see script header for pip install)
+# PADDLE_OCR_URL=http://127.0.0.1:8765
+# OCR_PADDLE_ONLY=true   # do not fall back to Workers AI after Paddle fails

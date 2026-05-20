@@ -1,0 +1,79 @@
+import type { AgentAction } from '$platform/ai/legacy-agent/types';
+import type { EventBus, ModuleContext, ModuleDefinition } from '$platform/modules/types';
+import { registerEmployeeHandlers, registerPersonHandlers } from './handlers';
+
+function registerHrHandlers(bus: EventBus, ctx: ModuleContext) {
+	registerPersonHandlers(bus, ctx);
+	registerEmployeeHandlers(bus, ctx);
+}
+
+/**
+ * HR is a single v4 target module owning persons, employees, allocations,
+ * compensation components, and payouts. The earlier `person` and `employee`
+ * module ids were collapsed in Wave 3.3.
+ */
+export const hrModule: ModuleDefinition = {
+	manifest: {
+		id: 'hr',
+		name: 'HR',
+		layer: 'base',
+		dependencies: ['core', 'project']
+	},
+	registerHandlers: registerHrHandlers
+};
+
+export { createHrApi, type HrApi } from './api';
+export { createEmployeeApi, type EmployeeApi } from './employee-api';
+export { createPersonApi, type PersonApi } from './person-api';
+export {
+	staffCostPayoutStatuses,
+	staffCostExcludedIncomeTypes,
+	staffCostPayoutJoinConditions,
+	staffCostSumExpr,
+	staffCostPeriodBetween,
+	allocationPeriodDay,
+	periodCalendarMonth,
+	shadowCompensationComponentId,
+	runSettleManualProjectComponentsForMonth,
+	settleCompanyAllocationMonth
+} from './compat';
+export type { HrDirectorySource, HrLegacySources, HrPeopleSource } from './contracts';
+
+export const employeeActions: AgentAction[] = [
+	{
+		id: 'view_employees',
+		module: 'hr',
+		description: 'View the employee directory',
+		keywords: ['employees', 'staff list', 'HR roster'],
+		entry: '/hr/employees',
+		layer: 1,
+		required_roles: ['owner', 'finance', 'project_manager']
+	},
+	{
+		id: 'create_employee',
+		module: 'hr',
+		description: 'Create an employee record',
+		keywords: ['new employee', 'create staff', 'hire', 'add employee'],
+		entry: '/hr/employees/new',
+		layer: 2,
+		required_roles: ['owner', 'finance'],
+		params: [
+			{ name: 'name', type: 'string', required: true, description: 'Employee name' },
+			{
+				name: 'type',
+				type: 'string',
+				required: false,
+				description: 'Employment type: full_time / part_time / freelancer / advisor'
+			},
+			{
+				name: 'start_date',
+				type: 'date',
+				required: false,
+				description: 'Start date (YYYY-MM-DD, or "today")'
+			},
+			{ name: 'end_date', type: 'date', required: false, description: 'End date (YYYY-MM-DD)' },
+			{ name: 'contact', type: 'string', required: false, description: 'Contact / email' },
+			{ name: 'tax_id', type: 'string', required: false, description: 'Tax ID' }
+		]
+	}
+];
