@@ -30,7 +30,8 @@ export {
 } from './capabilities/classify-document';
 export {
 	DocumentArtifactRepository,
-	type CreateDocumentArtifactInput
+	type CreateDocumentArtifactInput,
+	type DocumentArtifactLibraryFilters
 } from './repositories/document-artifact-repository';
 export { documentArtifacts } from './repositories/document-artifact.schema';
 export {

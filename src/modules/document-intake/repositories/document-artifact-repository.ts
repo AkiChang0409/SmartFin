@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, like, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { DBClient } from '../../../infrastructure/db';
 import type {
 	DocumentArtifact,
@@ -26,6 +26,19 @@ export interface CreateDocumentArtifactInput {
 	classification?: DocumentClassificationResult;
 	normalizedMetadata?: Record<string, unknown>;
 	securityFlags?: DocumentSecurityFlag[];
+}
+
+export interface DocumentArtifactLibraryFilters {
+	tenantId: string;
+	q?: string;
+	statuses?: DocumentProcessingStatus[];
+	documentTypes?: DocumentType[];
+	sources?: DocumentSource[];
+	categoryId?: string;
+	createdFrom?: string;
+	createdTo?: string;
+	limit?: number;
+	offset?: number;
 }
 
 function nowIso(): string {
@@ -86,6 +99,58 @@ function rowToArtifact(row: DocumentArtifactRow): DocumentArtifact {
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt
 	};
+}
+
+function searchableTokens(q: string | undefined): string[] {
+	return (q ?? '')
+		.trim()
+		.split(/\s+/)
+		.map((token) => token.trim())
+		.filter((token) => token.length >= 2)
+		.slice(0, 8);
+}
+
+function buildLibraryWhere(filters: DocumentArtifactLibraryFilters): SQL | undefined {
+	const clauses: SQL[] = [eq(documentArtifacts.tenantId, filters.tenantId)];
+
+	if (filters.statuses?.length) {
+		clauses.push(inArray(documentArtifacts.processingStatus, filters.statuses));
+	}
+	if (filters.documentTypes?.length) {
+		clauses.push(inArray(documentArtifacts.documentType, filters.documentTypes));
+	}
+	if (filters.sources?.length) {
+		clauses.push(inArray(documentArtifacts.source, filters.sources));
+	}
+	if (filters.categoryId?.trim()) {
+		clauses.push(eq(documentArtifacts.suggestedCategoryId, filters.categoryId.trim()));
+	}
+	if (filters.createdFrom) {
+		clauses.push(gte(documentArtifacts.createdAt, filters.createdFrom));
+	}
+	if (filters.createdTo) {
+		clauses.push(lte(documentArtifacts.createdAt, filters.createdTo));
+	}
+
+	for (const token of searchableTokens(filters.q)) {
+		const pattern = `%${token}%`;
+		const tokenClause = or(
+			like(documentArtifacts.id, pattern),
+			like(documentArtifacts.source, pattern),
+			like(documentArtifacts.processingStatus, pattern),
+			like(documentArtifacts.documentType, pattern),
+			like(documentArtifacts.suggestedCategoryId, pattern),
+			like(documentArtifacts.originalFile, pattern),
+			like(documentArtifacts.sourceMetadata, pattern),
+			like(documentArtifacts.textExtraction, pattern),
+			like(documentArtifacts.classification, pattern),
+			like(documentArtifacts.suggestedFields, pattern),
+			like(documentArtifacts.normalizedMetadata, pattern)
+		);
+		if (tokenClause) clauses.push(tokenClause);
+	}
+
+	return and(...clauses);
 }
 
 export class DocumentArtifactRepository {
@@ -282,6 +347,29 @@ export class DocumentArtifactRepository {
 					inArray(documentArtifacts.processingStatus, statuses)
 				)
 			);
+		return Number(rows[0]?.n ?? 0);
+	}
+
+	async listLibrary(
+		filters: DocumentArtifactLibraryFilters
+	): Promise<DocumentArtifact[]> {
+		const limit = Math.min(Math.max(filters.limit ?? 10, 1), 50);
+		const offset = Math.max(filters.offset ?? 0, 0);
+		const rows = await this.db
+			.select()
+			.from(documentArtifacts)
+			.where(buildLibraryWhere(filters))
+			.orderBy(desc(documentArtifacts.createdAt))
+			.limit(limit)
+			.offset(offset);
+		return rows.map((row) => rowToArtifact(row as DocumentArtifactRow));
+	}
+
+	async countLibrary(filters: DocumentArtifactLibraryFilters): Promise<number> {
+		const rows = await this.db
+			.select({ n: sql<number>`count(*)` })
+			.from(documentArtifacts)
+			.where(buildLibraryWhere(filters));
 		return Number(rows[0]?.n ?? 0);
 	}
 }

@@ -1,0 +1,27 @@
+{
+	"expo": {
+		"name": "SmartFin Mobile",
+		"slug": "smartfin-mobile",
+		"version": "0.1.0",
+		"orientation": "portrait",
+		"userInterfaceStyle": "light",
+		"assetBundlePatterns": [
+			"**/*"
+		],
+		"ios": {
+			"supportsTablet": true,
+			"infoPlist": {
+				"NSCameraUsageDescription": "SmartFin uses the camera to capture documents for finance inbox processing.",
+				"NSPhotoLibraryUsageDescription": "SmartFin can upload existing document photos to the finance inbox."
+			}
+		},
+		"android": {
+			"permissions": [
+				"CAMERA"
+			]
+		},
+		"web": {
+			"bundler": "metro"
+		}
+	}
+}

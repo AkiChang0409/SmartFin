@@ -9,6 +9,7 @@ import {
 import { extractTextFromBlob } from '../../../platform/ai/text-extraction';
 import { classifyDocumentCapability } from '../capabilities/classify-document';
 import { DocumentArtifactRepository } from '../repositories/document-artifact-repository';
+import type { DocumentArtifactLibraryFilters } from '../repositories/document-artifact-repository';
 import type {
 	DocumentArtifact,
 	DocumentClassificationResult,
@@ -203,6 +204,12 @@ export interface DocumentIntakeService {
 		evidence?: unknown;
 		categoryId: string;
 	}): Promise<DocumentArtifact | null>;
+	listDocumentArtifacts(input: DocumentArtifactLibraryFilters): Promise<{
+		items: DocumentArtifactView[];
+		total: number;
+		limit: number;
+		offset: number;
+	}>;
 	toView: typeof toView;
 }
 
@@ -605,6 +612,27 @@ export function createDocumentIntakeService(
 		return updated;
 	}
 
+	async function listDocumentArtifacts(input: DocumentArtifactLibraryFilters): Promise<{
+		items: DocumentArtifactView[];
+		total: number;
+		limit: number;
+		offset: number;
+	}> {
+		const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
+		const offset = Math.max(input.offset ?? 0, 0);
+		const filters = { ...input, limit, offset };
+		const [items, total] = await Promise.all([
+			repo.listLibrary(filters),
+			repo.countLibrary(filters)
+		]);
+		return {
+			items: items.map(toView),
+			total,
+			limit,
+			offset
+		};
+	}
+
 	return {
 		createDocumentFromUpload,
 		processDocument,
@@ -612,6 +640,7 @@ export function createDocumentIntakeService(
 		markConfirmed,
 		abandonIntake,
 		replaceSuggestedFields,
+		listDocumentArtifacts,
 		toView
 	};
 }

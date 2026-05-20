@@ -37,9 +37,14 @@ export const GET: RequestHandler = async (event) => {
 
 	const headers = new Headers();
 	headers.set('Content-Type', artifact.originalFile.mimeType || 'application/octet-stream');
+	const disposition =
+		event.url.searchParams.get('download') === '1' ||
+		event.url.searchParams.get('attachment') === '1'
+			? 'attachment'
+			: 'inline';
 	headers.set(
 		'Content-Disposition',
-		`inline; filename="${asciiFileName(artifact.originalFile.fileName)}"`
+		`${disposition}; filename="${asciiFileName(artifact.originalFile.fileName)}"`
 	);
 	headers.set('Cache-Control', 'private, max-age=300');
 	if (object.httpEtag && /^[\x21\x23-\x7E]+$/.test(object.httpEtag)) {
