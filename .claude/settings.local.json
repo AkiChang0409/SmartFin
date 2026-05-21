@@ -20,7 +20,8 @@
       "Bash(./node_modules/.bin/tsx scratch-stage2-doc-intake-check.mjs)",
       "Bash(./node_modules/.bin/tsx scratch-stage3-doc-intake-check.mjs)",
       "Bash(./node_modules/.bin/tsx scratch-stage4-doc-intake-check.mjs)",
-      "Bash(./node_modules/.bin/tsx scratch-stage5-doc-intake-check.mjs)"
+      "Bash(./node_modules/.bin/tsx scratch-stage5-doc-intake-check.mjs)",
+      "Bash(xargs -I {} basename {})"
     ]
   }
 }
