@@ -73,19 +73,21 @@
 
 	type HighlightSegments = { before: string; match: string; after: string } | null;
 
-	const highlightSegments = $derived<HighlightSegments>((): HighlightSegments => {
-		const rawText = diagnostics?.textExtraction?.rawText;
-		if (!rawText || !activeQuote) return null;
-		// Try exact match first, then case-insensitive.
-		let idx = rawText.indexOf(activeQuote);
-		if (idx === -1) idx = rawText.toLowerCase().indexOf(activeQuote.toLowerCase());
-		if (idx === -1) return null;
-		return {
-			before: rawText.slice(0, idx),
-			match: rawText.slice(idx, idx + activeQuote.length),
-			after: rawText.slice(idx + activeQuote.length)
-		};
-	});
+	const highlightSegments = $derived(
+		(() => {
+			const rawText = diagnostics?.textExtraction?.rawText;
+			if (!rawText || !activeQuote) return null as HighlightSegments;
+			// Try exact match first, then case-insensitive.
+			let idx = rawText.indexOf(activeQuote);
+			if (idx === -1) idx = rawText.toLowerCase().indexOf(activeQuote.toLowerCase());
+			if (idx === -1) return null as HighlightSegments;
+			return {
+				before: rawText.slice(0, idx),
+				match: rawText.slice(idx, idx + activeQuote.length),
+				after: rawText.slice(idx + activeQuote.length)
+			} satisfies Exclude<HighlightSegments, null>;
+		})()
+	);
 
 	$effect(() => {
 		if (markEl) markEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
