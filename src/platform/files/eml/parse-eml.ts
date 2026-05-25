@@ -276,14 +276,21 @@ function getAttachmentName(headers: HeaderMap): string | null {
 	return null;
 }
 
-/** MIME types we can attempt to extract text from (PDF, images, DOCX). */
-function isExtractableMime(mime: string): boolean {
-	return (
+/** MIME types we can attempt to extract text from (PDF, images, DOCX).
+ *  Also handles application/octet-stream when the filename extension
+ *  reveals the true type — common for Outlook-attached PDFs. */
+function isExtractableMime(mime: string, filename?: string): boolean {
+	if (
 		mime === 'application/pdf' ||
 		mime.startsWith('image/') ||
 		mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
 		mime === 'application/msword'
-	);
+	) return true;
+	if (mime === 'application/octet-stream' && filename) {
+		const lower = filename.toLowerCase();
+		return lower.endsWith('.pdf') || lower.endsWith('.docx') || lower.endsWith('.doc');
+	}
+	return false;
 }
 
 /** Internal context threaded through recursive calls. */
@@ -349,7 +356,7 @@ function walkPart(raw: string, depth: number, ctx: WalkContext): void {
 		if (ctx.attachments.length < MAX_ATTACHMENTS) {
 			const filename = getAttachmentName(headers) ?? `[${type.split('/')[1] ?? 'file'}]`;
 			let bytes: Uint8Array | undefined;
-			if (isExtractableMime(type) && ctx.byteAttachmentCount < MAX_BYTE_ATTACHMENTS) {
+			if (isExtractableMime(type, filename) && ctx.byteAttachmentCount < MAX_BYTE_ATTACHMENTS) {
 				// Always consume one slot — prevents repeated decode attempts on
 				// oversized attachments when MAX_BYTE_ATTACHMENTS > 1.
 				ctx.byteAttachmentCount++;
