@@ -83,7 +83,7 @@ export const poSchemaV1 = z.object({
 	clientName: z.string().nullable().optional(),
 	poNumber: z.string().nullable(),
 	date: z.string().nullable(),
-	totalAmount: z.number().finite().nullable(),
+	totalAmount: lenientNumber,
 	currency: z.string().nullable(),
 	description: z.string().nullable(),
 	lineItems: z.array(lineItemSchemaV1).nullable().optional(),

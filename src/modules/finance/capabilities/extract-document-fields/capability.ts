@@ -553,6 +553,9 @@ export const extractDocumentFieldsCapability: FinanceCapability<
 
 		// 3. LLM failed or returned an unusable shape. Leave fields blank instead
 		// of falling back to regex/mock values.
+		console.warn(
+			`[extract-document-fields] extraction produced no usable fields for ${docType}/${input.documentId} (categoryId=${input.categoryId})`
+		);
 		const fields: Record<string, unknown> = {};
 		return {
 			fields,
