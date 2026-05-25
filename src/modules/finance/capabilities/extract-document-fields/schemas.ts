@@ -8,7 +8,8 @@ import { z } from 'zod';
  */
 const lenientNumber = z.preprocess((val) => {
 	if (val === null || val === undefined) return null;
-	if (typeof val === 'number') return isFinite(val) ? val : null;
+	// Pass JS numbers through unchanged — .finite() will reject Infinity/NaN as before.
+	if (typeof val === 'number') return val;
 	if (typeof val === 'string') {
 		const cleaned = val.replace(/[,$€£¥₹\s]/g, '').trim();
 		if (cleaned === '' || cleaned === '-') return null;
