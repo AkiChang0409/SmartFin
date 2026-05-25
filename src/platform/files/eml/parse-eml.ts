@@ -3,17 +3,68 @@
  *
  * Produces readable plain text for AI classification + field extraction:
  *   - Email metadata: From, To, Subject, Date
- *   - Body text (text/plain preferred over text/html)
- *   - Attachment manifest (names + types, no binary content)
+ *   - Body text (text/plain preferred over text/html), thread-noise stripped
+ *   - Attachment manifest (names + types, no binary content) — backward-compat path
  *   - Recursive: handles multipart/*, message/rfc822, nested structures
  *
  * Works in Cloudflare Workers and browsers (no Node.js APIs).
+ *
+ * Two public APIs:
+ *   emlToPlainText()      — sync, backward-compat, body + attachment names only
+ *   parseEmlStructured()  — returns EmlAttachment[] with decoded bytes for
+ *                           compose-eml-extraction.ts to score & select
  */
 
 const MAX_RECURSION = 5;
 const MAX_ATTACHMENTS = 20;
+/** Cap bytes captured per attachment to avoid blowing up memory on huge PDFs. */
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // 10 MB
+/** Only capture bytes for the first N binary attachments (scoring picks from these).
+ *  Oversized attachments also count toward this limit so we don't keep attempting
+ *  expensive decode-then-discard on every subsequent large part. */
+const MAX_BYTE_ATTACHMENTS = 5;
+/** Stop accumulating body text parts once we have this many characters total.
+ *  Prevents deeply-nested multipart emails from building huge strings before
+ *  compose-eml-extraction.ts truncates at 1000 chars. */
+const MAX_BODY_CHARS = 100_000;
 
 type HeaderMap = Map<string, string>;
+
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
+
+export interface EmlAttachment {
+	filename: string;
+	mimeType: string;
+	/** Decoded binary bytes — only populated for PDF / image / DOCX parts
+	 *  up to MAX_ATTACHMENT_BYTES. Undefined for text attachments or when the
+	 *  part is too large. */
+	bytes?: Uint8Array;
+}
+
+export interface EmlParseResult {
+	subject: string;
+	from: string;
+	to: string;
+	date: string;
+	bodyText: string;
+	attachments: string[]; // backward-compat: "filename (mime/type)"
+}
+
+export interface EmlStructuredResult {
+	subject: string;
+	from: string;
+	to: string;
+	date: string;
+	/** Cleaned body text with quoted reply chains stripped. */
+	bodyText: string;
+	attachments: EmlAttachment[];
+}
+
+// ---------------------------------------------------------------------------
+// Header parsing
+// ---------------------------------------------------------------------------
 
 function splitHeadersAndBody(raw: string): [headers: string, body: string] {
 	const crlfIdx = raw.indexOf('\r\n\r\n');
@@ -61,6 +112,10 @@ function parseContentType(raw: string): ParsedContentType {
 	return { type, params };
 }
 
+// ---------------------------------------------------------------------------
+// Content decoding
+// ---------------------------------------------------------------------------
+
 function decodeQPToBytes(input: string): Uint8Array {
 	const joined = input.replace(/=\r?\n/g, '');
 	const bytes: number[] = [];
@@ -92,6 +147,36 @@ function decodeBase64Text(b64: string, charset = 'utf-8'): string {
 	} catch {
 		return b64;
 	}
+}
+
+/**
+ * Estimate decoded byte size from the encoded representation.
+ * Used to skip decoding before allocating memory.
+ *   base64:           decoded ≈ stripped_length × 0.75
+ *   quoted-printable: conservative upper bound = raw length (usually smaller)
+ *   7bit/8bit:        1 byte per char
+ */
+function estimateDecodedBytes(body: string, cte: string): number {
+	if (cte === 'base64') {
+		return Math.ceil(body.replace(/\s/g, '').length * 0.75);
+	}
+	return body.length;
+}
+
+/** Decode a MIME part body to raw bytes (for binary attachments). */
+function decodeBinaryPart(body: string, cte: string): Uint8Array {
+	if (cte === 'base64') {
+		try {
+			const binary = atob(body.replace(/\s/g, ''));
+			return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+		} catch {
+			return new Uint8Array(0);
+		}
+	}
+	if (cte === 'quoted-printable') {
+		return decodeQPToBytes(body);
+	}
+	return Uint8Array.from(body, (c) => c.charCodeAt(0) & 0xff);
 }
 
 function decodeEncodedWord(word: string): string {
@@ -132,6 +217,190 @@ function stripHtml(html: string): string {
 		.trim();
 }
 
+// ---------------------------------------------------------------------------
+// Thread / quoted-reply stripping
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove quoted reply chains from a decoded email body.
+ *
+ * Strips:
+ *  - Lines starting with ">" (inline quoted text)
+ *  - "On [date], [name] wrote:" blocks (Gmail / Apple Mail style)
+ *  - "-----Original Message-----" / "---------- Forwarded message ---------"
+ *  - Long underscore separators (Outlook forward/reply dividers)
+ *
+ * Everything after the first thread marker is discarded — we only need
+ * the most-recent reply, which carries the actionable financial context.
+ */
+export function stripQuotedReplies(text: string): string {
+	const lines = text.split('\n');
+	const result: string[] = [];
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const trimmed = line.trim();
+
+		// Hard stop: common thread / forward separator lines
+		if (
+			/^-{4,}\s*(original message|forwarded message)\s*[-]*/i.test(trimmed) ||
+			/^_{8,}\s*$/.test(trimmed)
+		) break;
+
+		// Hard stop: "On [date/name] ... wrote:" — check this + next 3 lines
+		// to handle wrapped long lines.
+		if (/^on\s+\S/i.test(trimmed)) {
+			const lookahead = lines.slice(i, i + 4).join(' ');
+			if (/\bwrote:\s*$/i.test(lookahead)) break;
+		}
+
+		// Skip "> " quoted lines but keep going (inline quotes mid-body).
+		if (trimmed.startsWith('>')) continue;
+
+		result.push(line);
+	}
+
+	return result.join('\n').trim();
+}
+
+// ---------------------------------------------------------------------------
+// MIME tree walking
+// ---------------------------------------------------------------------------
+
+function getAttachmentName(headers: HeaderMap): string | null {
+	for (const h of ['content-disposition', 'content-type']) {
+		const val = headers.get(h) || '';
+		const m = /(?:filename\*?|name)=(?:"([^"]+)"|([^\s;]+))/i.exec(val);
+		if (m) return (m[1] || m[2] || '').trim() || null;
+	}
+	return null;
+}
+
+/** MIME types we can attempt to extract text from (PDF, images, DOCX). */
+function isExtractableMime(mime: string): boolean {
+	return (
+		mime === 'application/pdf' ||
+		mime.startsWith('image/') ||
+		mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+		mime === 'application/msword'
+	);
+}
+
+/** Internal context threaded through recursive calls. */
+interface WalkContext {
+	textParts: string[];
+	attachments: EmlAttachment[];
+	byteAttachmentCount: number;
+}
+
+function walkPart(raw: string, depth: number, ctx: WalkContext): void {
+	if (depth > MAX_RECURSION) return;
+
+	const [headerBlock, body] = splitHeadersAndBody(raw);
+	const headers = parseHeaderBlock(headerBlock);
+	const ctRaw = headers.get('content-type') || 'text/plain';
+	const { type, params } = parseContentType(ctRaw);
+	const cte = (headers.get('content-transfer-encoding') || '7bit').toLowerCase().trim();
+	const charset = params.get('charset') || 'utf-8';
+
+	// Multipart: recurse into sub-parts
+	if (type.startsWith('multipart/')) {
+		const boundary = params.get('boundary');
+		if (!boundary) return;
+		const subParts = splitMultipartBody(body, boundary);
+
+		// multipart/alternative: prefer text/plain over text/html
+		if (type === 'multipart/alternative') {
+			const subCtx: WalkContext = { textParts: [], attachments: ctx.attachments, byteAttachmentCount: ctx.byteAttachmentCount };
+			let plainText = '';
+			let htmlText = '';
+			for (const part of subParts) {
+				const [ph] = splitHeadersAndBody(part);
+				const { type: pt } = parseContentType(parseHeaderBlock(ph).get('content-type') || '');
+				const partCtx: WalkContext = { textParts: [], attachments: ctx.attachments, byteAttachmentCount: ctx.byteAttachmentCount };
+				walkPart(part, depth + 1, partCtx);
+				ctx.byteAttachmentCount = partCtx.byteAttachmentCount;
+				if (pt === 'text/plain') plainText = partCtx.textParts.join('\n\n');
+				else if (pt === 'text/html') htmlText = partCtx.textParts.join('\n\n');
+			}
+			const chosen = plainText || htmlText;
+			if (chosen) ctx.textParts.push(chosen);
+			void subCtx;
+			return;
+		}
+
+		for (const part of subParts) {
+			const partCtx: WalkContext = { textParts: [], attachments: ctx.attachments, byteAttachmentCount: ctx.byteAttachmentCount };
+			walkPart(part, depth + 1, partCtx);
+			ctx.byteAttachmentCount = partCtx.byteAttachmentCount;
+			if (partCtx.textParts.length > 0) ctx.textParts.push(...partCtx.textParts);
+		}
+		return;
+	}
+
+	// Nested RFC 2822 message
+	if (type === 'message/rfc822') {
+		walkPart(body, depth + 1, ctx);
+		return;
+	}
+
+	// Binary / non-text attachment
+	if (!type.startsWith('text/')) {
+		if (ctx.attachments.length < MAX_ATTACHMENTS) {
+			const filename = getAttachmentName(headers) ?? `[${type.split('/')[1] ?? 'file'}]`;
+			let bytes: Uint8Array | undefined;
+			if (isExtractableMime(type) && ctx.byteAttachmentCount < MAX_BYTE_ATTACHMENTS) {
+				// Always consume one slot — prevents repeated decode attempts on
+				// oversized attachments when MAX_BYTE_ATTACHMENTS > 1.
+				ctx.byteAttachmentCount++;
+				const estimated = estimateDecodedBytes(body, cte);
+				if (estimated <= MAX_ATTACHMENT_BYTES) {
+					// Only decode once we know it fits.
+					const decoded = decodeBinaryPart(body, cte);
+					if (decoded.byteLength > 0) bytes = decoded;
+				}
+			}
+			ctx.attachments.push({ filename, mimeType: type, bytes });
+		}
+		return;
+	}
+
+	// Text attachment (Content-Disposition: attachment for .txt etc.)
+	const cd = (headers.get('content-disposition') || '').toLowerCase();
+	if (cd.startsWith('attachment')) {
+		if (ctx.attachments.length < MAX_ATTACHMENTS) {
+			const filename = getAttachmentName(headers) ?? `[text/${type.split('/')[1]}]`;
+			ctx.attachments.push({ filename, mimeType: type });
+		}
+		return;
+	}
+
+	// Inline text content — decode and collect
+	let text: string;
+	if (cte === 'base64') {
+		text = decodeBase64Text(body, charset);
+	} else if (cte === 'quoted-printable') {
+		text = decodeQP(body, charset);
+	} else {
+		try {
+			const bytes = Uint8Array.from(body, (c) => c.charCodeAt(0) & 0xff);
+			text = new TextDecoder(charset, { fatal: false }).decode(bytes);
+		} catch {
+			text = body;
+		}
+	}
+
+	const decoded = type === 'text/html' ? stripHtml(text) : text.trim();
+	if (decoded) {
+		// Enforce body char budget: stop accumulating once we have enough context.
+		const accumulated = ctx.textParts.reduce((n, p) => n + p.length, 0);
+		if (accumulated < MAX_BODY_CHARS) {
+			const remaining = MAX_BODY_CHARS - accumulated;
+			ctx.textParts.push(decoded.length > remaining ? decoded.slice(0, remaining) : decoded);
+		}
+	}
+}
+
 /**
  * Split a multipart MIME body into raw part strings.
  * Lines before the first boundary delimiter (preamble) are discarded.
@@ -158,103 +427,16 @@ function splitMultipartBody(body: string, boundary: string): string[] {
 	return parts;
 }
 
-function getAttachmentName(headers: HeaderMap): string | null {
-	for (const h of ['content-disposition', 'content-type']) {
-		const val = headers.get(h) || '';
-		const m = /(?:filename\*?|name)=(?:"([^"]+)"|([^\s;]+))/i.exec(val);
-		if (m) return (m[1] || m[2] || '').trim() || null;
-	}
-	return null;
-}
+// ---------------------------------------------------------------------------
+// Public parsers
+// ---------------------------------------------------------------------------
 
-function extractPartText(raw: string, depth: number, attachments: string[]): string {
-	if (depth > MAX_RECURSION) return '';
-
-	const [headerBlock, body] = splitHeadersAndBody(raw);
-	const headers = parseHeaderBlock(headerBlock);
-	const ctRaw = headers.get('content-type') || 'text/plain';
-	const { type, params } = parseContentType(ctRaw);
-	const cte = (headers.get('content-transfer-encoding') || '7bit').toLowerCase().trim();
-	const charset = params.get('charset') || 'utf-8';
-
-	// Multipart: recurse into sub-parts
-	if (type.startsWith('multipart/')) {
-		const boundary = params.get('boundary');
-		if (!boundary) return '';
-		const subParts = splitMultipartBody(body, boundary);
-
-		// multipart/alternative: prefer text/plain over text/html
-		if (type === 'multipart/alternative') {
-			let plain = '';
-			let html = '';
-			for (const part of subParts) {
-				const [ph] = splitHeadersAndBody(part);
-				const { type: pt } = parseContentType(parseHeaderBlock(ph).get('content-type') || '');
-				if (pt === 'text/plain') plain = extractPartText(part, depth + 1, attachments);
-				else if (pt === 'text/html') html = extractPartText(part, depth + 1, attachments);
-				else extractPartText(part, depth + 1, attachments); // collect nested attachments
-			}
-			return plain || html;
-		}
-
-		return subParts
-			.map((p) => extractPartText(p, depth + 1, attachments))
-			.filter(Boolean)
-			.join('\n\n');
-	}
-
-	// Nested RFC 2822 message
-	if (type === 'message/rfc822') {
-		return extractPartText(body, depth + 1, attachments);
-	}
-
-	// Non-text content types (attachments or inline binary)
-	if (!type.startsWith('text/')) {
-		if (attachments.length < MAX_ATTACHMENTS) {
-			const name = getAttachmentName(headers) ?? `[${type.split('/')[1] ?? 'file'}]`;
-			attachments.push(`${name} (${type})`);
-		}
-		return '';
-	}
-
-	// Text attachment (e.g. Content-Disposition: attachment for a .txt)
-	const cd = (headers.get('content-disposition') || '').toLowerCase();
-	if (cd.startsWith('attachment')) {
-		if (attachments.length < MAX_ATTACHMENTS) {
-			const name = getAttachmentName(headers) ?? `[text/${type.split('/')[1]}]`;
-			attachments.push(`${name} (${type})`);
-		}
-		return '';
-	}
-
-	// Decode text content
-	let text: string;
-	if (cte === 'base64') {
-		text = decodeBase64Text(body, charset);
-	} else if (cte === 'quoted-printable') {
-		text = decodeQP(body, charset);
-	} else {
-		try {
-			const bytes = Uint8Array.from(body, (c) => c.charCodeAt(0) & 0xff);
-			text = new TextDecoder(charset, { fatal: false }).decode(bytes);
-		} catch {
-			text = body;
-		}
-	}
-
-	return type === 'text/html' ? stripHtml(text) : text.trim();
-}
-
-export interface EmlParseResult {
-	subject: string;
-	from: string;
-	to: string;
-	date: string;
-	bodyText: string;
-	attachments: string[];
-}
-
-export function parseEml(rawText: string): EmlParseResult {
+/**
+ * Structured parse: returns EmlAttachment[] with decoded bytes.
+ * Used by compose-eml-extraction.ts to score and select relevant attachments.
+ * Body text has quoted reply chains stripped.
+ */
+export function parseEmlStructured(rawText: string): EmlStructuredResult {
 	const [headerBlock] = splitHeadersAndBody(rawText);
 	const headers = parseHeaderBlock(headerBlock);
 
@@ -263,20 +445,41 @@ export function parseEml(rawText: string): EmlParseResult {
 	const to = decodeHeaderValue(headers.get('to') || '');
 	const date = headers.get('date') || '';
 
-	const attachments: string[] = [];
-	const bodyText = extractPartText(rawText, 0, attachments);
+	const ctx: WalkContext = { textParts: [], attachments: [], byteAttachmentCount: 0 };
+	walkPart(rawText, 0, ctx);
 
-	return { subject, from, to, date, bodyText, attachments };
+	const rawBody = ctx.textParts.join('\n\n');
+	const bodyText = stripQuotedReplies(rawBody);
+
+	return { subject, from, to, date, bodyText, attachments: ctx.attachments };
 }
 
 /**
- * Convert raw EML bytes to structured plain text for AI extraction.
+ * Backward-compatible parse: returns string[] attachment names.
+ * Body text has quoted reply chains stripped.
+ */
+export function parseEml(rawText: string): EmlParseResult {
+	const structured = parseEmlStructured(rawText);
+	return {
+		subject: structured.subject,
+		from: structured.from,
+		to: structured.to,
+		date: structured.date,
+		bodyText: structured.bodyText,
+		attachments: structured.attachments.map((a) => `${a.filename} (${a.mimeType})`)
+	};
+}
+
+/**
+ * Convert raw EML bytes to plain text for AI extraction.
+ * Sync, backward-compatible. Body thread-noise is stripped.
+ * Does NOT extract attachment content — use composeEmlText() for that.
  *
  * Output format:
  *   From: sender@example.com
  *   To: recipient@example.com
  *   Subject: Invoice INV-001
- *   Date: Thu, 15 Jan 2026 10:00:00 +0800
+ *   Date: ...
  *
  *   [body text]
  *

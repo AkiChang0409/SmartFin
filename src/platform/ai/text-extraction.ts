@@ -17,7 +17,8 @@ import {
 	looksLikeLegacyWordDoc,
 	looksLikeZip
 } from '../files/docx/extract-plain-text';
-import { emlToPlainText } from '../files/eml/parse-eml';
+import { parseEmlStructured } from '../files/eml/parse-eml';
+import { composeEmlText } from '../files/eml/compose-eml-extraction';
 
 export interface PlatformTextExtractionResult {
 	method: 'pdf_text' | 'vision_model' | 'manual';
@@ -251,7 +252,11 @@ export async function extractTextFromBlob(
 	if (isEmlMime(fileRef.mimeType, fileRef.fileName)) {
 		const bytes = await fileService.getBytes(fileRef.key);
 		if (!bytes) return buildFailure('blob_not_found', `No object at ${fileRef.key}`, 'manual');
-		const text = emlToPlainText(bytes);
+		const raw = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+		const structured = parseEmlStructured(raw);
+		// composeEmlText scores attachments, extracts the most relevant one(s),
+		// and prepends the cleaned email body as navigation context.
+		const text = await composeEmlText(structured, env);
 		if (text.length >= MIN_USEFUL_PDF_TEXT) {
 			return {
 				method: 'manual',
