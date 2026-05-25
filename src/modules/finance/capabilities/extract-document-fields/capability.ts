@@ -13,6 +13,7 @@
  */
 import type { ZodType } from 'zod';
 import { runStructuredOutput } from '../../../../platform/ai/ai-runtime';
+import { normalizeDocumentText, smartTruncate } from '../../../../platform/ai/text-preprocessing';
 import {
 	findCategoryById,
 	type CategoryDefinition,
@@ -479,8 +480,24 @@ export const extractDocumentFieldsCapability: FinanceCapability<
 		}
 
 		// 2. Real extracted text always goes through the category-specific LLM schema.
+		// Normalize and truncate per doc-type budget before sending to the LLM.
+		// Contracts/quotations get more budget (key data can appear on the last page);
+		// receipts and invoices are almost always single-page.
+		const TEXT_BUDGET: Partial<Record<NonNullable<CategoryDocType>, number>> = {
+			invoice: 10_000,
+			receipt: 6_000,
+			po: 12_000,
+			invoice_out: 10_000,
+			contract: 16_000,
+			quotation: 12_000,
+			purchase_order_doc: 12_000
+		};
+
+		const budget = docType ? TEXT_BUDGET[docType] ?? 12_000 : 12_000;
+		const processedText = smartTruncate(normalizeDocumentText(input.text), budget);
+
 		const llm = await tryLlmExtraction(
-			input.text,
+			processedText,
 			docType,
 			ctxWithEnv,
 			category?.id ?? input.categoryId ?? 'unknown',
