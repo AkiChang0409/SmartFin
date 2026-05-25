@@ -8,7 +8,7 @@
  * corresponding schema in `schemas.ts` expects.
  */
 
-export const EXTRACT_DOCUMENT_FIELDS_PROMPT_VERSION = 'v3';
+export const EXTRACT_DOCUMENT_FIELDS_PROMPT_VERSION = 'v4';
 
 const SECURITY_FOOTER = `
 SECURITY:
@@ -109,12 +109,21 @@ ${EXTRACTION_RULES}
 ${QUOTES_RULE}
 ${SECURITY_FOOTER}`;
 
+const PO_FIELD_HINTS = `
+PO FIELD HINTS:
+- supplierName: look for labels such as "Vendor", "Vendor Code", "Supplier", "Ship From", or "Sold By". The supplier is the party receiving the PO and fulfilling the order, NOT the buyer.
+- clientName: look for labels such as "Bill To", "Ship To", "Buyer", "Sold To", "Purchaser", or the company letterhead/logo. The client is the party that issued/placed the PO.
+- poNumber: look for "Purchase Order No", "PO No", "PO Number", "Order No", "Order Number", or "P/O". This is the buyer's reference number for the order.
+- date: look for "Order Date", "PO Date", "Date", "Issue Date", or "Created". This is when the PO was issued. Convert MM-DD-YYYY or DD-MM-YYYY to ISO YYYY-MM-DD.
+- currency: look near amounts or in the column headers (e.g. "Unit Price/SGD", "Net value/SGD", "Total Order Value SGD"). Map common abbreviations: S$/SGD→SGD, US$/USD→USD, RM/MYR→MYR.
+- totalAmount: look for "Total Order Value", "Grand Total", "Total Amount", or the sum row at the bottom of the line-items table.`;
+
 export const PO_SYSTEM_PROMPT = `You extract structured fields from a purchase-order OCR transcription.
 
 Return ONLY a single JSON object, no markdown, no preamble, no commentary.
 
 Required keys:
-- supplierName: supplier the PO is issued to (string or null).
+- supplierName: supplier/vendor the PO is issued to (string or null).
 - clientName: buyer / customer issuing the PO (string or null).
 - poNumber: PO number / reference (string or null).
 - date: ISO YYYY-MM-DD (string or null).
@@ -126,6 +135,7 @@ Required keys:
 - _quotes: object mapping each non-null field name to its verbatim source snippet (≤ 100 chars each).
 
 Use null for any field you cannot confidently extract.
+${PO_FIELD_HINTS}
 ${EXTRACTION_RULES}
 ${REFERENCE_RULES}
 ${ARCHIVE_RULES}

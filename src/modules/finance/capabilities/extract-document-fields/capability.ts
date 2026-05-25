@@ -55,27 +55,18 @@ import {
 const MIN_TEXT_LENGTH_FOR_REAL_EXTRACT = 32;
 
 /**
- * PO-specific truncation: 50% head / 25% middle sample / 25% tail.
+ * Front-heavy truncation for POs and other documents where the critical
+ * structured fields (PO number, vendor, buyer, date, items, totals) are
+ * concentrated in the first few pages. The trailing pages are usually
+ * boilerplate T&C that the LLM doesn't need for field extraction.
  *
- * Standard smartTruncate (70% head + 30% tail) cuts the entire line-items
- * table on long POs because item rows sit in the middle of the document.
- * This three-slice approach ensures the LLM always sees:
- *   - Head (50%): PO number, supplier, buyer, date, currency
- *   - Middle sample (25%): representative line items
- *   - Tail (25%): totals, payment terms, signatures
+ * Strategy: allocate the full budget to the beginning of the document.
+ * If the first pass produces low confidence, the caller retries with a
+ * larger budget or the full text (see LOW_CONFIDENCE_THRESHOLD below).
  */
-function truncatePoText(text: string, budget: number): string {
-	const head = Math.floor(budget * 0.5);
-	const tail = Math.floor(budget * 0.25);
-	const mid = budget - head - tail;
-	const midStart = Math.floor((text.length - mid) / 2);
-	return (
-		text.slice(0, head) +
-		'\n\n[...]\n\n' +
-		text.slice(midStart, midStart + mid) +
-		'\n\n[...]\n\n' +
-		text.slice(-tail)
-	);
+function truncateFrontHeavy(text: string, budget: number): string {
+	if (text.length <= budget) return text;
+	return text.slice(0, budget) + '\n\n[... remainder truncated ...]';
 }
 
 interface CapabilityContextWithEnv extends FinanceCapabilityContext {
@@ -515,31 +506,45 @@ export const extractDocumentFieldsCapability: FinanceCapability<
 		const TEXT_BUDGET: Partial<Record<NonNullable<CategoryDocType>, number>> = {
 			invoice: 10_000,
 			receipt: 6_000,
-			po: 20_000,
+			po: 15_000,
 			invoice_out: 10_000,
 			contract: 16_000,
 			quotation: 12_000,
+			purchase_order_doc: 15_000
+		};
+		const EXPANDED_BUDGET: Partial<Record<NonNullable<CategoryDocType>, number>> = {
+			po: 20_000,
 			purchase_order_doc: 20_000
 		};
+		const LOW_CONFIDENCE_THRESHOLD = 0.4;
 
-		const budget = docType ? TEXT_BUDGET[docType] ?? 12_000 : 12_000;
 		const normalized = normalizeDocumentText(input.text);
-		// POs differ from invoices: line items dominate the middle of the document.
-		// Standard 70/30 front/back cuts out the entire item table on long POs.
-		// Instead use 50/25/25 (head / middle sample / tail) so the LLM sees
-		// item rows even when the document exceeds the budget.
-		const processedText =
-			(docType === 'po' || docType === 'purchase_order_doc') && normalized.length > budget
-				? truncatePoText(normalized, budget)
-				: smartTruncate(normalized, budget);
+		const isPo = docType === 'po' || docType === 'purchase_order_doc';
+		const budget = docType ? TEXT_BUDGET[docType] ?? 12_000 : 12_000;
 
-		const llm = await tryLlmExtraction(
-			processedText,
-			docType,
-			ctxWithEnv,
-			category?.id ?? input.categoryId ?? 'unknown',
-			input.documentId
-		);
+		// POs and multi-page documents: allocate the full budget to the front.
+		// Most structured fields (PO number, vendor, date, items, totals) appear
+		// in the first few pages; trailing pages are T&C boilerplate.
+		const processedText = isPo
+			? truncateFrontHeavy(normalized, budget)
+			: smartTruncate(normalized, budget);
+
+		const categoryIdRef = category?.id ?? input.categoryId ?? 'unknown';
+		let llm = await tryLlmExtraction(processedText, docType, ctxWithEnv, categoryIdRef, input.documentId);
+
+		// Retry with expanded budget or full text when confidence is very low.
+		if (isPo && (!llm || llm.confidence < LOW_CONFIDENCE_THRESHOLD) && normalized.length > budget) {
+			const expandedBudget = docType ? EXPANDED_BUDGET[docType] ?? normalized.length : normalized.length;
+			const expandedText = expandedBudget >= normalized.length
+				? normalized
+				: truncateFrontHeavy(normalized, expandedBudget);
+			console.log(
+				`[extract-document-fields] PO low confidence (${llm?.confidence ?? 0}), retrying with ${expandedText.length} chars (was ${processedText.length})`
+			);
+			const retry = await tryLlmExtraction(expandedText, docType, ctxWithEnv, categoryIdRef, input.documentId);
+			if (retry && (!llm || retry.confidence > llm.confidence)) llm = retry;
+		}
+
 		if (llm) {
 			const fields = outputFor(llm.fields, category, input.outputShape);
 			return {
