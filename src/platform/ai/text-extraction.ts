@@ -12,6 +12,12 @@
 import { runWorkersVisionOcr } from './ocr/workers-vision-ocr';
 import type { FileServiceContract } from '../files/file.types';
 import { pickMockFixtureText } from './text-extraction-fixtures';
+import {
+	tryExtractDocxPlainText,
+	looksLikeLegacyWordDoc,
+	looksLikeZip
+} from '../files/docx/extract-plain-text';
+import { emlToPlainText } from '../files/eml/parse-eml';
 
 export interface PlatformTextExtractionResult {
 	method: 'pdf_text' | 'vision_model' | 'manual';
@@ -65,6 +71,23 @@ function isPdfMime(mime: string, fileName?: string): boolean {
 function isImageMime(mime: string, fileName?: string): boolean {
 	if (mime.toLowerCase().startsWith('image/')) return true;
 	return Boolean(fileName && /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(fileName));
+}
+
+function isDocxOrDocMime(mime: string, fileName?: string): boolean {
+	const m = mime.toLowerCase();
+	const n = (fileName || '').toLowerCase();
+	return (
+		m.includes('wordprocessingml.document') ||
+		m === 'application/msword' ||
+		/\.docx$/i.test(n) ||
+		(/\.doc$/i.test(n) && !/\.docx$/i.test(n))
+	);
+}
+
+function isEmlMime(mime: string, fileName?: string): boolean {
+	const m = mime.toLowerCase();
+	const n = (fileName || '').toLowerCase();
+	return m === 'message/rfc822' || n.endsWith('.eml');
 }
 
 function buildMockResult(input: ExtractTextInput): PlatformTextExtractionResult {
@@ -179,6 +202,70 @@ export async function extractTextFromBlob(
 			provider: 'workers_ai',
 			providerJobId: result.model
 		};
+	}
+
+	if (isDocxOrDocMime(fileRef.mimeType, fileRef.fileName)) {
+		const bytes = await fileService.getBytes(fileRef.key);
+		if (!bytes) return buildFailure('blob_not_found', `No object at ${fileRef.key}`, 'manual');
+		// Normalise to ArrayBuffer for the DOCX helpers
+		const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+
+		// Legacy Word 97–2003 binary compound document — cannot parse without OLE library
+		if (looksLikeLegacyWordDoc(ab) && !looksLikeZip(ab)) {
+			return {
+				method: 'manual',
+				status: 'partial',
+				confidence: 0,
+				provider: 'docx_xml_parse',
+				error: {
+					code: 'legacy_doc_unsupported',
+					message:
+						'Legacy .doc (Word 97–2003) binary format cannot be parsed automatically. Please save as .docx and re-upload.'
+				}
+			};
+		}
+
+		const text = tryExtractDocxPlainText(ab);
+		if (text && text.length >= MIN_USEFUL_PDF_TEXT) {
+			return {
+				method: 'manual',
+				status: 'success',
+				text,
+				confidence: 0.9,
+				provider: 'docx_xml_parse'
+			};
+		}
+		return {
+			method: 'manual',
+			status: 'partial',
+			text: text ?? '',
+			confidence: 0.1,
+			provider: 'docx_xml_parse',
+			error: {
+				code: 'low_text_yield',
+				message: 'Could not extract usable text from this Word document.'
+			}
+		};
+	}
+
+	if (isEmlMime(fileRef.mimeType, fileRef.fileName)) {
+		const bytes = await fileService.getBytes(fileRef.key);
+		if (!bytes) return buildFailure('blob_not_found', `No object at ${fileRef.key}`, 'manual');
+		const text = emlToPlainText(bytes);
+		if (text.length >= MIN_USEFUL_PDF_TEXT) {
+			return {
+				method: 'manual',
+				status: 'success',
+				text,
+				confidence: 0.85,
+				provider: 'eml_mime_parse'
+			};
+		}
+		return buildFailure(
+			'low_text_yield',
+			'EML file appears to be empty or has no readable text content.',
+			'manual'
+		);
 	}
 
 	return buildFailure(
