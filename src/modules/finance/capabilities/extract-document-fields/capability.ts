@@ -54,6 +54,30 @@ import {
 
 const MIN_TEXT_LENGTH_FOR_REAL_EXTRACT = 32;
 
+/**
+ * PO-specific truncation: 50% head / 25% middle sample / 25% tail.
+ *
+ * Standard smartTruncate (70% head + 30% tail) cuts the entire line-items
+ * table on long POs because item rows sit in the middle of the document.
+ * This three-slice approach ensures the LLM always sees:
+ *   - Head (50%): PO number, supplier, buyer, date, currency
+ *   - Middle sample (25%): representative line items
+ *   - Tail (25%): totals, payment terms, signatures
+ */
+function truncatePoText(text: string, budget: number): string {
+	const head = Math.floor(budget * 0.5);
+	const tail = Math.floor(budget * 0.25);
+	const mid = budget - head - tail;
+	const midStart = Math.floor((text.length - mid) / 2);
+	return (
+		text.slice(0, head) +
+		'\n\n[...]\n\n' +
+		text.slice(midStart, midStart + mid) +
+		'\n\n[...]\n\n' +
+		text.slice(-tail)
+	);
+}
+
 interface CapabilityContextWithEnv extends FinanceCapabilityContext {
 	env?: Env;
 }
@@ -317,7 +341,12 @@ async function tryLlmExtraction(
 		env: ctx.env
 	});
 
-	if (result.status !== 'success') return null;
+	if (result.status !== 'success') {
+		console.warn(
+			`[extract-document-fields] LLM call failed for ${docType}/${documentId}: status=${result.status} error=${result.error}`
+		);
+		return null;
+	}
 	const raw = result.result.value;
 	const fields = cfg.mapToFields(raw);
 	if (!fields) return null;
@@ -486,15 +515,23 @@ export const extractDocumentFieldsCapability: FinanceCapability<
 		const TEXT_BUDGET: Partial<Record<NonNullable<CategoryDocType>, number>> = {
 			invoice: 10_000,
 			receipt: 6_000,
-			po: 12_000,
+			po: 20_000,
 			invoice_out: 10_000,
 			contract: 16_000,
 			quotation: 12_000,
-			purchase_order_doc: 12_000
+			purchase_order_doc: 20_000
 		};
 
 		const budget = docType ? TEXT_BUDGET[docType] ?? 12_000 : 12_000;
-		const processedText = smartTruncate(normalizeDocumentText(input.text), budget);
+		const normalized = normalizeDocumentText(input.text);
+		// POs differ from invoices: line items dominate the middle of the document.
+		// Standard 70/30 front/back cuts out the entire item table on long POs.
+		// Instead use 50/25/25 (head / middle sample / tail) so the LLM sees
+		// item rows even when the document exceeds the budget.
+		const processedText =
+			(docType === 'po' || docType === 'purchase_order_doc') && normalized.length > budget
+				? truncatePoText(normalized, budget)
+				: smartTruncate(normalized, budget);
 
 		const llm = await tryLlmExtraction(
 			processedText,

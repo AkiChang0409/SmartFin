@@ -1,6 +1,24 @@
 import { z } from 'zod';
 
 /**
+ * Lenient numeric field: accepts both JS numbers and string representations
+ * (e.g. "44,800.00", "44800", "1") that LLMs commonly return despite being
+ * instructed to return plain numbers. Strips thousands separators and currency
+ * symbols before parsing. Returns null for unparseable or explicitly null values.
+ */
+const lenientNumber = z.preprocess((val) => {
+	if (val === null || val === undefined) return null;
+	if (typeof val === 'number') return isFinite(val) ? val : null;
+	if (typeof val === 'string') {
+		const cleaned = val.replace(/[,$€£¥₹\s]/g, '').trim();
+		if (cleaned === '' || cleaned === '-') return null;
+		const n = parseFloat(cleaned);
+		return isFinite(n) ? n : null;
+	}
+	return null;
+}, z.number().finite().nullable());
+
+/**
  * Per-document-type LLM output schemas (v1).
  *
  * Each schema corresponds to one of the `categoryDocType` values declared in
@@ -20,8 +38,8 @@ export const invoiceSchemaV1 = z.object({
 	invoiceNumber: z.string().nullable(),
 	issueDate: z.string().nullable(),
 	dueDate: z.string().nullable(),
-	totalAmount: z.number().finite().nullable(),
-	gstAmount: z.number().finite().nullable(),
+	totalAmount: lenientNumber,
+	gstAmount: lenientNumber,
 	currency: z.string().nullable(),
 	serviceName: z.string().nullable().optional(),
 	period: z.string().nullable().optional(),
@@ -38,8 +56,8 @@ export const receiptSchemaV1 = z.object({
 	vendor: z.string().nullable(),
 	receiptNumber: z.string().nullable(),
 	date: z.string().nullable(),
-	totalAmount: z.number().finite().nullable(),
-	gstAmount: z.number().finite().nullable(),
+	totalAmount: lenientNumber,
+	gstAmount: lenientNumber,
 	currency: z.string().nullable(),
 	recipientName: z.string().nullable(),
 	destination: z.string().nullable().optional(),
@@ -54,9 +72,9 @@ export type ReceiptLlmV1 = z.infer<typeof receiptSchemaV1>;
 // ---------------------------------------------------------------------------
 const lineItemSchemaV1 = z.object({
 	description: z.string().nullable(),
-	qty: z.number().finite().nullable(),
-	unitPrice: z.number().finite().nullable(),
-	amount: z.number().finite().nullable()
+	qty: lenientNumber,
+	unitPrice: lenientNumber,
+	amount: lenientNumber
 });
 
 export const poSchemaV1 = z.object({
@@ -81,9 +99,9 @@ export const customerInvoiceSchemaV1 = z.object({
 	invoiceNumber: z.string().nullable(),
 	invoiceDate: z.string().nullable(),
 	invoiceDueDate: z.string().nullable(),
-	totalAmount: z.number().finite().nullable(),
-	gstAmount: z.number().finite().nullable(),
-	subtotal: z.number().finite().nullable(),
+	totalAmount: lenientNumber,
+	gstAmount: lenientNumber,
+	subtotal: lenientNumber,
 	currency: z.string().nullable(),
 	poNumber: z.string().nullable(),
 	confidence: z.number().min(0).max(1).optional(),
@@ -99,7 +117,7 @@ export const contractSchemaV1 = z.object({
 	clientName: z.string().nullable(),
 	effectiveDate: z.string().nullable(),
 	expiryDate: z.string().nullable(),
-	amount: z.number().finite().nullable(),
+	amount: lenientNumber,
 	currency: z.string().nullable(),
 	paymentTerms: z.string().nullable(),
 	scope: z.string().nullable(),
@@ -113,7 +131,7 @@ export const quotationSchemaV1 = z.object({
 	clientName: z.string().nullable(),
 	date: z.string().nullable(),
 	validUntil: z.string().nullable(),
-	amount: z.number().finite().nullable(),
+	amount: lenientNumber,
 	currency: z.string().nullable(),
 	lineItems: z.array(lineItemSchemaV1).nullable(),
 	confidence: z.number().min(0).max(1).optional(),
