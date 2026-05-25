@@ -278,11 +278,14 @@ function getAttachmentName(headers: HeaderMap): string | null {
 
 /** MIME types we can attempt to extract text from (PDF, images, DOCX).
  *  Also handles application/octet-stream when the filename extension
- *  reveals the true type — common for Outlook-attached PDFs. */
+ *  reveals the true type — common for Outlook-attached PDFs.
+ *  Only known image subtypes are matched — Outlook embeds decorative objects
+ *  with non-standard types like "image/outlook-bizsafe en" that we cannot
+ *  extract and should not count against the byte-attachment slot limit. */
 function isExtractableMime(mime: string, filename?: string): boolean {
+	if (mime === 'application/pdf') return true;
+	if (/^image\/(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(mime)) return true;
 	if (
-		mime === 'application/pdf' ||
-		mime.startsWith('image/') ||
 		mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
 		mime === 'application/msword'
 	) return true;
@@ -290,6 +293,22 @@ function isExtractableMime(mime: string, filename?: string): boolean {
 		const lower = filename.toLowerCase();
 		return lower.endsWith('.pdf') || lower.endsWith('.docx') || lower.endsWith('.doc');
 	}
+	return false;
+}
+
+/**
+ * True for Outlook-generated inline decoration attachments (logos, social icons,
+ * certification badges). These are structural email decoration embedded via CID
+ * and should not consume byte-attachment decode slots.
+ */
+function isDecorationAttachment(filename: string, headers: HeaderMap): boolean {
+	if (/^Outlook-[A-Za-z0-9]/i.test(filename)) return true;
+	// Inline CID parts without an explicit attachment disposition are embedded
+	// decorations (email signatures, banners). Real attachments declare
+	// content-disposition: attachment.
+	const cd = (headers.get('content-disposition') || '').toLowerCase().trim();
+	const hasCid = headers.has('content-id');
+	if (hasCid && (!cd || cd.startsWith('inline'))) return true;
 	return false;
 }
 
@@ -356,7 +375,8 @@ function walkPart(raw: string, depth: number, ctx: WalkContext): void {
 		if (ctx.attachments.length < MAX_ATTACHMENTS) {
 			const filename = getAttachmentName(headers) ?? `[${type.split('/')[1] ?? 'file'}]`;
 			let bytes: Uint8Array | undefined;
-			if (isExtractableMime(type, filename) && ctx.byteAttachmentCount < MAX_BYTE_ATTACHMENTS) {
+			const decoration = isDecorationAttachment(filename, headers);
+			if (!decoration && isExtractableMime(type, filename) && ctx.byteAttachmentCount < MAX_BYTE_ATTACHMENTS) {
 				// Always consume one slot — prevents repeated decode attempts on
 				// oversized attachments when MAX_BYTE_ATTACHMENTS > 1.
 				ctx.byteAttachmentCount++;
@@ -367,6 +387,8 @@ function walkPart(raw: string, depth: number, ctx: WalkContext): void {
 					if (decoded.byteLength > 0) bytes = decoded;
 				}
 			}
+			// Decoration attachments are still listed (the routing LLM needs the
+			// full filename manifest) but carry no bytes — they won't be extracted.
 			ctx.attachments.push({ filename, mimeType: type, bytes });
 		}
 		return;

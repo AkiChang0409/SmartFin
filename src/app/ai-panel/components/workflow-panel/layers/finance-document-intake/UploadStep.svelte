@@ -7,6 +7,7 @@
 		type DocumentArtifactPostResponse,
 		type DocumentProcessingStatus
 	} from '$app-layer/ai-panel/workflow/finance-workflow-api';
+	import { extractEmlClientText } from '$app-layer/ai-panel/workflow/extract-eml-client';
 
 	type Stage = 'idle' | 'expanding' | 'parsing' | 'storing' | 'queued' | 'error';
 
@@ -235,13 +236,26 @@
 			return { text: '', method: 'manual', uploadFile: file };
 		}
 
-		// EML and legacy .doc: server handles extraction; no client pre-processing.
-		if (
-			mime === 'message/rfc822' ||
-			name.endsWith('.eml') ||
-			mime === 'application/msword' ||
-			name.endsWith('.doc')
-		) {
+		// EML: parse client-side, extract text from the financial attachment inside
+		// (PDF via pdfjs, DOCX via XML parse). The email body is just context.
+		if (mime === 'message/rfc822' || name.endsWith('.eml')) {
+			const result = await extractEmlClientText(file, {
+				pdf: extractPdfText,
+				pdfPageRender: renderPdfFirstPageJpeg,
+				docx: extractDocxTextClient
+			}).catch(() => null);
+			if (result && result.text.length >= MIN_USEFUL_CLIENT_TEXT) {
+				return {
+					text: result.text,
+					method: result.method,
+					uploadFile: result.overrideUploadFile ?? file
+				};
+			}
+			return { text: '', method: 'manual', uploadFile: file };
+		}
+
+		// Legacy .doc: server handles extraction.
+		if (mime === 'application/msword' || name.endsWith('.doc')) {
 			return { text: '', method: 'manual', uploadFile: file };
 		}
 
